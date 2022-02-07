@@ -1,0 +1,705 @@
+---
+title: "Free-Agency in the Tanking Era"
+author: "Erik Larsen"
+date: "1/16/2021"
+output: github_document
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(fig.show = TRUE)
+```
+
+## Load packages
+
+```{r include = TRUE, warning = FALSE, echo = TRUE, message = FALSE}
+library(readr)
+library(tidyverse)
+library(rvest)
+library(XML)
+library(ggplot2)
+library(ggrepel)
+library(ggpubr)
+```
+
+## Scrape Baseball Reference's Free Agent Contract Data
+
+```{r include = TRUE, warning = FALSE, echo = TRUE, message = FALSE}
+##### Scrape baseball-reference's free-agent contract data #####
+css_selector = "#fa_signings"
+
+FA_2018 = read_html("https://www.baseball-reference.com/leagues/majors/2018-free-agents.shtml") %>% 
+  html_element(css = css_selector) %>%
+  html_table()
+
+FA_2019 = read_html("https://www.baseball-reference.com/leagues/majors/2019-free-agents.shtml") %>% 
+  html_element(css = css_selector) %>%
+  html_table()
+
+FA_2017 = read_html("https://www.baseball-reference.com/leagues/majors/2017-free-agents.shtml") %>% 
+  html_element(css = css_selector) %>%
+  html_table()
+
+FA_2016 = read_html("https://www.baseball-reference.com/leagues/majors/2016-free-agents.shtml") %>% 
+  html_element(css = css_selector) %>%
+  html_table()
+```
+
+## Scrape ESPN's Free Agent Tracker Data
+
+```{r include = TRUE, warning = FALSE, echo = TRUE, message = FALSE}
+##### Scrape ESPN's free-agent contract data #####
+## ESPN 2021 free-agent signings
+ESPN_selector = "#my-players-table"
+
+ESPN2021_FAs = read_html("https://www.espn.com/mlb/freeagents/_/year/2021/type/signed") %>%
+  html_element(css = ESPN_selector) %>%
+  html_table()
+
+## ESPN 2020 free-agent signings
+ESPN2020_FAs = read_html("https://www.espn.com/mlb/freeagents/_/year/2020/type/signed") %>%
+  html_element(css = ESPN_selector) %>%
+  html_table()
+
+## ESPN 2019 free-agent signings
+ESPN2019_FAs = read_html("https://www.espn.com/mlb/freeagents/_/year/2019/type/signed") %>%
+  html_element(css = ESPN_selector) %>%
+  html_table()
+
+## ESPN 2018 free-agent signings
+ESPN2018_FAs = read_html("https://www.espn.com/mlb/freeagents/_/year/2018/type/signed") %>%
+  html_element(css = ESPN_selector) %>%
+  html_table()
+
+## ESPN 2017 free-agent signings
+ESPN2017_FAs = read_html("https://www.espn.com/mlb/freeagents/_/year/2017/type/signed") %>%
+  html_element(css = ESPN_selector) %>%
+  html_table()
+
+## ESPN 2016 free-agent signings
+ESPN2016_FAs = read_html("https://www.espn.com/mlb/freeagents/_/year/2016/type/signed") %>%
+  html_element(css = ESPN_selector) %>%
+  html_table()
+
+## ESPN 2015 free-agent signings
+ESPN2015_FAs = read_html("https://www.espn.com/mlb/freeagents/_/year/2015/type/signed") %>%
+  html_element(css = ESPN_selector) %>%
+  html_table()
+
+## ESPN 2014 free-agent signings
+ESPN2014_FAs = read_html("https://www.espn.com/mlb/freeagents/_/year/2014/type/signed") %>%
+  html_element(css = ESPN_selector) %>%
+  html_table()
+
+## ESPN 2013 free-agent signings
+ESPN2013_FAs = read_html("https://www.espn.com/mlb/freeagents/_/year/2013/type/signed") %>%
+  html_element(css = ESPN_selector) %>%
+  html_table()
+
+## ESPN 2012 free-agent signings
+ESPN2012_FAs = read_html("https://www.espn.com/mlb/freeagents/_/year/2012/type/signed") %>%
+  html_element(css = ESPN_selector) %>%
+  html_table()
+
+## ESPN 2011 free-agent signings
+ESPN2011_FAs = read_html("https://www.espn.com/mlb/freeagents/_/year/2011/type/signed") %>%
+  html_element(css = ESPN_selector) %>%
+  html_table()
+
+```
+
+## Clean ESPN's data
+
+Create a function that "cleans" ESPN's dfs (not shown)
+```{r include = TRUE, warning = FALSE, echo = FALSE, message = FALSE}
+  ## Create a function that cleans the ESPN FA dfs
+clean_ESPN_FA_fn = function(df, Year){
+  df = df[ -c(1,nrow(df)), -c(4,5,8)]
+  df = df[ -which(df$X1 == "PLAYER"), ]
+  
+  ## Duplicate the total value column
+  df$TotalValue = df$X9
+  
+  ## Add a column of character values, describing whether the contract was a minors contract
+  df$Type = ""
+  ## Fill values of Minor Lg contracts with "MiLB" string
+  
+  if ( length(
+    which(grepl(df$X9, pattern = "Minor Lg") == TRUE)
+  ) > 0){
+    df$Type[ which(grepl(df$X9, pattern = "Minor Lg") == TRUE) ] = "MiLB"
+  } 
+  if ( length(
+    which(grepl(df$X9, pattern = "--") == TRUE) 
+  ) > 0 ){
+    df$Type[ which(grepl(df$X9, pattern = "--") == TRUE) ] = "Undisclosed"
+  }
+  df$Type[ which(grepl(df$X9, pattern = "\\,") == TRUE) ] = "MLB"
+  
+  ## Change undisclosed contract values to 0
+  df$X9[ which(grepl(df$X9, pattern = "--") == TRUE) ] = 0
+  ## Change minor league deal values to 0
+  df$X9[ which(grepl(df$X9, pattern = "Minor Lg") == TRUE) ] = 0
+  
+  ## Change undisclosed contract values to 0
+  df$TotalValue[ which(grepl(df$TotalValue, pattern = "--") == TRUE) ] = 0
+  ## Change minor league deal values to 0
+  df$TotalValue[ which(grepl(df$TotalValue, pattern = "Minor Lg") == TRUE) ] = 0
+  
+  ## Remove dollar signs and commas from value; replace ,s and divide by 1M to display values in terms of millions of dollars
+  df$X9 = gsub(df$X9, pattern = "\\$", replacement = "")
+  df$X9 = gsub(df$X9, pattern = "\\,", replacement = "")
+  df$TotalValue = gsub(df$TotalValue, pattern = "\\$", replacement = "")
+  df$TotalValue = gsub(df$TotalValue, pattern = "\\,", replacement = "")
+  df$TotalValue = as.numeric(df$TotalValue) / 1000000
+  df$X9 = (as.numeric(df$X9) / as.numeric(df$X7)) / 1000000
+  df = add_column(df, Year = "", .before = 2)
+  df[,2] = Year
+  colnames(df)[c(1,3:7)] = c("Name", "Position", "Age", "Team", "Years", "AAV")
+  
+  return(df)
+}
+```
+Call each df into the function and overwrite the variable
+```{r include = TRUE, warning = FALSE, echo = TRUE, message = FALSE}
+ESPN2011_FAs = clean_ESPN_FA_fn(df = ESPN2011_FAs, Year = "2011")
+ESPN2012_FAs = clean_ESPN_FA_fn(df = ESPN2012_FAs, Year = "2012")
+ESPN2013_FAs = clean_ESPN_FA_fn(df = ESPN2013_FAs, Year = "2013")
+ESPN2014_FAs = clean_ESPN_FA_fn(df = ESPN2014_FAs, Year = "2014")
+ESPN2015_FAs = clean_ESPN_FA_fn(df = ESPN2015_FAs, Year = "2015")
+ESPN2016_FAs = clean_ESPN_FA_fn(df = ESPN2016_FAs, Year = "2016")
+ESPN2017_FAs = clean_ESPN_FA_fn(df = ESPN2017_FAs, Year = "2017")
+ESPN2018_FAs = clean_ESPN_FA_fn(df = ESPN2018_FAs, Year = "2018")
+ESPN2019_FAs = clean_ESPN_FA_fn(df = ESPN2019_FAs, Year = "2019")
+ESPN2020_FAs = clean_ESPN_FA_fn(df = ESPN2020_FAs, Year = "2020")
+ESPN2021_FAs = clean_ESPN_FA_fn(df = ESPN2021_FAs, Year = "2021")
+```
+
+Add an "Age" column that contains the player's age at the time of signing.
+All values are relative to when the data was accessed (year 2021), so adjust each df's values accordingly.
+```{r include = TRUE, warning = FALSE, echo = TRUE, message = FALSE}
+ESPN2011_FAs$Age = as.numeric(ESPN2011_FAs$Age) - 10
+ESPN2012_FAs$Age = as.numeric(ESPN2012_FAs$Age) - 9
+ESPN2013_FAs$Age = as.numeric(ESPN2013_FAs$Age) - 8
+ESPN2014_FAs$Age = as.numeric(ESPN2014_FAs$Age) - 7
+ESPN2015_FAs$Age = as.numeric(ESPN2015_FAs$Age) - 6
+ESPN2016_FAs$Age = as.numeric(ESPN2016_FAs$Age) - 5
+ESPN2017_FAs$Age = as.numeric(ESPN2017_FAs$Age) - 4
+ESPN2018_FAs$Age = as.numeric(ESPN2018_FAs$Age) - 3
+ESPN2019_FAs$Age = as.numeric(ESPN2019_FAs$Age) - 2
+ESPN2020_FAs$Age = as.numeric(ESPN2020_FAs$Age) - 1
+ESPN2021_FAs$Age = as.numeric(ESPN2021_FAs$Age)
+```
+
+Combine the dfs
+```{r include = TRUE, warning = FALSE, echo = TRUE, message = FALSE}
+ESPN = bind_rows(ESPN2011_FAs, ESPN2012_FAs, ESPN2013_FAs, ESPN2014_FAs, ESPN2015_FAs,
+          ESPN2016_FAs, ESPN2017_FAs, ESPN2018_FAs, ESPN2019_FAs, ESPN2020_FAs,
+          ESPN2021_FAs)
+```
+
+```{r include = TRUE, warning = FALSE, echo = FALSE, message = FALSE}
+ESPN = ESPN[ -which(ESPN$Team == "Japan"), ]
+ESPN = ESPN[ -which(ESPN$Type == "Undisclosed"), ]
+```
+
+Create a df to house compiled contract data from the ESPN dfs
+```{r include = TRUE, warning = FALSE, echo = TRUE, message = FALSE}
+  ## Create a 11x14 matrix
+FREE_AGENTS = matrix(nrow = 11, ncol = 14)
+  ## Convert to dataframe
+FREE_AGENTS = as.data.frame(FREE_AGENTS)
+  ## Add column names
+colnames(FREE_AGENTS) = c("Year", "ML Deals", "MiL Deals", "Total Deals", "% ML Deals", "Total Spent",
+                          "Avg. Total Contract", "Avg. Length", "Med. Length", "Avg. AAV",
+                          "Med. Total Contract", "Med. AAV", "Avg. Age", "Med. Age")
+  ## Loop through and add year values to the year column
+for (i in 1:nrow(FREE_AGENTS)){
+  FREE_AGENTS[i,1] = seq(2011, 2021, 1)[i]
+}
+```
+
+Populate the dataframe (not shown)
+```{r include = TRUE, warning = FALSE, echo = FALSE, message = FALSE}
+  ## Fill ML deals
+FREE_AGENTS[ 1 , 2 ] = length(which(ESPN2011_FAs$Type == "MLB"))
+FREE_AGENTS[ 2 , 2 ] = length(which(ESPN2012_FAs$Type == "MLB"))
+FREE_AGENTS[ 3 , 2 ] = length(which(ESPN2013_FAs$Type == "MLB"))
+FREE_AGENTS[ 4 , 2 ] = length(which(ESPN2014_FAs$Type == "MLB"))
+FREE_AGENTS[ 5 , 2 ] = length(which(ESPN2015_FAs$Type == "MLB"))
+FREE_AGENTS[ 6 , 2 ] = length(which(ESPN2016_FAs$Type == "MLB"))
+FREE_AGENTS[ 7 , 2 ] = length(which(ESPN2017_FAs$Type == "MLB"))
+FREE_AGENTS[ 8 , 2 ] = length(which(ESPN2018_FAs$Type == "MLB"))
+FREE_AGENTS[ 9 , 2 ] = length(which(ESPN2019_FAs$Type == "MLB"))
+FREE_AGENTS[ 10 , 2 ] = length(which(ESPN2020_FAs$Type == "MLB"))
+FREE_AGENTS[ 11 , 2 ] = length(which(ESPN2021_FAs$Type == "MLB"))
+  ## Fill MiL deals
+FREE_AGENTS[ 1 , 3 ] = length(which(ESPN2011_FAs$Type == "MiLB"))
+FREE_AGENTS[ 2 , 3 ] = length(which(ESPN2012_FAs$Type == "MiLB"))
+FREE_AGENTS[ 3 , 3 ] = length(which(ESPN2013_FAs$Type == "MiLB"))
+FREE_AGENTS[ 4 , 3 ] = length(which(ESPN2014_FAs$Type == "MiLB"))
+FREE_AGENTS[ 5 , 3 ] = length(which(ESPN2015_FAs$Type == "MiLB"))
+FREE_AGENTS[ 6 , 3 ] = length(which(ESPN2016_FAs$Type == "MiLB"))
+FREE_AGENTS[ 7 , 3 ] = length(which(ESPN2017_FAs$Type == "MiLB"))
+FREE_AGENTS[ 8 , 3 ] = length(which(ESPN2018_FAs$Type == "MiLB"))
+FREE_AGENTS[ 9 , 3 ] = length(which(ESPN2019_FAs$Type == "MiLB"))
+FREE_AGENTS[ 10 , 3 ] = length(which(ESPN2020_FAs$Type == "MiLB"))
+FREE_AGENTS[ 11 , 3 ] = length(which(ESPN2021_FAs$Type == "MiLB"))
+  ## Fill Total Deals
+FREE_AGENTS[ 1 , 4 ] = length(which(ESPN2011_FAs$Type != "Undisclosed"))
+FREE_AGENTS[ 2 , 4 ] = length(which(ESPN2012_FAs$Type != "Undisclosed"))
+FREE_AGENTS[ 3 , 4 ] = length(which(ESPN2013_FAs$Type != "Undisclosed"))
+FREE_AGENTS[ 4 , 4 ] = length(which(ESPN2014_FAs$Type != "Undisclosed"))
+FREE_AGENTS[ 5 , 4 ] = length(which(ESPN2015_FAs$Type != "Undisclosed"))
+FREE_AGENTS[ 6 , 4 ] = length(which(ESPN2016_FAs$Type != "Undisclosed"))
+FREE_AGENTS[ 7 , 4 ] = length(which(ESPN2017_FAs$Type != "Undisclosed"))
+FREE_AGENTS[ 8 , 4 ] = length(which(ESPN2018_FAs$Type != "Undisclosed"))
+FREE_AGENTS[ 9 , 4 ] = length(which(ESPN2019_FAs$Type != "Undisclosed"))
+FREE_AGENTS[ 10 , 4 ] = length(which(ESPN2020_FAs$Type != "Undisclosed"))
+FREE_AGENTS[ 11 , 4 ] = length(which(ESPN2021_FAs$Type != "Undisclosed"))
+  ## Fill % ML deals
+FREE_AGENTS[ 1 , 5 ] = length(which(ESPN2011_FAs$Type == "MLB")) / length(which(ESPN2011_FAs$Type != "Undisclosed"))
+FREE_AGENTS[ 2 , 5 ] = length(which(ESPN2012_FAs$Type == "MLB")) / length(which(ESPN2012_FAs$Type != "Undisclosed"))
+FREE_AGENTS[ 3 , 5 ] = length(which(ESPN2013_FAs$Type == "MLB")) / length(which(ESPN2013_FAs$Type != "Undisclosed"))
+FREE_AGENTS[ 4 , 5 ] = length(which(ESPN2014_FAs$Type == "MLB")) / length(which(ESPN2014_FAs$Type != "Undisclosed"))
+FREE_AGENTS[ 5 , 5 ] = length(which(ESPN2015_FAs$Type == "MLB")) / length(which(ESPN2015_FAs$Type != "Undisclosed"))
+FREE_AGENTS[ 6 , 5 ] = length(which(ESPN2016_FAs$Type == "MLB")) / length(which(ESPN2016_FAs$Type != "Undisclosed"))
+FREE_AGENTS[ 7 , 5 ] = length(which(ESPN2017_FAs$Type == "MLB")) / length(which(ESPN2017_FAs$Type != "Undisclosed"))
+FREE_AGENTS[ 8 , 5 ] = length(which(ESPN2018_FAs$Type == "MLB")) / length(which(ESPN2018_FAs$Type != "Undisclosed"))
+FREE_AGENTS[ 9 , 5 ] = length(which(ESPN2019_FAs$Type == "MLB")) / length(which(ESPN2019_FAs$Type != "Undisclosed"))
+FREE_AGENTS[ 10 , 5 ] = length(which(ESPN2020_FAs$Type == "MLB")) / length(which(ESPN2020_FAs$Type != "Undisclosed"))
+FREE_AGENTS[ 11 , 5 ] = length(which(ESPN2021_FAs$Type == "MLB")) / length(which(ESPN2021_FAs$Type != "Undisclosed"))
+FREE_AGENTS[ ,5] = round(FREE_AGENTS[ ,5]*100, digits = 2)
+  ## Total $ spent
+FREE_AGENTS[ 1 , 6 ] = sum(ESPN2011_FAs$TotalValue[which(ESPN2011_FAs$Type == "MLB")])
+FREE_AGENTS[ 2 , 6 ] = sum(ESPN2012_FAs$TotalValue[which(ESPN2012_FAs$Type == "MLB")])
+FREE_AGENTS[ 3 , 6 ] = sum(ESPN2013_FAs$TotalValue[which(ESPN2013_FAs$Type == "MLB")])
+FREE_AGENTS[ 4 , 6 ] = sum(ESPN2014_FAs$TotalValue[which(ESPN2014_FAs$Type == "MLB")])
+FREE_AGENTS[ 5 , 6 ] = sum(ESPN2015_FAs$TotalValue[which(ESPN2015_FAs$Type == "MLB")])
+FREE_AGENTS[ 6 , 6 ] = sum(ESPN2016_FAs$TotalValue[which(ESPN2016_FAs$Type == "MLB")])
+FREE_AGENTS[ 7 , 6 ] = sum(ESPN2017_FAs$TotalValue[which(ESPN2017_FAs$Type == "MLB")])
+FREE_AGENTS[ 8 , 6 ] = sum(ESPN2018_FAs$TotalValue[which(ESPN2018_FAs$Type == "MLB")])
+FREE_AGENTS[ 9 , 6 ] = sum(ESPN2019_FAs$TotalValue[which(ESPN2019_FAs$Type == "MLB")])
+FREE_AGENTS[ 10 , 6 ] = sum(ESPN2020_FAs$TotalValue[which(ESPN2020_FAs$Type == "MLB")])
+FREE_AGENTS[ 11 , 6 ] = sum(ESPN2021_FAs$TotalValue[which(ESPN2021_FAs$Type == "MLB")])
+FREE_AGENTS[ , 6] = FREE_AGENTS[ , 6]/1000
+  ## Fill Average Total Contract
+FREE_AGENTS[ 1 , 7 ] = mean(ESPN2011_FAs$TotalValue[which(ESPN2011_FAs$Type == "MLB")])
+FREE_AGENTS[ 2 , 7 ] = mean(ESPN2012_FAs$TotalValue[which(ESPN2012_FAs$Type == "MLB")])
+FREE_AGENTS[ 3 , 7 ] = mean(ESPN2013_FAs$TotalValue[which(ESPN2013_FAs$Type == "MLB")])
+FREE_AGENTS[ 4 , 7 ] = mean(ESPN2014_FAs$TotalValue[which(ESPN2014_FAs$Type == "MLB")])
+FREE_AGENTS[ 5 , 7 ] = mean(ESPN2015_FAs$TotalValue[which(ESPN2015_FAs$Type == "MLB")])
+FREE_AGENTS[ 6 , 7 ] = mean(ESPN2016_FAs$TotalValue[which(ESPN2016_FAs$Type == "MLB")])
+FREE_AGENTS[ 7 , 7 ] = mean(ESPN2017_FAs$TotalValue[which(ESPN2017_FAs$Type == "MLB")])
+FREE_AGENTS[ 8 , 7 ] = mean(ESPN2018_FAs$TotalValue[which(ESPN2018_FAs$Type == "MLB")])
+FREE_AGENTS[ 9 , 7 ] = mean(ESPN2019_FAs$TotalValue[which(ESPN2019_FAs$Type == "MLB")])
+FREE_AGENTS[ 10 , 7 ] = mean(ESPN2020_FAs$TotalValue[which(ESPN2020_FAs$Type == "MLB")])
+FREE_AGENTS[ 11 , 7 ] = mean(ESPN2021_FAs$TotalValue[which(ESPN2021_FAs$Type == "MLB")])
+  ## Fill Average Length
+FREE_AGENTS[ 1 , 8 ] = mean(as.numeric(ESPN2011_FAs$Years[which(ESPN2011_FAs$Type == "MLB")]))
+FREE_AGENTS[ 2 , 8 ] = mean(as.numeric(ESPN2012_FAs$Years[which(ESPN2012_FAs$Type == "MLB")]))
+FREE_AGENTS[ 3 , 8 ] = mean(as.numeric(ESPN2013_FAs$Years[which(ESPN2013_FAs$Type == "MLB")]))
+FREE_AGENTS[ 4 , 8 ] = mean(as.numeric(ESPN2014_FAs$Years[which(ESPN2014_FAs$Type == "MLB")]))
+FREE_AGENTS[ 5 , 8 ] = mean(as.numeric(ESPN2015_FAs$Years[which(ESPN2015_FAs$Type == "MLB")]))
+FREE_AGENTS[ 6 , 8 ] = mean(as.numeric(ESPN2016_FAs$Years[which(ESPN2016_FAs$Type == "MLB")]))
+FREE_AGENTS[ 7 , 8 ] = mean(as.numeric(ESPN2017_FAs$Years[which(ESPN2017_FAs$Type == "MLB")]))
+FREE_AGENTS[ 8 , 8 ] = mean(as.numeric(ESPN2018_FAs$Years[which(ESPN2018_FAs$Type == "MLB")]))
+FREE_AGENTS[ 9 , 8 ] = mean(as.numeric(ESPN2019_FAs$Years[which(ESPN2019_FAs$Type == "MLB")]))
+FREE_AGENTS[ 10 , 8 ] = mean(as.numeric(ESPN2020_FAs$Years[which(ESPN2020_FAs$Type == "MLB")]))
+FREE_AGENTS[ 11 , 8 ] = mean(as.numeric(ESPN2021_FAs$Years[which(ESPN2021_FAs$Type == "MLB")]))
+  ## Fill Median Length
+FREE_AGENTS[ 1 , 9 ] = median(as.numeric(ESPN2011_FAs$Years[which(ESPN2011_FAs$Type == "MLB")]))
+FREE_AGENTS[ 2 , 9 ] = median(as.numeric(ESPN2012_FAs$Years[which(ESPN2012_FAs$Type == "MLB")]))
+FREE_AGENTS[ 3 , 9 ] = median(as.numeric(ESPN2013_FAs$Years[which(ESPN2013_FAs$Type == "MLB")]))
+FREE_AGENTS[ 4 , 9 ] = median(as.numeric(ESPN2014_FAs$Years[which(ESPN2014_FAs$Type == "MLB")]))
+FREE_AGENTS[ 5 , 9 ] = median(as.numeric(ESPN2015_FAs$Years[which(ESPN2015_FAs$Type == "MLB")]))
+FREE_AGENTS[ 6 , 9 ] = median(as.numeric(ESPN2016_FAs$Years[which(ESPN2016_FAs$Type == "MLB")]))
+FREE_AGENTS[ 7 , 9 ] = median(as.numeric(ESPN2017_FAs$Years[which(ESPN2017_FAs$Type == "MLB")]))
+FREE_AGENTS[ 8 , 9 ] = median(as.numeric(ESPN2018_FAs$Years[which(ESPN2018_FAs$Type == "MLB")]))
+FREE_AGENTS[ 9 , 9 ] = median(as.numeric(ESPN2019_FAs$Years[which(ESPN2019_FAs$Type == "MLB")]))
+FREE_AGENTS[ 10 , 9 ] = median(as.numeric(ESPN2020_FAs$Years[which(ESPN2020_FAs$Type == "MLB")]))
+FREE_AGENTS[ 11 , 9 ] = median(as.numeric(ESPN2021_FAs$Years[which(ESPN2021_FAs$Type == "MLB")]))
+  ## Fill Average AAV
+FREE_AGENTS[ 1 , 10 ] = mean(ESPN2011_FAs$AAV[which(ESPN2011_FAs$Type == "MLB")])
+FREE_AGENTS[ 2 , 10 ] = mean(ESPN2012_FAs$AAV[which(ESPN2012_FAs$Type == "MLB")])
+FREE_AGENTS[ 3 , 10 ] = mean(ESPN2013_FAs$AAV[which(ESPN2013_FAs$Type == "MLB")])
+FREE_AGENTS[ 4 , 10 ] = mean(ESPN2014_FAs$AAV[which(ESPN2014_FAs$Type == "MLB")])
+FREE_AGENTS[ 5 , 10 ] = mean(ESPN2015_FAs$AAV[which(ESPN2015_FAs$Type == "MLB")])
+FREE_AGENTS[ 6 , 10 ] = mean(ESPN2016_FAs$AAV[which(ESPN2016_FAs$Type == "MLB")])
+FREE_AGENTS[ 7 , 10 ] = mean(ESPN2017_FAs$AAV[which(ESPN2017_FAs$Type == "MLB")])
+FREE_AGENTS[ 8 , 10 ] = mean(ESPN2018_FAs$AAV[which(ESPN2018_FAs$Type == "MLB")])
+FREE_AGENTS[ 9 , 10 ] = mean(ESPN2019_FAs$AAV[which(ESPN2019_FAs$Type == "MLB")])
+FREE_AGENTS[ 10 , 10 ] = mean(ESPN2020_FAs$AAV[which(ESPN2020_FAs$Type == "MLB")])
+FREE_AGENTS[ 11 , 10 ] = mean(ESPN2021_FAs$AAV[which(ESPN2021_FAs$Type == "MLB")])
+  ## Fill Median Total Contract
+FREE_AGENTS[ 1 , 11 ] = median(ESPN2011_FAs$TotalValue[which(ESPN2011_FAs$Type == "MLB")])
+FREE_AGENTS[ 2 , 11 ] = median(ESPN2012_FAs$TotalValue[which(ESPN2012_FAs$Type == "MLB")])
+FREE_AGENTS[ 3 , 11 ] = median(ESPN2013_FAs$TotalValue[which(ESPN2013_FAs$Type == "MLB")])
+FREE_AGENTS[ 4 , 11 ] = median(ESPN2014_FAs$TotalValue[which(ESPN2014_FAs$Type == "MLB")])
+FREE_AGENTS[ 5 , 11 ] = median(ESPN2015_FAs$TotalValue[which(ESPN2015_FAs$Type == "MLB")])
+FREE_AGENTS[ 6 , 11 ] = median(ESPN2016_FAs$TotalValue[which(ESPN2016_FAs$Type == "MLB")])
+FREE_AGENTS[ 7 , 11 ] = median(ESPN2017_FAs$TotalValue[which(ESPN2017_FAs$Type == "MLB")])
+FREE_AGENTS[ 8 , 11 ] = median(ESPN2018_FAs$TotalValue[which(ESPN2018_FAs$Type == "MLB")])
+FREE_AGENTS[ 9 , 11 ] = median(ESPN2019_FAs$TotalValue[which(ESPN2019_FAs$Type == "MLB")])
+FREE_AGENTS[ 10 , 11 ] = median(ESPN2020_FAs$TotalValue[which(ESPN2020_FAs$Type == "MLB")])
+FREE_AGENTS[ 11 , 11 ] = median(ESPN2021_FAs$TotalValue[which(ESPN2021_FAs$Type == "MLB")])
+  ## Fill Median AAV
+FREE_AGENTS[ 1 , 12 ] = median(ESPN2011_FAs$AAV[which(ESPN2011_FAs$Type == "MLB")])
+FREE_AGENTS[ 2 , 12 ] = median(ESPN2012_FAs$AAV[which(ESPN2012_FAs$Type == "MLB")])
+FREE_AGENTS[ 3 , 12 ] = median(ESPN2013_FAs$AAV[which(ESPN2013_FAs$Type == "MLB")])
+FREE_AGENTS[ 4 , 12 ] = median(ESPN2014_FAs$AAV[which(ESPN2014_FAs$Type == "MLB")])
+FREE_AGENTS[ 5 , 12 ] = median(ESPN2015_FAs$AAV[which(ESPN2015_FAs$Type == "MLB")])
+FREE_AGENTS[ 6 , 12 ] = median(ESPN2016_FAs$AAV[which(ESPN2016_FAs$Type == "MLB")])
+FREE_AGENTS[ 7 , 12 ] = median(ESPN2017_FAs$AAV[which(ESPN2017_FAs$Type == "MLB")])
+FREE_AGENTS[ 8 , 12 ] = median(ESPN2018_FAs$AAV[which(ESPN2018_FAs$Type == "MLB")])
+FREE_AGENTS[ 9 , 12 ] = median(ESPN2019_FAs$AAV[which(ESPN2019_FAs$Type == "MLB")])
+FREE_AGENTS[ 10 , 12 ] = median(ESPN2020_FAs$AAV[which(ESPN2020_FAs$Type == "MLB")])
+FREE_AGENTS[ 11 , 12 ] = median(ESPN2021_FAs$AAV[which(ESPN2021_FAs$Type == "MLB")])
+  ## Fill Average Age
+FREE_AGENTS[ 1 , 13 ] = mean(as.numeric(ESPN2011_FAs$Age[which(ESPN2011_FAs$Type == "MLB")]))
+FREE_AGENTS[ 2 , 13 ] = mean(as.numeric(ESPN2012_FAs$Age[which(ESPN2012_FAs$Type == "MLB")]))
+FREE_AGENTS[ 3 , 13 ] = mean(as.numeric(ESPN2013_FAs$Age[which(ESPN2013_FAs$Type == "MLB")]))
+FREE_AGENTS[ 4 , 13 ] = mean(as.numeric(ESPN2014_FAs$Age[which(ESPN2014_FAs$Type == "MLB")]))
+FREE_AGENTS[ 5 , 13 ] = mean(as.numeric(ESPN2015_FAs$Age[which(ESPN2015_FAs$Type == "MLB")]))
+FREE_AGENTS[ 6 , 13 ] = mean(as.numeric(ESPN2016_FAs$Age[which(ESPN2016_FAs$Type == "MLB")]))
+FREE_AGENTS[ 7 , 13 ] = mean(as.numeric(ESPN2017_FAs$Age[which(ESPN2017_FAs$Type == "MLB")]))
+FREE_AGENTS[ 8 , 13 ] = mean(as.numeric(ESPN2018_FAs$Age[which(ESPN2018_FAs$Type == "MLB")]))
+FREE_AGENTS[ 9 , 13 ] = mean(as.numeric(ESPN2019_FAs$Age[which(ESPN2019_FAs$Type == "MLB")]))
+FREE_AGENTS[ 10 , 13 ] = mean(as.numeric(ESPN2020_FAs$Age[which(ESPN2020_FAs$Type == "MLB")]))
+FREE_AGENTS[ 11 , 13 ] = mean(as.numeric(ESPN2021_FAs$Age[which(ESPN2021_FAs$Type == "MLB")]))
+  ## Fill Median Age
+FREE_AGENTS[ 1 , 14 ] = median(as.numeric(ESPN2011_FAs$Age[which(ESPN2011_FAs$Type == "MLB")]))
+FREE_AGENTS[ 2 , 14 ] = median(as.numeric(ESPN2012_FAs$Age[which(ESPN2012_FAs$Type == "MLB")]))
+FREE_AGENTS[ 3 , 14 ] = median(as.numeric(ESPN2013_FAs$Age[which(ESPN2013_FAs$Type == "MLB")]))
+FREE_AGENTS[ 4 , 14 ] = median(as.numeric(ESPN2014_FAs$Age[which(ESPN2014_FAs$Type == "MLB")]))
+FREE_AGENTS[ 5 , 14 ] = median(as.numeric(ESPN2015_FAs$Age[which(ESPN2015_FAs$Type == "MLB")]))
+FREE_AGENTS[ 6 , 14 ] = median(as.numeric(ESPN2016_FAs$Age[which(ESPN2016_FAs$Type == "MLB")]))
+FREE_AGENTS[ 7 , 14 ] = median(as.numeric(ESPN2017_FAs$Age[which(ESPN2017_FAs$Type == "MLB")]))
+FREE_AGENTS[ 8 , 14 ] = median(as.numeric(ESPN2018_FAs$Age[which(ESPN2018_FAs$Type == "MLB")]))
+FREE_AGENTS[ 9 , 14 ] = median(as.numeric(ESPN2019_FAs$Age[which(ESPN2019_FAs$Type == "MLB")]))
+FREE_AGENTS[ 10 , 14 ] = median(as.numeric(ESPN2020_FAs$Age[which(ESPN2020_FAs$Type == "MLB")]))
+FREE_AGENTS[ 11 , 14 ] = median(as.numeric(ESPN2021_FAs$Age[which(ESPN2021_FAs$Type == "MLB")]))
+```
+
+## Graphs
+
+Graph the total number of major league contracts signed and the total money spent on those contracts (from 2011-2021)
+```{r include = TRUE, warning = FALSE, echo = FALSE, message = FALSE, render = TRUE}
+  ## Total Contracts Signed
+MLdealTotTrend = ggplot(data = FREE_AGENTS, aes(x = Year)) +
+  geom_line(aes(y = `ML Deals`, color = "ML Deals"))+
+  geom_point(aes(y = `ML Deals`, color = "ML Deals")) +
+  labs(title = "Total ML Contracts Signed\n2011-2021", x = "Off-Season", y = "# of Signed ML Contracts", color = "Stat") + 
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5, size = 15),
+        legend.position = "none",
+        axis.ticks.x = element_blank(),
+        panel.grid.major.x =  element_line(color = "gray96", seq(2011,2021,1)),
+        panel.grid.minor.x = element_blank(),
+        panel.grid.minor.y = element_blank(),
+        axis.text = element_text(size = 10),
+        axis.title = element_text(size = 13),
+        axis.text.x.bottom = element_text(angle = 45, vjust = 1, hjust = 1)) +
+  scale_x_continuous(breaks = seq(2011,2021,1), limits = c(2011,2021)) +
+  scale_y_continuous(breaks = seq(40,120,10))
+
+MLdealTotTrend = MLdealTotTrend +
+  scale_color_manual(values = c("black"))
+
+  ## Total Money Spent
+TotalMoneySpent = ggplot(data = FREE_AGENTS, aes(x = Year)) +
+  geom_line(aes(y = `Total Spent`, color = "Total $ Spent")) +
+  geom_point(aes(y = `Total Spent`, color = "Total $ Spent")) +
+  coord_cartesian(xlim = c(2011,2021), ylim = c(1,2.75)) +
+  labs(title = "Total Spent on ML Contracts\n2011-2021", x = "Off-Season", y = "Total Spent (in B $US)", color = "Stat") + 
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5, size = 15),
+        legend.position = "none",
+        axis.ticks.x = element_blank(),
+        panel.grid.major.x =  element_line(color = "gray96", seq(2011,2021,1)),
+        panel.grid.minor.x = element_blank(),
+        panel.grid.minor.y = element_blank(),
+        axis.text = element_text(size = 10),
+        axis.title = element_text(size = 13),
+        axis.text.x.bottom = element_text(angle = 45, vjust = 1, hjust = 1)) +
+  scale_x_continuous(breaks = seq(2011,2021), limits = c(2011,2021)) +
+  scale_y_continuous(breaks = seq(1,2.75,0.25), limits = c(1,2.75))
+
+TotalMoneySpent = TotalMoneySpent +
+  scale_color_manual(values = c("darkgoldenrod"))
+
+
+  ## Put together on one plot
+ggarrange(MLdealTotTrend, TotalMoneySpent, ncol = 2, nrow = 1, common.legend = FALSE, labels = "AUTO")
+```
+
+Graph the means and medians of total contract value, AAV, length of contract, and age of player for all major league free-agent deals from 2011-2021
+```{r include = TRUE, warning = FALSE, echo = FALSE, message = FALSE}
+
+  ## AAV
+MeanMedAAV = ggplot(data = FREE_AGENTS, aes(x = Year)) +
+  geom_line(aes(y = `Avg. AAV`, color = "Mean")) +
+  geom_point(aes(y = `Avg. AAV`, color = "Mean")) +
+  coord_cartesian(xlim = c(2011,2021), ylim = c(1,15)) +
+  labs(title = "ML Contract AAV\n2011-2021", x = "Off-Season", y = "Mean AAV (in M $US)", color = "Stat") + 
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5, size = 15),
+        legend.position = "none",
+        axis.ticks.x = element_blank(),
+        panel.grid.major.x =  element_line(color = "gray96", seq(2011,2021,1)),
+        panel.grid.minor.x = element_blank(),
+        panel.grid.minor.y = element_blank(),
+        axis.text = element_text(size = 10),
+        axis.title = element_text(size = 13),
+        axis.text.x.bottom = element_text(angle = 45, vjust = 1, hjust = 1),
+        axis.title.y.left = element_text(color = "blue"),
+        axis.title.y.right = element_text(color = "gold3")) +
+  scale_x_continuous(breaks = seq(2011,2021), limits = c(2011,2021)) +
+  scale_y_continuous(breaks = seq(1,15,2), limits = c(1,15))
+
+MeanMedAAV = MeanMedAAV +
+  geom_line(aes(y = `Med. AAV`, color = "Median")) +
+  geom_point(aes(y = `Med. AAV`, color = "Median"))
+MeanMedAAV = MeanMedAAV + scale_y_continuous(sec.axis = sec_axis(~.*1, name = "Median AAV (in M $US)"))
+MeanMedAAV = MeanMedAAV +
+  scale_color_manual(values = c("blue", "gold3"))
+
+
+  ## Contract length
+MeanMedLength = ggplot(data = FREE_AGENTS, aes(x = Year)) +
+  geom_line(aes(y = `Avg. Length`, color = "Mean")) +
+  geom_point(aes(y = `Avg. Length`, color = "Mean")) +
+  coord_cartesian(xlim = c(2011,2021), ylim = c(1,3)) +
+  labs(title = "ML Contract Length\n2011-2021", x = "Off-Season", y = "Mean ML\nContract Length (years)", color = "Stat") + 
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5, size = 15),
+        legend.position = "none",
+        axis.ticks.x = element_blank(),
+        panel.grid.major.x =  element_line(color = "gray96", seq(2011,2021,1)),
+        panel.grid.minor.x = element_blank(),
+        panel.grid.minor.y = element_blank(),
+        axis.text = element_text(size = 10),
+        axis.title = element_text(size = 13),
+        axis.text.x.bottom = element_text(angle = 45, vjust = 1, hjust = 1),
+        axis.title.y.left = element_text(color = "darkorange1"),
+        axis.title.y.right = element_text(color = "chartreuse4")) +
+  scale_x_continuous(breaks = seq(2011,2021), limits = c(2011,2021)) +
+  scale_y_continuous(breaks = seq(1,3,1), limits = c(1,3))
+
+MeanMedLength = MeanMedLength +
+  geom_line(aes(y = `Med. Length`, color = "Median")) +
+  geom_point(aes(y = `Med. Length`, color = "Median"))
+MeanMedLength = MeanMedLength + scale_y_continuous(sec.axis = sec_axis(~.*1, name = "Median ML\nContract Length (years)"))
+MeanMedLength = MeanMedLength +
+  scale_color_manual(values = c("darkorange1", "chartreuse4"))
+
+
+  ## Total Value
+MeanMedTotVal = ggplot(data = FREE_AGENTS, aes(x = Year)) +
+  geom_line(aes(y = `Avg. Total Contract`, color = "Mean")) +
+  geom_point(aes(y = `Avg. Total Contract`, color = "Mean")) +
+  coord_cartesian(xlim = c(2011,2021), ylim = c(1,50)) +
+  labs(title = "ML Total Contract Value\n2011-2021", x = "Off-Season", y = "Mean ML Total\nContract Value (in M $US)", color = "Stat") +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5, size = 15),
+        legend.position = "none",
+        axis.ticks.x = element_blank(),
+        panel.grid.major.x =  element_line(color = "gray96", seq(2011,2021,1)),
+        panel.grid.minor.x = element_blank(),
+        panel.grid.minor.y = element_blank(),
+        axis.text = element_text(size = 10),
+        axis.title = element_text(size = 13),
+        axis.text.x.bottom = element_text(angle = 45, vjust = 1, hjust = 1),
+        axis.title.y.left = element_text(color = "darkorchid4"),
+        axis.title.y.right = element_text(color = "firebrick")) +
+  scale_x_continuous(breaks = seq(2011,2021), limits = c(2011,2021)) +
+  scale_y_continuous(breaks = seq(1,50,5), limits = c(1,50))
+
+MeanMedTotVal = MeanMedTotVal +
+  geom_line(aes(y = `Med. Total Contract`, color = "Median")) +
+  geom_point(aes(y = `Med. Total Contract`, color = "Median"))
+MeanMedTotVal = MeanMedTotVal + scale_y_continuous(sec.axis = sec_axis(~.*1, name = "Median ML Total\nContract Value (in M $US)"))
+MeanMedTotVal = MeanMedTotVal +
+  scale_color_manual(values = c("darkorchid4", "firebrick"))
+
+  ## Age
+MeanMedAge = ggplot(data = FREE_AGENTS, aes(x = Year)) +
+  geom_line(aes(y = `Avg. Age`, color = "Mean")) +
+  geom_point(aes(y = `Avg. Age`, color = "Mean")) +
+  coord_cartesian(xlim = c(2011,2021), ylim = c(29,34)) +
+  labs(title = "ML Total Contract Age\n2011-2021", x = "Off-Season", y = "Mean Age (years)", color = "Stat") +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5, size = 15),
+        legend.position = "none",
+        axis.ticks.x = element_blank(),
+        panel.grid.major.x =  element_line(color = "gray96", seq(2011,2021,1)),
+        panel.grid.minor.x = element_blank(),
+        panel.grid.minor.y = element_blank(),
+        axis.text = element_text(size = 10),
+        axis.title = element_text(size = 13),
+        axis.text.x.bottom = element_text(angle = 45, vjust = 1, hjust = 1),
+        axis.title.y.left = element_text(color = "mediumorchid"),
+        axis.title.y.right = element_text(color = "navyblue")) +
+  scale_x_continuous(breaks = seq(2011,2021), limits = c(2011,2021)) +
+  scale_y_continuous(breaks = seq(29,34,5), limits = c(39,34))
+
+MeanMedAge = MeanMedAge +
+  geom_line(aes(y = `Med. Age`, color = "Median")) +
+  geom_point(aes(y = `Med. Age`, color = "Median"))
+MeanMedAge = MeanMedAge + scale_y_continuous(sec.axis = sec_axis(~.*1, name = "Median Age (years)"))
+MeanMedAge = MeanMedAge +
+  scale_color_manual(values = c("mediumorchid", "navyblue"))
+
+
+```
+
+```{r include = TRUE, message = FALSE, echo = TRUE, warning = FALSE, render = TRUE}
+  ## Graph on one plot
+ggarrange(MeanMedLength, MeanMedAAV, MeanMedTotVal, MeanMedAge,
+          ncol = 2, nrow = 2, common.legend = FALSE, labels = "AUTO")
+```
+
+Graph minor league contract trends.
+
++ First add the data (not shown)
+```{r include = TRUE, warning = FALSE, echo = FALSE, message = FALSE}
+FREE_AGENTS$MiLPerCent = 0
+FREE_AGENTS$MiLMeanAge = 0
+FREE_AGENTS$MiLMedAge = 0
+
+FREE_AGENTS$MiLPerCent = as.numeric(FREE_AGENTS$`MiL Deals`)/as.numeric(FREE_AGENTS$`Total Deals`)
+FREE_AGENTS$MiLPerCent = FREE_AGENTS$MiLPerCent*100
+
+FREE_AGENTS$MiLMeanAge[1] = mean(as.numeric(ESPN2011_FAs$Age[which(ESPN2011_FAs$Type == "MiLB")]))
+FREE_AGENTS$MiLMeanAge[2] = mean(as.numeric(ESPN2012_FAs$Age[which(ESPN2012_FAs$Type == "MiLB")]))
+FREE_AGENTS$MiLMeanAge[3] = mean(as.numeric(ESPN2013_FAs$Age[which(ESPN2013_FAs$Type == "MiLB")]))
+FREE_AGENTS$MiLMeanAge[4] = mean(as.numeric(ESPN2014_FAs$Age[which(ESPN2014_FAs$Type == "MiLB")]))
+FREE_AGENTS$MiLMeanAge[5] = mean(as.numeric(ESPN2015_FAs$Age[which(ESPN2015_FAs$Type == "MiLB")]))
+FREE_AGENTS$MiLMeanAge[6] = mean(as.numeric(ESPN2016_FAs$Age[which(ESPN2016_FAs$Type == "MiLB")]))
+FREE_AGENTS$MiLMeanAge[7] = mean(as.numeric(ESPN2017_FAs$Age[which(ESPN2017_FAs$Type == "MiLB")]))
+FREE_AGENTS$MiLMeanAge[8] = mean(as.numeric(ESPN2018_FAs$Age[which(ESPN2018_FAs$Type == "MiLB")]))
+FREE_AGENTS$MiLMeanAge[9] = mean(as.numeric(ESPN2019_FAs$Age[which(ESPN2019_FAs$Type == "MiLB")]))
+FREE_AGENTS$MiLMeanAge[10] = mean(as.numeric(ESPN2020_FAs$Age[which(ESPN2020_FAs$Type == "MiLB")]))
+FREE_AGENTS$MiLMeanAge[11] = 0
+## Fill Median Age
+FREE_AGENTS$MiLMedAge[1] = median(as.numeric(ESPN2011_FAs$Age[which(ESPN2011_FAs$Type == "MiLB")]))
+FREE_AGENTS$MiLMedAge[2] = median(as.numeric(ESPN2012_FAs$Age[which(ESPN2012_FAs$Type == "MiLB")]))
+FREE_AGENTS$MiLMedAge[3] = median(as.numeric(ESPN2013_FAs$Age[which(ESPN2013_FAs$Type == "MiLB")]))
+FREE_AGENTS$MiLMedAge[4] = median(as.numeric(ESPN2014_FAs$Age[which(ESPN2014_FAs$Type == "MiLB")]))
+FREE_AGENTS$MiLMedAge[5] = median(as.numeric(ESPN2015_FAs$Age[which(ESPN2015_FAs$Type == "MiLB")]))
+FREE_AGENTS$MiLMedAge[6] = median(as.numeric(ESPN2016_FAs$Age[which(ESPN2016_FAs$Type == "MiLB")]))
+FREE_AGENTS$MiLMedAge[7] = median(as.numeric(ESPN2017_FAs$Age[which(ESPN2017_FAs$Type == "MiLB")]))
+FREE_AGENTS$MiLMedAge[8] = median(as.numeric(ESPN2018_FAs$Age[which(ESPN2018_FAs$Type == "MiLB")]))
+FREE_AGENTS$MiLMedAge[9] = median(as.numeric(ESPN2019_FAs$Age[which(ESPN2019_FAs$Type == "MiLB")]))
+FREE_AGENTS$MiLMedAge[10] = median(as.numeric(ESPN2020_FAs$Age[which(ESPN2020_FAs$Type == "MiLB")]))
+FREE_AGENTS$MiLMedAge[11] = 0
+
+
+MiLdealPerCentTrend = ggplot(data = FREE_AGENTS, aes(x = Year)) +
+  geom_line(aes(y = `MiLPerCent`, color = "% MiL Deals")) +
+  geom_point(aes(y = `MiLPerCent`, color = "% MiL Deals")) +
+  coord_cartesian(xlim = c(2011,2021), ylim = c(0,50)) +
+  labs(title = "% MiL Contracts Signed\n2011-2021", x = "Off-Season", y = "% of All contracts signed\nthat are MiL", color = "Stat") + 
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5, size = 15),
+        legend.position = "none",
+        axis.ticks.x = element_blank(),
+        panel.grid.major.x =  element_line(color = "gray96", seq(2011,2021,1)),
+        panel.grid.minor.x = element_blank(),
+        panel.grid.minor.y = element_blank(),
+        axis.text = element_text(size = 10),
+        axis.title = element_text(size = 13),
+        axis.text.x.bottom = element_text(angle = 45, vjust = 1, hjust = 1)) +
+  scale_x_continuous(breaks = seq(2011,2021), limits = c(2011,2021)) +
+  scale_y_continuous(breaks = seq(0,50,10), limits = c(0,50))
+
+MiLdealPerCentTrend = MiLdealPerCentTrend +
+  scale_color_manual(values = c("mediumaquamarine"))
+
+
+MiLMedMeanAge = ggplot(data = FREE_AGENTS, aes(x = Year)) +
+  geom_line(aes(y = `MiLMeanAge`, color = "Mean")) +
+  geom_point(aes(y = `MiLMeanAge`, color = "Mean")) +
+  coord_cartesian(xlim = c(2011,2021), ylim = c(0,35)) +
+  labs(title = "MiL Contract Age\n2011-2021", x = "Off-Season", y = "Mean MiL Contract Age (years)", color = "Stat") + 
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5, size = 15),
+        legend.position = "none",
+        axis.ticks.x = element_blank(),
+        panel.grid.major.x =  element_line(color = "gray96", seq(2011,2021,1)),
+        panel.grid.minor.x = element_blank(),
+        panel.grid.minor.y = element_blank(),
+        axis.text = element_text(size = 10),
+        axis.title = element_text(size = 13),
+        axis.text.x.bottom = element_text(angle = 45, vjust = 1, hjust = 1),
+        axis.title.y.left = element_text(color = "darkgoldenrod4"),
+        axis.title.y.right = element_text(color = "navyblue")) +
+  scale_x_continuous(breaks = seq(2011,2021), limits = c(2011,2021)) +
+  scale_y_continuous(breaks = c(0,35,5), limits = c(0,35))
+
+MiLMedMeanAge = MiLMedMeanAge +
+  geom_line(aes(y = `MiLMedAge`, color = "Median")) +
+  geom_point(aes(y = `MiLMedAge`, color = "Median"))
+MiLMedMeanAge = MiLMedMeanAge + scale_y_continuous(sec.axis = sec_axis(~.*1, name = "Median MiL Contract Age (years)"))
+MiLMedMeanAge = MiLMedMeanAge +
+  scale_color_manual(values = c("darkgoldenrod4", "navyblue"))
+```
+
+
++ Now graph that data
+```{r include = TRUE, warning = FALSE, echo = TRUE, message = FALSE, render = TRUE}
+ggarrange(MiLdealPerCentTrend, MiLMedMeanAge, ncol = 2, nrow = 1, common.legend = FALSE, labels = "AUTO")
+```
+
+Graph the distributions of contracts; density plots by year, and boxplots of all teams from 2011-2019
+```{r include = TRUE, warning = FALSE, echo = FALSE, message = FALSE}
+  ## Team-wise boxplots of AAVs
+FA_AAV_bp = ggplot(ESPN, aes(x = Team, y = AAV, fill = Team)) +
+  theme_bw() +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        plot.title = element_text(hjust = 0.5, size = 16),
+        axis.title.x = element_text(size = 15),
+        axis.title.y = element_text(size = 15),
+        legend.position = "None",
+        axis.text.y = element_text(color = c("firebrick1", "orange3", "forestgreen", "deepskyblue", "firebrick", "navy", "firebrick3",
+                                             "dodgerblue", "darkred", "dodgerblue", "darkorange1", "darkblue","mediumseagreen", "black", "blue",
+                                             "red2", "darkorange1", "tan4", "red", "black", "blue", "navy", "firebrick", "red","black", "royalblue",
+                                             "midnightblue", "navy", "black", "navyblue"))) +
+  geom_boxplot() + 
+  scale_color_manual(values = c("firebrick1", "orange3", "forestgreen", "deepskyblue", "firebrick", "navy", "firebrick3",
+                                "dodgerblue", "darkred", "dodgerblue", "darkorange1", "darkblue", "mediumseagreen", "black",
+                                "blue", "red2", "darkorange1", "tan4", "red", "black", "blue", "navy", "firebrick", "red",
+                                "black", "royalblue", "midnightblue", "navy", "black", "navyblue")) +
+  scale_fill_manual(values = c("firebrick1", "orange3", "forestgreen", "deepskyblue", "firebrick", "navy", "firebrick3",
+                               "dodgerblue", "darkred", "dodgerblue", "darkorange1", "darkblue", "mediumseagreen", "black",
+                               "blue", "red2", "darkorange1", "tan4", "red", "black", "blue", "navy", "firebrick", "red",
+                               "black", "royalblue", "midnightblue", "navy", "black", "navyblue")) +
+  labs(x = "Team", y = "AAV (in M $US)", title = "Team-Wise Distributions of\nFA ML Contracts, 2011-2019") +
+  coord_flip()
+
+  ## Yearly densities
+    ## Subset the data
+ESPN = ESPN[ -c(which(ESPN$Year >= 2020)), ]
+
+AAVdensity = ggplot(ESPN, aes(x = AAV, color = Year, fill = Year)) +
+  geom_density(binwidth = 0.01, alpha = 0.2) +
+  scale_color_manual(values = c("black", "firebrick", "darkorange1", "darkgoldenrod1", "goldenrod3", "darkgreen",
+                                "darkslategray", "navyblue", "darkorchid1", "darkviolet", "deeppink3")) +
+  scale_fill_manual(values = c("black", "firebrick", "darkorange1", "darkgoldenrod1", "goldenrod3", "darkgreen",
+                               "darkslategray", "navyblue", "darkorchid1", "darkviolet", "deeppink3")) +
+  labs(title = "Density Dist. of FA Contracts\nfrom 2011-2019", x = "AAV (in M $US)", y = "Density", hjust = 0.5) +
+  theme_bw() +
+  theme(panel.grid = element_blank(),
+        plot.title = element_text(hjust = 0.5, size = 16),
+        legend.position = c(0.8,0.5),
+        axis.text = element_text(size = 12),
+        axis.title = element_text(size = 15),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 12))
+```
+
+
+```{r include = TRUE, warning = FALSE, echo = TRUE, message = FALSE, render = TRUE}
+ggarrange(AAVdensity, FA_AAV_bp, ncol = 2, nrow = 1, common.legend = FALSE, labels = "AUTO")
+```
