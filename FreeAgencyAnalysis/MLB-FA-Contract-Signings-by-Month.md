@@ -1,4 +1,4 @@
-MLB Free Agency during 2016 CBA
+MLB FA Contract Signing Trends During 2016 CBA
 ================
 
 ## Load packages
@@ -148,4 +148,4 @@ FAhist = ggplot(FA_2016_CBA, aes(x = factor(Date, levels = c("Oct", "Nov", "Dec"
 FAhist
 ```
 
-![](Free-Agency_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
+![](Free-Agency_files/figure-gfm/Nested%20Histogram%20of%20MLB%20FA%20Signings%20by%20Month-1.png)<!-- -->
