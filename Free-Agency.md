@@ -1,4 +1,4 @@
-MLB Free Agency during 2016 CBA
+MLB FA Contract Signing Date Trends During 2016 CBA
 ================
 
 ## Load packages
