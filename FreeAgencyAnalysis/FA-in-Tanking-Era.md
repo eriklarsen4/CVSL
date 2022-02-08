@@ -169,6 +169,7 @@ Populate the dataframe (not shown)
 
 Graph the total number of major league contracts signed and the total
 money spent on those contracts (from 2011-2021)
+
 ![](https://github.com/eriklarsen4/Baseball/blob/main/FreeAgencyAnalysis/FA%20in%20Tanking%20Era%20Figs/Global%20Major%20League%20FA%20Contract%20Trends-1.png)<!-- -->
 
 Graph the means and medians of total contract value, AAV, length of
