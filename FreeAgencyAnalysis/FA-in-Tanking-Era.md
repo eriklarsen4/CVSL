@@ -175,7 +175,7 @@ Populate the dataframe (not shown)
 
 Graph the total number of major league contracts signed and the total
 money spent on those contracts (from 2011-2021)
-![](FA-in-Tanking-Era_files/figure-gfm/Fig1%20Numbers%20of%20Total%20Contracts%20and%20Total%20Contract%20Values-1.png)<!-- -->
+![](https://github.com/eriklarsen4/Baseball/blob/main/FreeAgencyAnalysis/FA%20Contracts%20in%20Tanking%20Era%20Figs/Fig1%20Numbers%20of%20Total%20Contracts%20and%20Total%20Contract%20Values-1.png)<!-- -->
 
 Graph the means and medians of total contract value, AAV, length of
 contract, and age of player for all major league free-agent deals from
@@ -187,16 +187,16 @@ ggarrange(MeanMedLength, MeanMedAAV, MeanMedTotVal, MeanMedAge,
           ncol = 2, nrow = 2, common.legend = FALSE, labels = "AUTO")
 ```
 
-![](FA-in-Tanking-Era_files/figure-gfm/Fig2%20Means%20and%20Medians-1.png)<!-- -->
+![](https://github.com/eriklarsen4/Baseball/blob/main/FreeAgencyAnalysis/FA%20Contracts%20in%20Tanking%20Era%20Figs/Fig2%20Means%20and%20Medians-1.png)<!-- -->
 
 Graph minor league contract trends.
 
 -   First add the data (not shown)
 -   Now graph that data
 
-![](FA-in-Tanking-Era_files/figure-gfm/Fig3%20Minor%20League%20Contract%20Means%20and%20Medians-1.png)<!-- -->
+![](https://github.com/eriklarsen4/Baseball/blob/main/FreeAgencyAnalysis/FA%20Contracts%20in%20Tanking%20Era%20Figs/Fig3%20Minor%20League%20Contract%20Means%20and%20Medians-1.png)<!-- -->
 
 Graph the distributions of contracts; density plots by year, and
 boxplots of all teams from 2011-2019
 
-![](FA-in-Tanking-Era_files/figure-gfm/Fig4%20Distributions-1.png)<!-- -->
+![](https://github.com/eriklarsen4/Baseball/blob/main/FreeAgencyAnalysis/FA%20Contracts%20in%20Tanking%20Era%20Figs/Fig4%20Distributions-1.png)<!-- -->
