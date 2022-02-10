@@ -2,7 +2,7 @@
 
 ##### CVSL Rosters #####
  ## Upload the environment from the "Universes Script"
-
+load("https://github.com/eriklarsen4/Baseball/blob/main/CVSL/2022/CVSL2022UniverseEnviro.RData")
 
 ## Create a function that will clean/prep the current roster dataframes
 clean_current_df_fn = function(df) {
