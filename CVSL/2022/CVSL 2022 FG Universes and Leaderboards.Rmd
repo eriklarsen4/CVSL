@@ -589,3 +589,4 @@ eligible_RPs_out = Pitchers_total$Name[ which( Pitchers_total$Name %in% eligible
 
 eligible_Ps = c(eligible_SPs, eligible_RPs)
 ```
+Save the workspace with `save.image`
