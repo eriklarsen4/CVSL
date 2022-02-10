@@ -14,7 +14,7 @@ Strat-O-Matic Baseball League
 (CVSL)](https://sites.google.com/view/cvslbaseball/home), can draft
 players.  
 This snippet is based on the `R script`, [CVSL 2022 FG Universes and
-Leaderboards](https://github.com/eriklarsen4/Baseball/blob/main/CVSL/2022/CVSL%202022%20FG%20Universes%20and%20Leaderboards.R).
+Leaderboards](C:/Users/Erik/Desktop/BoxCopy/Programming%20Scripts%20and%20Data/Baseball/CVSL/CVSL%202022%20FG%20Universes%20and%20Leaderboards.R).
 
 Required packages: [readr](https://cran.r-project.org/package=readr),
 [tidyverse](https://cran.r-project.org/package=tidyverse)
@@ -34,11 +34,11 @@ So these criteria were applied to `FG Leaderboard` queries.
 
 ``` r
   ### FG 2021 Pitchers and Hitters totals and splits ###
-files = list.files(path = "https://github.com/eriklarsen4/Baseball/tree/main/CVSL/FG%20and%20BR%20Data", pattern = "2021 FG")
+files = list.files(path = "C:/Users/Erik/Desktop/BoxCopy/Strato/2022/", pattern = "2021 FG")
 for ( i in 1:length(files) ) {
   as.data.frame(
     assign(
-      gsub(".csv", "", files[], fixed = TRUE)[i], read.csv(file = paste("https://github.com/eriklarsen4/Baseball/tree/main/CVSL/FG%20and%20BR%20Data",files[i], sep = "")))
+      gsub(".csv", "", files[], fixed = TRUE)[i], read.csv(file = paste("C:/Users/Erik/Desktop/BoxCopy/Strato/2022/",files[i], sep = "")))
   )
 }
   ## Re-name the FG tables containing minima for splits in 2021
@@ -64,11 +64,11 @@ Import `FG Hitters Advanced` Leaderboards for advanced metrics
 
 ``` r
   ### FG Hitters advanced metrics for each season in the league
-files = list.files(path = "https://github.com/eriklarsen4/Baseball/tree/main/CVSL/FG%20and%20BR%20Data", pattern = "FG Adv 100 PA min")
+files = list.files(path = "C:/Users/Erik/Desktop/BoxCopy/Strato/2022/", pattern = "FG Adv 100 PA min")
 for ( i in 1:length(files) ) {
   as.data.frame(
     assign(
-      gsub(".csv", "", files[], fixed = TRUE)[i], read.csv(file = paste("https://github.com/eriklarsen4/Baseball/tree/main/CVSL/FG%20and%20BR%20Data",files[i], sep = "")))
+      gsub(".csv", "", files[], fixed = TRUE)[i], read.csv(file = paste("C:/Users/Erik/Desktop/BoxCopy/Strato/2022/",files[i], sep = "")))
   )
 }
   ## Re-name the FG tables for hitters containing advanced metrics for each season
@@ -98,11 +98,11 @@ Import `BR Leaderboards` that contain handedness and position
 information. Wrangle the data into a format to manipulate.
 
 ``` r
-files = list.files(path = "https://github.com/eriklarsen4/Baseball/tree/main/CVSL/FG%20and%20BR%20Data", pattern = "BR")
+files = list.files(path = "C:/Users/Erik/Desktop/BoxCopy/Strato/2022/", pattern = "BR")
 for (i in 1:length(files) ) {
   as.data.frame(
     assign(
-      gsub(".csv", "", files[], fixed = TRUE)[i], read.csv(file = paste("https://github.com/eriklarsen4/Baseball/tree/main/CVSL/FG%20and%20BR%20Data",files[i], sep = ""), encoding = "UTF8")
+      gsub(".csv", "", files[], fixed = TRUE)[i], read.csv(file = paste("C:/Users/Erik/Desktop/BoxCopy/Strato/2022/",files[i], sep = ""), encoding = "UTF8")
     )
   )
 }
@@ -119,7 +119,7 @@ for(i in 1:length(unlist(BR_list))){
     ], fixed = TRUE)
     
     as.data.frame(
-      assign(unlist(BR_list)[i], read.csv(file = paste("https://github.com/eriklarsen4/Baseball/tree/main/CVSL/FG%20and%20BR%20Data", files[i], sep = ""), encoding = "UTF8")
+      assign(unlist(BR_list)[i], read.csv(file = paste("C:/Users/Erik/Desktop/BoxCopy/Strato/2022/", files[i], sep = ""), encoding = "UTF8")
     )
     )
 }
@@ -176,11 +176,11 @@ Import the `FG` `Pitcher Leaderboards`.
 
 ``` r
   ## FanGraphs pitcher leaderboards downloads
-files = list.files(path = "https://github.com/eriklarsen4/Baseball/tree/main/CVSL/FG%20and%20BR%20Data", pattern = "FG Pitchers min 30 IP")
+files = list.files(path = "C:/Users/Erik/Desktop/BoxCopy/Strato/2022/", pattern = "FG Pitchers min 30 IP")
 for ( i in 1:length(files) ) {
   as.data.frame(
     assign(
-      gsub(".csv", "", files[], fixed = TRUE)[i], read.csv(file = paste("https://github.com/eriklarsen4/Baseball/tree/main/CVSL/FG%20and%20BR%20Data",files[i], sep = "")))
+      gsub(".csv", "", files[], fixed = TRUE)[i], read.csv(file = paste("C:/Users/Erik/Desktop/BoxCopy/Strato/2022/",files[i], sep = "")))
   )
 }
 Pitchers_2016 = `2016 FG Pitchers min 30 IP`
