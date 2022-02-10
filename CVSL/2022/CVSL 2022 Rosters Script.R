@@ -1,6 +1,8 @@
 
 
 ##### CVSL Rosters #####
+ ## Upload the environment from the "Universes Script"
+
 
 ## Create a function that will clean/prep the current roster dataframes
 clean_current_df_fn = function(df) {
@@ -27,16 +29,16 @@ clean_current_df_fn = function(df) {
 }
 
 ## Import current rosters
-DODGERS = read.csv("C:/Users/Erik/Desktop/BoxCopy/Strato/2022/Dodgers/2022 Dodgers Roster for import.csv")
-BISON = read.csv("C:/Users/Erik/Desktop/BoxCopy/Strato/2022/Bison/2022 Bison Roster for import.csv")
-CATTLEMEN = read.csv("C:/Users/Erik/Desktop/BoxCopy/Strato/2022/Cattlemen/2022 Cattlemen Roster for import.csv")
-ARSENAL = read.csv("C:/Users/Erik/Desktop/BoxCopy/Strato/2022/Arsenal/2022 Arsenal Roster for import.csv")
-WOMBATS = read.csv("C:/Users/Erik/Desktop/BoxCopy/Strato/2022/Wombats/2022 Wombats Roster for import.csv")
-PHILLIES = read.csv("C:/Users/Erik/Desktop/BoxCopy/Strato/2022/Phillies/2022 Phillies Roster for import.csv")
-NUGGETS = read.csv("C:/Users/Erik/Desktop/BoxCopy/Strato/2022/Nuggets/2022 Nuggets Roster for import.csv")
-DUCKS = read.csv("C:/Users/Erik/Desktop/BoxCopy/Strato/2022/Ducks/2022 Ducks Roster for import.csv")
-MATADORS = read.csv("C:/Users/Erik/Desktop/BoxCopy/Strato/2022/Matadors/2022 Matadors Roster for import.csv")
-RENEGADES = read.csv("C:/Users/Erik/Desktop/BoxCopy/Strato/2022/Renegades/2022 Renegades Roster for import.csv")
+DODGERS = read.csv("https://github.com/eriklarsen4/Baseball/blob/main/CVSL/2022/OffSeason%20Rosters/2022%20Dodgers%20Roster%20for%20import.csv")
+BISON = read.csv("https://github.com/eriklarsen4/Baseball/blob/main/CVSL/2022/OffSeason%20Rosters/2022%20Bison%20Roster%20for%20import.csv")
+CATTLEMEN = read.csv("https://github.com/eriklarsen4/Baseball/blob/main/CVSL/2022/OffSeason%20Rosters/2022%20Cattlemen%20Roster%20for%20import.csv")
+ARSENAL = read.csv("https://github.com/eriklarsen4/Baseball/blob/main/CVSL/2022/OffSeason%20Rosters/2022%20Arsenal%20Roster%20for%20import.csv")
+WOMBATS = read.csv("https://github.com/eriklarsen4/Baseball/blob/main/CVSL/2022/OffSeason%20Rosters/2022%20Wombats%20Roster%20for%20import.csv")
+PHILLIES = read.csv("https://github.com/eriklarsen4/Baseball/blob/main/CVSL/2022/OffSeason%20Rosters/2022%20Phillies%20Roster%20for%20import.csv")
+NUGGETS = read.csv("https://github.com/eriklarsen4/Baseball/blob/main/CVSL/2022/OffSeason%20Rosters/2022%20Nuggets%20Roster%20for%20import.csv")
+DUCKS = read.csv("https://github.com/eriklarsen4/Baseball/blob/main/CVSL/2022/OffSeason%20Rosters/2022%20Ducks%20Roster%20for%20import.csv")
+MATADORS = read.csv("https://github.com/eriklarsen4/Baseball/blob/main/CVSL/2022/OffSeason%20Rosters/2022%20Matadors%20Roster%20for%20import.csv")
+RENEGADES = read.csv("https://github.com/eriklarsen4/Baseball/blob/main/CVSL/2022/OffSeason%20Rosters/2022%20Renegades%20Roster%20for%20import.csv")
 
 ## Process current rosters
 DODGERS = clean_current_df_fn(df = DODGERS)
@@ -172,31 +174,6 @@ DODGERS = add_row(DODGERS, Name = "Chris Taylor", `On 40-man?` = "Y", NTC = "", 
 DODGERS[c(29:32),3] = 2
 DODGERS[c(26:28),3] = 1
 
-  ## Cut Joely Rodriguez (+$4)
-#which(DODGERS$Name == "Joely Rodriguez") # 21
-  ## Cut Rafael Dolis (+$1)
-#which(DODGERS$Name == "Rafael Dolis") #23
-  ## Cut Zack Eflin (+$1)
-#which(DODGERS$Name == "Zach Eflin") #23
-  ## Cut Jordan Montgomery (+$1)
-#which(DODGERS$Name == "Jordan Montgomery") #24
-  ## Cut Grant Dayton (+$1)
-#which(DODGERS$Name == "Grant Dayton") #25
-  ## Cut Diego Castillo (no net)
-#which(DODGERS$Name == "Diego Castillo") #16
-  ## Cut Sam Hilliard (+$2)
-#which(DODGERS$Name == "Sam Hilliard") #10
-  ## Cut Chadwick Tromp (+$2)
-#which(DODGERS$Name == "Chadwick Tromp") #9
-  ## Cut Jordan Luplow (no net)
-#which(DODGERS$Name == "Jordan Luplow") #3
-  ## Cut Genesis Cabrera (no net)
-#which(DODGERS$Name == "Genesis Cabrera") #17
-  ## Cut Daulton Varsho (+$1)
-#which(DODGERS$Name == "Daulton Varsho") #11
-#DODGERS = DODGERS[ -c(21,22,23,24,25,16,10,9,3,17,11), ]
-
-
 ## Bison and Cattlemen blockbuster 1/24 ##
   ##  Max Scherzer from Cattlemen to Bison
   ##  Fernando Tatis Jr from Bison to Cattlemen
@@ -323,16 +300,16 @@ clean_arb_and_bid_df_fn = function(df) {
 }
 
 ## Import arb and bid rosters
-DODGERS_off = read.csv("C:/Users/Erik/Desktop/BoxCopy/Strato/2022/Dodgers/2022 Dodgers Arb and Bid.csv")
-BISON_off = read.csv("C:/Users/Erik/Desktop/BoxCopy/Strato/2022/Bison/2022 Bison Arb and Bid.csv")
-CATTLEMEN_off = read.csv("C:/Users/Erik/Desktop/BoxCopy/Strato/2022/Cattlemen/2022 Cattlemen Arb and Bid.csv")
-ARSENAL_off = read.csv("C:/Users/Erik/Desktop/BoxCopy/Strato/2022/Arsenal/2022 Arsenal Arb and Bid.csv")
-WOMBATS_off = read.csv("C:/Users/Erik/Desktop/BoxCopy/Strato/2022/Wombats/2022 Wombats Arb and Bid.csv")
-PHILLIES_off = read.csv("C:/Users/Erik/Desktop/BoxCopy/Strato/2022/Phillies/2022 Phillies Arb and Bid.csv")
-NUGGETS_off = read.csv("C:/Users/Erik/Desktop/BoxCopy/Strato/2022/Nuggets/2022 Nuggets Arb and Bid.csv")
-DUCKS_off = read.csv("C:/Users/Erik/Desktop/BoxCopy/Strato/2022/Ducks/2022 Ducks Arb and Bid.csv")
-MATADORS_off = read.csv("C:/Users/Erik/Desktop/BoxCopy/Strato/2022/Matadors/2022 Matadors Arb and Bid.csv")
-RENEGADES_off = read.csv("C:/Users/Erik/Desktop/BoxCopy/Strato/2022/Renegades/2022 Renegades Arb and Bid.csv")
+DODGERS_off = read.csv("https://github.com/eriklarsen4/Baseball/blob/main/CVSL/2022/OffSeason%20Rosters/2022%20Dodgers%20Arb%20and%20Bid.csv")
+BISON_off = read.csv("https://github.com/eriklarsen4/Baseball/blob/main/CVSL/2022/OffSeason%20Rosters/2022%20Bison%20Arb%20and%20Bid.csv")
+CATTLEMEN_off = read.csv("https://github.com/eriklarsen4/Baseball/blob/main/CVSL/2022/OffSeason%20Rosters/2022%20Cattlemen%20Arb%20and%20Bid.csv")
+ARSENAL_off = read.csv("https://github.com/eriklarsen4/Baseball/blob/main/CVSL/2022/OffSeason%20Rosters/2022%20Arsenal%20Arb%20and%20Bid.csv")
+WOMBATS_off = read.csv("https://github.com/eriklarsen4/Baseball/blob/main/CVSL/2022/OffSeason%20Rosters/2022%20Wombats%20Arb%20and%20Bid.csv")
+PHILLIES_off = read.csv("https://github.com/eriklarsen4/Baseball/blob/main/CVSL/2022/OffSeason%20Rosters/2022%20Phillies%20Arb%20and%20Bid.csv")
+NUGGETS_off = read.csv("https://github.com/eriklarsen4/Baseball/blob/main/CVSL/2022/OffSeason%20Rosters/2022%20Nuggets%20Arb%20and%20Bid.csv")
+DUCKS_off = read.csv("https://github.com/eriklarsen4/Baseball/blob/main/CVSL/2022/OffSeason%20Rosters/2022%20Ducks%20Arb%20and%20Bid.csv")
+MATADORS_off = read.csv("https://github.com/eriklarsen4/Baseball/blob/main/CVSL/2022/OffSeason%20Rosters/2022%20Matadors%20Arb%20and%20Bid.csv")
+RENEGADES_off = read.csv("https://github.com/eriklarsen4/Baseball/blob/main/CVSL/2022/OffSeason%20Rosters/2022%20Renegades%20Arb%20and%20Bid.csv")
 
 ## Process arb/bid rosters and overwrite the dataframe
 DODGERS_off = clean_arb_and_bid_df_fn(df = DODGERS_off)
@@ -863,19 +840,6 @@ DRAFT_2019_Hs$Class[ as.integer(unlist(dummy)) ] = "Type C"
 ## Annotate the rest
 DRAFT_2019_Hs$Class[ which(DRAFT_2019_Hs$Class == "" )] = "Type A"
 
-##### Export DFs and Lists #####
-
-#write.csv(Bid_players, "C:\\Users\\Erik\\Desktop\\BoxCopy\\Strato\\2022\\BidPlayers.csv")
-#write.csv(Ineligible_Bid_players, "C:\\Users\\Erik\\Desktop\\BoxCopy\\Strato\\2022\\IneligibleBidPlayers.csv")
-#write.csv(Arb_players, "C:\\Users\\Erik\\Desktop\\BoxCopy\\Strato\\2022\\ArbPlayers.csv")
-#write.csv(Arb_players_ineligible_if_denied, "C:\\Users\\Erik\\Desktop\\BoxCopy\\Strato\\2022\\IneligibleArbPlayersIfDeniedList.csv")
-
-#write.csv(DRAFT_Hs, "C:\\Users\\Erik\\Desktop\\BoxCopy\\Strato\\2022\\OffseasonHitterUniverse.csv")
-#write.csv(DRAFT_Ps, "C:\\Users\\Erik\\Desktop\\BoxCopy\\Strato\\2022\\OffseasonPitcherUniverse.csv")
-#write.csv(CVSL_MASTER, "C:\\Users\\Erik\\Desktop\\BoxCopy\\Strato\\2022\\CVSL2022OffseasonMasterRoster.csv")
-
-##### Combine with splits leaders and payrolls for markets #####
-#DRAFT_Ps = DRAFT_Ps[ , -c(3:5,13,15,22)]
 
 ## Subset SPs
 DRAFT_SPs = DRAFT_Ps
@@ -928,12 +892,12 @@ DRAFT_LRPs = DRAFT_FIREs[,-5]
 DRAFT_SPs = DRAFT_FIREs[,-5]
 
 ## Import data
-files = list.files(pattern = "2021 Splits")
+files = list.files(path =  "https://github.com/eriklarsen4/Baseball/tree/main/CVSL/FG%20and%20BR%20Data", pattern = "2021 Splits")
 
 for ( i in 1:length(files) ) {
   as.data.frame(
     assign(
-      gsub(".csv", "", files[], fixed = TRUE)[i], read.csv(file = files[i]))
+      gsub(".csv", "", files[], fixed = TRUE)[i], read.csv(paste("https://github.com/eriklarsen4/Baseball/tree/main/CVSL/FG%20and%20BR%20Data", file = files[i], sep = "")))
   )
 }
 vLHP = `2021 Splits Leaders vs LHP`
@@ -941,7 +905,10 @@ vRHP = `2021 Splits Leaders vs RHP`
 vLHH = `2021 Splits Leaders vs LHH`
 vRHH = `2021 Splits Leaders vs RHH`
 
-rm(`2021 Splits Leaders vs LHP`, `2021 Splits Leaders vs RHP`, `2021 Splits Leaders vs LHH`, `2021 Splits Leaders vs RHH`)
+rm(`2021 Splits Leaders vs LHP`,
+   `2021 Splits Leaders vs RHP`,
+   `2021 Splits Leaders vs LHH`,
+   `2021 Splits Leaders vs RHH`)
 
 ## Create a dataframe of advanced metrics for all rostered CVSL hitters
 CVSL_Hs = Hitters_total[ which(Hitters_total$playerid %in% unique(CVSL_MASTER$playerid) == TRUE), ]
@@ -1208,6 +1175,3 @@ for(i in 1:nrow(DRAFT_RHH_LEADERS)){
 
 
 rownames(DRAFT_Ps) = NULL
-
-#write.csv(BR_2021_Standard_Pitching_Leaders, "C:\\Users\\Erik\\Desktop\\BoxCopy\\Strato\\2022\\EligiblePitchersList.csv")
-#write.csv(DRAFT_Hs, "C:\\Users\\Erik\\Desktop\\BoxCopy\\Strato\\2022\\EligibleHitterList.csv")
