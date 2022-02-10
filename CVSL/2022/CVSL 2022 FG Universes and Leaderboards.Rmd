@@ -30,11 +30,11 @@ So these criteria were applied to `FG Leaderboard` queries.
 
 ```{r 2021 FG data import, include = TRUE, message = FALSE, warning = FALSE, echo = TRUE}
   ### FG 2021 Pitchers and Hitters totals and splits ###
-files = list.files(path = "C:/Users/Erik/Desktop/BoxCopy/Strato/2022/", pattern = "2021 FG")
+files = list.files(path = "https://github.com/eriklarsen4/Baseball/tree/main/CVSL/FG%20and%20BR%20Data", pattern = "2021 FG")
 for ( i in 1:length(files) ) {
   as.data.frame(
     assign(
-      gsub(".csv", "", files[], fixed = TRUE)[i], read.csv(file = paste("C:/Users/Erik/Desktop/BoxCopy/Strato/2022/",files[i], sep = "")))
+      gsub(".csv", "", files[], fixed = TRUE)[i], read.csv(file = paste("https://github.com/eriklarsen4/Baseball/tree/main/CVSL/FG%20and%20BR%20Data",files[i], sep = "")))
   )
 }
   ## Re-name the FG tables containing minima for splits in 2021
@@ -59,11 +59,11 @@ Import `FG Hitters Advanced` Leaderboards for advanced metrics `from the last 6 
 
 ```{r FG Hitters Advanced import, include = TRUE, message = FALSE, warning = FALSE, echo = TRUE}
   ### FG Hitters advanced metrics for each season in the league
-files = list.files(path = "C:/Users/Erik/Desktop/BoxCopy/Strato/2022/", pattern = "FG Adv 100 PA min")
+files = list.files(path = "https://github.com/eriklarsen4/Baseball/tree/main/CVSL/FG%20and%20BR%20Data", pattern = "FG Adv 100 PA min")
 for ( i in 1:length(files) ) {
   as.data.frame(
     assign(
-      gsub(".csv", "", files[], fixed = TRUE)[i], read.csv(file = paste("C:/Users/Erik/Desktop/BoxCopy/Strato/2022/",files[i], sep = "")))
+      gsub(".csv", "", files[], fixed = TRUE)[i], read.csv(file = paste("https://github.com/eriklarsen4/Baseball/tree/main/CVSL/FG%20and%20BR%20Data",files[i], sep = "")))
   )
 }
   ## Re-name the FG tables for hitters containing advanced metrics for each season
@@ -92,11 +92,11 @@ colnames(Hitters_adv_2021)[1] = "Name"
 Import `BR Leaderboards` that contain handedness and position information. Wrangle the data into a format to manipulate.
 
 ```{r BR Leaderboard import, include = TRUE, message = FALSE, warning = FALSE, echo = TRUE}
-files = list.files(path = "C:/Users/Erik/Desktop/BoxCopy/Strato/2022/", pattern = "BR")
+files = list.files(path = "https://github.com/eriklarsen4/Baseball/tree/main/CVSL/FG%20and%20BR%20Data", pattern = "BR")
 for (i in 1:length(files) ) {
   as.data.frame(
     assign(
-      gsub(".csv", "", files[], fixed = TRUE)[i], read.csv(file = paste("C:/Users/Erik/Desktop/BoxCopy/Strato/2022/",files[i], sep = ""), encoding = "UTF8")
+      gsub(".csv", "", files[], fixed = TRUE)[i], read.csv(file = paste("https://github.com/eriklarsen4/Baseball/tree/main/CVSL/FG%20and%20BR%20Data",files[i], sep = ""), encoding = "UTF8")
     )
   )
 }
@@ -113,7 +113,7 @@ for(i in 1:length(unlist(BR_list))){
     ], fixed = TRUE)
     
     as.data.frame(
-      assign(unlist(BR_list)[i], read.csv(file = paste("C:/Users/Erik/Desktop/BoxCopy/Strato/2022/", files[i], sep = ""), encoding = "UTF8")
+      assign(unlist(BR_list)[i], read.csv(file = paste("https://github.com/eriklarsen4/Baseball/tree/main/CVSL/FG%20and%20BR%20Data", files[i], sep = ""), encoding = "UTF8")
     )
     )
 }
@@ -343,11 +343,11 @@ Import the `FG` `Pitcher Leaderboards`.
 
 ```{r FG P Leaderboards import, include = TRUE, message = FALSE, warning = FALSE, echo = TRUE}
   ## FanGraphs pitcher leaderboards downloads
-files = list.files(path = "C:/Users/Erik/Desktop/BoxCopy/Strato/2022/", pattern = "FG Pitchers min 30 IP")
+files = list.files(path = "https://github.com/eriklarsen4/Baseball/tree/main/CVSL/FG%20and%20BR%20Data", pattern = "FG Pitchers min 30 IP")
 for ( i in 1:length(files) ) {
   as.data.frame(
     assign(
-      gsub(".csv", "", files[], fixed = TRUE)[i], read.csv(file = paste("C:/Users/Erik/Desktop/BoxCopy/Strato/2022/",files[i], sep = "")))
+      gsub(".csv", "", files[], fixed = TRUE)[i], read.csv(file = paste("https://github.com/eriklarsen4/Baseball/tree/main/CVSL/FG%20and%20BR%20Data",files[i], sep = "")))
   )
 }
 Pitchers_2016 = `2016 FG Pitchers min 30 IP`
