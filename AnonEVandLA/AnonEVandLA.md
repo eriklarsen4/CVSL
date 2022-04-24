@@ -85,7 +85,7 @@ Set file path and import data
 
 ``` r
 BATTED_BALL_DF =
-  read.csv("C:/Users/Erik/Downloads/battedBallData.csv")
+  read.csv("https://github.com/eriklarsen4/Baseball/blob/main/AnonEVandLA/battedBallData.csv")
 
   ## Find indeces of NAs; by eye, looked sparse
 for(i in 4:7) {
@@ -193,7 +193,7 @@ SysA = ggplot(data = BATTED_BALL_DF, aes(x = vangle_A)) +
 SysA
 ```
 
-![](AnonEVandLA_files/figure-gfm/SystemA%20and%20SystemB-1.png)<!-- -->
+![](https://github.com/eriklarsen4/Baseball/blob/main/AnonEVandLA/Figures/SystemA%20and%20SystemB-1.png)<!-- -->
 
 ``` r
     ## Repeat for System B
@@ -213,7 +213,7 @@ SysB = ggplot(data = BATTED_BALL_DF, aes(x = vangle_B)) +
 SysB
 ```
 
-![](AnonEVandLA_files/figure-gfm/SystemA%20and%20SystemB-2.png)<!-- -->
+![](https://github.com/eriklarsen4/Baseball/blob/main/AnonEVandLA/Figures/SystemA%20and%20SystemB-2.png)<!-- -->
 
 Remove the poorly-tracked data from `System B` (`ground_balls` with high
 `LA`s, low `EV`s)
@@ -246,7 +246,7 @@ LAs_no_bad_GBs = ggplot(data = Bad_SYS_B,
 LAs_no_bad_GBs ## ~linear
 ```
 
-![](AnonEVandLA_files/figure-gfm/LAs_no_bad_GBs-1.png)<!-- -->
+![](https://github.com/eriklarsen4/Baseball/blob/main/AnonEVandLA/Figures/LAs_no_bad_GBs-1.png)<!-- -->
 
 Use linear regression to fit the \~linear relationship between `LA`s
 within each `hittype`
@@ -270,7 +270,7 @@ LAs_no_bad_GBs +
               aes(y = Bad_SYS_B$LAAGAMpreds), color = "navy", size = 1.5, linetype = "dashed")
 ```
 
-![](AnonEVandLA_files/figure-gfm/LAs_no_bad_GBs_wFit-1.png)<!-- -->
+![](https://github.com/eriklarsen4/Baseball/blob/main/AnonEVandLA/Figures/LAs_no_bad_GBs_wFit-1.png)<!-- -->
 
 What about `EV`?
 
@@ -303,7 +303,7 @@ EV_no_bad_GBs +
               color = "gray48", size = 2, linetype = "dashed")
 ```
 
-![](AnonEVandLA_files/figure-gfm/EV_no_bad_GBs_wFit-1.png)<!-- -->
+![](https://github.com/eriklarsen4/Baseball/blob/main/AnonEVandLA/Figures/EV_no_bad_GBs_wFit-1.png)<!-- -->
 
 `speed_A` values are higher than `speed_B`. Based on the regression,
 there are many high velocity `ground_ball`s in `System A` above the fit,
@@ -326,19 +326,19 @@ suggesting imputed `NA`s may drag values down.
 
 Re-fit `vangle_A`s from `vangle_B`s with imputed values
 
-![](AnonEVandLA_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
+![](https://github.com/eriklarsen4/Baseball/blob/main/AnonEVandLA/Figures/unnamed-chunk-5-1.png)<!-- -->
 
 ## Impute vangle\_As with predictions from separate GAMs (vangle\_As \~ vangle\_Bs)
 
 ## Impute NA speed\_As with predictions from a GAM fit by speed\_Bs; GAM for each BB type
 
-![](AnonEVandLA_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
+![](https://github.com/eriklarsen4/Baseball/blob/main/AnonEVandLA/Figures/unnamed-chunk-7-1.png)<!-- -->
 
-![](AnonEVandLA_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
+![](https://github.com/eriklarsen4/Baseball/blob/main/AnonEVandLA/Figures/unnamed-chunk-8-1.png)<!-- -->
 
-![](AnonEVandLA_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
+![](https://github.com/eriklarsen4/Baseball/blob/main/AnonEVandLA/Figures/unnamed-chunk-9-1.png)<!-- -->
 
-![](AnonEVandLA_files/figure-gfm/unnamed-chunk-10-1.png)<!-- -->
+![](https://github.com/eriklarsen4/Baseball/blob/main/AnonEVandLA/Figures/unnamed-chunk-10-1.png)<!-- -->
 
 Impute
 
@@ -346,7 +346,7 @@ Impute
 
 For `EV` predictions
 
-![](AnonEVandLA_files/figure-gfm/GAM_speed_A_by_vangle_A_wHittype-1.png)<!-- -->
+![](https://github.com/eriklarsen4/Baseball/blob/main/AnonEVandLA/Figures/GAM_speed_A_by_vangle_A_wHittype-1.png)<!-- -->
 
 ## Compute predicted exit velocities
 
