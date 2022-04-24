@@ -75,7 +75,7 @@ summary(WL_WAR_lm)$r.squared
 
 ## Derive Team Color Codes
 
-Use colors from previous piece on [TheLeftyCatcher.com]()
+Use colors from previous piece on [TheLeftyCatcher.com](https://www.theleftycatcher.com/post/free-agency-spending-trends-in-the-tanking-era)
 
 ``` r
 color_code = matrix(nrow = 30, ncol = 4)
