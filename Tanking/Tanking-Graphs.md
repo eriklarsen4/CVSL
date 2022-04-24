@@ -50,7 +50,7 @@ library(splines)
 ## Load the Tanking Data Wrangling Environment
 
 ``` r
-load("C://Users//Erik//Desktop//BoxCopy//Programming Scripts and Data//Baseball//Projects//Tanking//Tanking//tanking2E.RData")
+load("https://github.com//eriklarsen4//Baseball//blob//main//Tanking//tanking2E.RData")
 ```
 
 ## Build models
@@ -135,7 +135,7 @@ WL = ggplot(data = TeamValALL[-which(TeamValALL$Year == 2020),]) +
 WL
 ```
 
-![](Tanking-Graphs_files/figure-gfm/Figure%201-1.png)<!-- -->
+![](https://github.com/eriklarsen4/Baseball/blob/main/Tanking/Tanking%20Figs/Wps%20and%20payroll%20wo2020%20w475h475.jpeg)<!-- -->
 
 ## Astros and Cubs W%s, Payrolls, and FA Contracts
 
@@ -233,7 +233,7 @@ ggarrange(CubsStros_WL, CubsStros_Payrolls, CubsStros_FA,
           ncol = 3, nrow = 1, common.legend = TRUE, legend = "right", labels = "AUTO")
 ```
 
-![](Tanking-Graphs_files/figure-gfm/Figure%202-1.png)<!-- -->
+![](https://github.com/eriklarsen4/Baseball/blob/main/Tanking/Tanking%20Figs/AstrosCubsGroupTrends%20wo2020%20w900h480.jpeg)<!-- -->
 
 ## Astros and Cubs Amateur Data
 
@@ -311,7 +311,7 @@ ggarrange(CubsStros_College_Picks, CubsStros_Intl_Signs,
           ncol = 2, nrow = 1, common.legend = TRUE, legend = "right", labels = "AUTO")
 ```
 
-![](Tanking-Graphs_files/figure-gfm/Figure%203-1.png)<!-- -->
+![](https://github.com/eriklarsen4/Baseball/blob/main/Tanking/Tanking%20Figs/AstrosCubsTalentAcqGroup%20wo2020%20w800h480.jpeg)<!-- -->
 
 ## Which Teams Qualify as Tankers
 
@@ -578,7 +578,7 @@ ggarrange(WL_WAR, WL_WARPM, WL_rebuild,
           ncol = 3, nrow = 1, common.legend = TRUE, legend = "right", labels = "AUTO")
 ```
 
-![](Tanking-Graphs_files/figure-gfm/Figure%204-1.png)<!-- -->
+![](https://github.com/eriklarsen4/Baseball/blob/main/Tanking/Tanking%20Figs/Ws%20bWAR%20and%20Payroll%20wo2020%20w1550h500.jpeg)<!-- -->
 
 ## Grading Tanks
 
