@@ -31,8 +31,7 @@ library(ggrepel)
 
 ##### Model CVSL Draft salaries #####
   ##### Import the drafts #####
-setwd("C:/Users/Erik/Desktop/BoxCopy/Strato/2022/")
-files = list.files(pattern = "CVSL Draft")
+files = list.files(path = "https://github.com/eriklarsen4/Baseball/tree/main/CVSL/2022", pattern = "CVSL Draft")
 
 for ( i in 1:length(files) ) {
   as.data.frame(
@@ -45,7 +44,7 @@ CVSL_2020_DRAFT = `CVSL Draft 2020`
 CVSL_2021_DRAFT = `CVSL Draft 2021`
 rm(`CVSL Draft 2019`, `CVSL Draft 2020`, `CVSL Draft 2021`)
 
-load("C:/Users/Erik/Desktop/BoxCopy/Programming Scripts and Data/Baseball/CVSL/CVSLenv.RData")
+load("https://github.com/eriklarsen4/Baseball/blob/main/CVSL/2022/CVSLenv.RData")
 ```
 
 Clean the `CVSL_2019_DRAFT` df
@@ -253,7 +252,7 @@ lines( sort(CVSL_all_DRAFTS_hitters$wRC.[idx]), fitted(DRAFT_wRCh_glm3)[ order(C
 lines( sort(CVSL_all_DRAFTS_hitters$wRC.[idx]), fitted(gammy_WARh)[ order(CVSL_all_DRAFTS_hitters$wRC.) ], col = "navy", lty = 4)
 ```
 
-![](Modeling-CVSL-Hitter-Salaries_files/figure-gfm/Base%20CVSL%20Hitter%20Salary%20by%20wRC+-1.png)<!-- -->
+![](https://github.com/eriklarsen4/Baseball/blob/main/CVSL/2022/Base%20CVSL%20Hitter%20Salary%20by%20wRC%2B-1.png)<!-- -->
 
 Now, `fWAR`
 
@@ -269,7 +268,7 @@ lines( sort(CVSL_all_DRAFTS_hitters$WAR[idx]), fitted(DRAFT_WARh_glm3)[ order(CV
 lines( sort(CVSL_all_DRAFTS_hitters$WAR[idx]), fitted(gammy_WARh)[ order(CVSL_all_DRAFTS_hitters$WAR) ], col = "navy", lty = 4)
 ```
 
-![](Modeling-CVSL-Hitter-Salaries_files/figure-gfm/Base%20CVSL%20Hitter%20Salary%20by%20fWAR-1.png)<!-- -->
+![](https://github.com/eriklarsen4/Baseball/blob/main/CVSL/2022/Base%20CVSL%20Hitter%20Salary%20by%20fWAR-1.png)<!-- -->
 
 Seems like the 3rd degree polynomial fits both `wRC+` and `fWAR` as
 predictors of `CVSL Salary` best
@@ -331,7 +330,7 @@ abline(0,0, col = "black", lwd = 2)
 text(x = 8, y = 0, "Overpay\nUnderpay", col = "black")
 ```
 
-![](Modeling-CVSL-Hitter-Salaries_files/figure-gfm/Base%20CVSL%20Hitter%20Salary%20by%20wRC+%20residuals-1.png)<!-- -->
+![](https://github.com/eriklarsen4/Baseball/blob/main/CVSL/2022/Base%20CVSL%20Hitter%20Salary%20by%20fWAR-1.png)<!-- -->
 
 `fWAR` model second
 
@@ -345,7 +344,7 @@ abline(0,0, col = "black", lwd = 2)
 text(x = 8, y = 0, "Overpay\nUnderpay", col = "black")
 ```
 
-![](Modeling-CVSL-Hitter-Salaries_files/figure-gfm/Base%20CVSL%20Hitter%20Salary%20by%20fWAR%20residuals-1.png)<!-- -->
+![](https://github.com/eriklarsen4/Baseball/blob/main/CVSL/2022/Base%20CVSL%20Hitter%20Salary%20by%20fWAR%20residuals-1.png)<!-- -->
 
 ``` r
 ## See how the residuals are distributed
@@ -383,7 +382,7 @@ gg = gg + geom_text_repel(data = CVSL_all_DRAFTS_hitters, x = CVSL_all_DRAFTS_hi
 gg
 ```
 
-![](Modeling-CVSL-Hitter-Salaries_files/figure-gfm/GG%20CVSL%20Hitters%20wRC+-1.png)<!-- -->
+![](https://github.com/eriklarsen4/Baseball/blob/main/CVSL/2022/GG%20CVSL%20Hitters%20wRC%2B-1.png)<!-- -->
 
 Plot model residuals with `ggplot`
 
@@ -412,4 +411,4 @@ ggresid = ggresid + geom_text_repel(data = CVSL_all_DRAFTS_hitters, x = CVSL_all
 ggresid
 ```
 
-![](Modeling-CVSL-Hitter-Salaries_files/figure-gfm/GG%20CVSL%20Hitters%20wRC+%20residuals-1.png)<!-- -->
+![](https://github.com/eriklarsen4/Baseball/blob/main/CVSL/2022/GG%20CVSL%20Hitters%20wRC%2B%20residuals-1.png)<!-- -->
