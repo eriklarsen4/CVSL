@@ -35,7 +35,7 @@ library(ggrepel)
 
 ##### Model CVSL Draft salaries #####
   ##### Import the drafts #####
-setwd("C:/Users/Erik/Desktop/BoxCopy/Strato/2022/")
+load("https://github.com/eriklarsen4/Baseball/blob/main/CVSL/2022/CVSLenv.RData")
 files = list.files(pattern = "CVSL Draft")
 
 for ( i in 1:length(files) ) {
@@ -49,7 +49,7 @@ CVSL_2020_DRAFT = `CVSL Draft 2020`
 CVSL_2021_DRAFT = `CVSL Draft 2021`
 rm(`CVSL Draft 2019`, `CVSL Draft 2020`, `CVSL Draft 2021`)
 
-load("C:/Users/Erik/Desktop/BoxCopy/Programming Scripts and Data/Baseball/CVSL/CVSLenv.RData")
+
 ```
 
 Clean the `CVSL_2019_DRAFT` df
@@ -122,28 +122,16 @@ CVSL_2019_DRAFT_Hitters = CVSL_2019_DRAFT %>%
   inner_join(Hitters_adv_2018) %>%
   select(Name, Salary, CVSLTeam, Year, wRC., Off, Def, WAR) %>%
   collect()
-#CVSL_2019_DRAFT_Hitters = DRAFT_Hs %>%
-#  select(Name, Age, Bats, Positions) %>%
-#  inner_join(CVSL_2019_DRAFT_Hitters) %>%
-#  collect()
 
 CVSL_2020_DRAFT_Hitters = CVSL_2020_DRAFT %>%
   inner_join(Hitters_adv_2019) %>%
   select(Name, Salary, CVSLTeam, Year, wRC., Off, Def, WAR) %>%
   collect()
-#CVSL_2020_DRAFT_Hitters = DRAFT_Hs %>%
-#  select(Name, Age, Bats, Positions) %>%
-#  inner_join(CVSL_2020_DRAFT_Hitters) %>%
-#  collect()
 
 CVSL_2021_DRAFT_Hitters = CVSL_2021_DRAFT %>%
   inner_join(Hitters_adv_2020) %>%
   select(Name, Salary, CVSLTeam, Year, wRC., Off, Def, WAR) %>%
   collect()
-#CVSL_2021_DRAFT_Hitters = DRAFT_Hs %>%
-#  select(Name, Age, Bats, Positions) %>%
-#  inner_join(CVSL_2021_DRAFT_Hitters) %>%
-#  collect()
 
 CVSL_2019_DRAFT_Pitchers = CVSL_2019_DRAFT %>%
   inner_join(BR_2018_Standard_Pitching_Leaders) %>%
@@ -189,50 +177,31 @@ multiple polynomials
 ##### Build wRC+ models #####
   ## Build a linear model of wRC+ predicting Salary
 DRAFT_wRCh_lm = lm(data = CVSL_all_DRAFTS_hitters, formula = Salary ~ wRC.)
-  ## Check the model
-#coef(summary(DRAFT_wRCh_lm))
-#summary(DRAFT_wRCh_lm)
 
   ## Build the generalized linear model; a 2nd-degree polynomial of wRC+ predicting Salary
 DRAFT_wRCh_glm2 = glm(data = CVSL_all_DRAFTS_hitters, formula = Salary ~ wRC. + I(wRC.^2))
-  ## Check the model
-#coef(summary(DRAFT_wRCh_glm2))
-#summary(DRAFT_wRCh_glm2)
 
   ## Build the generalized linear model; a 3rd-degree polynomial of wRC+ predicting Salary
 DRAFT_wRCh_glm3 = glm(data = CVSL_all_DRAFTS_hitters, formula = Salary ~ wRC. + I(wRC.^2) + I(wRC.^3))
-  ## Check the model
-#coef(summary(DRAFT_wRCh_glm3))
-#summary(DRAFT_wRCh_glm3)
 ```
 
 Repeat as above, but for `fWAR`
 
 ``` r
   ## Build a generalized additive model
-gammy_wRCh = gam(data = CVSL_all_DRAFTS_hitters, formula = Salary ~ bs(wRC., k = 3))
-#summary(gammy_wRCh)
+gammy_wRCh = gam(data = CVSL_all_DRAFTS_hitters, formula = Salary ~ bs(wRC., k = 3)))
 
   ##### Build WAR models #####
   ## Linear
 DRAFT_WARh_lm = lm(data = CVSL_all_DRAFTS_hitters, formula = Salary ~ WAR)
-  ## Check the model
-#coef(summary(DRAFT_WARh_lm))
-#summary(DRAFT_WARh_lm)
 
   ## 2nd-deg polyn.
 DRAFT_WARh_glm2 = glm(data = CVSL_all_DRAFTS_hitters, formula = Salary ~ WAR + I(WAR^2))
-  ## Check the model
-#coef(summary(DRAFT_WARh_glm2))
-#summary(DRAFT_WARh_glm2)
 
   ## 3rd-deg polyn.
 DRAFT_WARh_glm3 = glm(data = CVSL_all_DRAFTS_hitters, formula = Salary ~ WAR + I(WAR^2) + I(WAR^3))
-#coef(summary(DRAFT_WARh_glm3))
-#summary(DRAFT_WARh_glm3)
 
 gammy_WARh = gam(data = CVSL_all_DRAFTS_hitters, formula = Salary ~ bs(WAR, k = 3) + bs(Year, k = 3))
-#summary(gammy_WARh)
 
 ## Create sorted indeces for plotting
 idx = sort(CVSL_all_DRAFTS_hitters$Salary, index.return = T)$ix
@@ -257,7 +226,7 @@ lines( sort(CVSL_all_DRAFTS_hitters$wRC.[idx]), fitted(DRAFT_wRCh_glm3)[ order(C
 lines( sort(CVSL_all_DRAFTS_hitters$wRC.[idx]), fitted(gammy_WARh)[ order(CVSL_all_DRAFTS_hitters$wRC.) ], col = "navy", lty = 4)
 ```
 
-![](Modeling-CVSL-Hitter-Salaries_files/figure-gfm/Base%20CVSL%20Hitter%20Salary%20by%20wRC+-1.png)<!-- -->
+![](https://github.com/eriklarsen4/Baseball/blob/main/CVSL/2022/Base%20CVSL%20Hitter%20Salary%20by%20wRC%2B-1.png)<!-- -->
 
 Now, `fWAR`
 
@@ -273,7 +242,7 @@ lines( sort(CVSL_all_DRAFTS_hitters$WAR[idx]), fitted(DRAFT_WARh_glm3)[ order(CV
 lines( sort(CVSL_all_DRAFTS_hitters$WAR[idx]), fitted(gammy_WARh)[ order(CVSL_all_DRAFTS_hitters$WAR) ], col = "navy", lty = 4)
 ```
 
-![](Modeling-CVSL-Hitter-Salaries_files/figure-gfm/Base%20CVSL%20Hitter%20Salary%20by%20fWAR-1.png)<!-- -->
+![](https://github.com/eriklarsen4/Baseball/blob/main/CVSL/2022/Base%20CVSL%20Hitter%20Salary%20by%20fWAR-1.png)<!-- -->
 
 Seems like the 3rd degree polynomial fits both `wRC+` and `fWAR` as
 predictors of `CVSL Salary` best
@@ -337,7 +306,7 @@ abline(0,0, col = "black", lwd = 2)
 text(x = 8, y = 0, "Overpay\nUnderpay", col = "black")
 ```
 
-![](Modeling-CVSL-Hitter-Salaries_files/figure-gfm/Base%20CVSL%20Hitter%20Salary%20by%20wRC+%20residuals-1.png)<!-- -->
+![](https://github.com/eriklarsen4/Baseball/blob/main/CVSL/2022/Base%20CVSL%20Hitter%20Salary%20by%20wRC%2B%20residuals-1.png)<!-- -->
 
 `fWAR` model second
 
@@ -353,7 +322,7 @@ abline(0,0, col = "black", lwd = 2)
 text(x = 8, y = 0, "Overpay\nUnderpay", col = "black")
 ```
 
-![](Modeling-CVSL-Hitter-Salaries_files/figure-gfm/Base%20CVSL%20Hitter%20Salary%20by%20fWAR%20residuals-1.png)<!-- -->
+![](https://github.com/eriklarsen4/Baseball/blob/main/CVSL/2022/Base%20CVSL%20Hitter%20Salary%20by%20fWAR%20residuals-1.png)<!-- -->
 
 Create the labels to be used for plotting. These will be names of more
 interesting points/players in the model (not shown)
@@ -394,7 +363,7 @@ gg = gg +
 gg
 ```
 
-![](Modeling-CVSL-Hitter-Salaries_files/figure-gfm/GG%20CVSL%20Hitters%20wRC+-1.png)<!-- -->
+![](https://github.com/eriklarsen4/Baseball/blob/main/CVSL/2022/GG%20CVSL%20Hitters%20fWAR-1.png)<!-- -->
 
 Plot model residuals with `ggplot`
 
@@ -432,4 +401,4 @@ ggresid = ggresid +
 ggresid
 ```
 
-![](Modeling-CVSL-Hitter-Salaries_files/figure-gfm/GG%20CVSL%20Hitters%20wRC+%20residuals-1.png)<!-- -->
+![](https://github.com/eriklarsen4/Baseball/blob/main/CVSL/2022/GG%20CVSL%20Hitters%20fWAR%20residuals-1.png)<!-- -->
