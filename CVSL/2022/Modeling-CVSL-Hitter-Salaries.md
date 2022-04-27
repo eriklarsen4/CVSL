@@ -370,14 +370,14 @@ Plot model residuals with `ggplot`
 ``` r
   ## ggplot residuals
 ggresid = ggplot(CVSL_all_DRAFTS_hitters,
-            aes(x = `WARPredSal3`, y = `WARResid`)) + 
+            aes(x = `Salary`, y = `WARResid`)) + 
   geom_point(aes(color = `CVSLTeam`), alpha = 0.7, size = 3) +
-  coord_cartesian(xlim = c(min(CVSL_all_DRAFTS_hitters$WARPredSal3),
-                           max(CVSL_all_DRAFTS_hitters$WARPredSal3)),
+  coord_cartesian(xlim = c(min(CVSL_all_DRAFTS_hitters$`Salary`),
+                           max(CVSL_all_DRAFTS_hitters$`Salary`)),
                   ylim = c(min(CVSL_all_DRAFTS_hitters$WARResid),
                            max(CVSL_all_DRAFTS_hitters$WARResid))) +
   labs(title = "fWAR Residuals of CVSL Auction Salaries\n for Hitters 2019-2021 Seasons",
-       x = "Predicted Salary ($)",
+       x = "Actual Salary ($)",
        y = "Residuals") + 
   theme_bw() +
   theme(plot.title = element_text(hjust = 0.5, size = 15),
@@ -394,7 +394,7 @@ ggresid = ggplot(CVSL_all_DRAFTS_hitters,
   ## Add labels
 ggresid = ggresid +
   geom_text_repel(data = CVSL_all_DRAFTS_hitters,
-                  x = CVSL_all_DRAFTS_hitters$WARPredSal3,
+                  x = CVSL_all_DRAFTS_hitters$`Salary`,
                   y = CVSL_all_DRAFTS_hitters$WARResid,
                   color = "black", aes(label = Labels), size = 3, max.overlaps = Inf)
   ## Plot
