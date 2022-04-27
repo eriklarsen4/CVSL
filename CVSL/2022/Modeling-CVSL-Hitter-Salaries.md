@@ -17,7 +17,7 @@ This snippet is based on the `R script`, [Modeling Strat
 Salaries](https://github.com/eriklarsen4/Baseball/blob/main/CVSL/2022/Modeling%20Strat%20Salaries.R).
 
 Required packages: [readr](https://cran.r-project.org/package=readr),
-[tidyverse](https://cran.r-project.org/package=tidyverse)
+[tidyverse](https://cran.r-project.org/package=tidyverse), [mgcv](https://cran.r-project.org/package=mgcv), [splines](https://cran.r-project.org/package=splines), [ggplot2](https://cran.r-project.org/package=ggplot2), [ggrepel](https://cran.r-project.org/packages=ggrepel)
 
 ## Environment Prep
 
@@ -117,28 +117,16 @@ CVSL_2019_DRAFT_Hitters = CVSL_2019_DRAFT %>%
   inner_join(Hitters_adv_2018) %>%
   select(Name, Salary, CVSLTeam, Year, wRC., Off, Def, WAR) %>%
   collect()
-#CVSL_2019_DRAFT_Hitters = DRAFT_Hs %>%
-#  select(Name, Age, Bats, Positions) %>%
-#  inner_join(CVSL_2019_DRAFT_Hitters) %>%
-#  collect()
 
 CVSL_2020_DRAFT_Hitters = CVSL_2020_DRAFT %>%
   inner_join(Hitters_adv_2019) %>%
   select(Name, Salary, CVSLTeam, Year, wRC., Off, Def, WAR) %>%
   collect()
-#CVSL_2020_DRAFT_Hitters = DRAFT_Hs %>%
-#  select(Name, Age, Bats, Positions) %>%
-#  inner_join(CVSL_2020_DRAFT_Hitters) %>%
-#  collect()
 
 CVSL_2021_DRAFT_Hitters = CVSL_2021_DRAFT %>%
   inner_join(Hitters_adv_2020) %>%
   select(Name, Salary, CVSLTeam, Year, wRC., Off, Def, WAR) %>%
   collect()
-#CVSL_2021_DRAFT_Hitters = DRAFT_Hs %>%
-#  select(Name, Age, Bats, Positions) %>%
-#  inner_join(CVSL_2021_DRAFT_Hitters) %>%
-#  collect()
 
 CVSL_2019_DRAFT_Pitchers = CVSL_2019_DRAFT %>%
   inner_join(BR_2018_Standard_Pitching_Leaders) %>%
@@ -184,21 +172,13 @@ multiple polynomials
 ##### Build wRC+ models #####
   ## Build a linear model of wRC+ predicting Salary
 DRAFT_wRCh_lm = lm(data = CVSL_all_DRAFTS_hitters, formula = Salary ~ wRC.)
-  ## Check the model
-#coef(summary(DRAFT_wRCh_lm))
-#summary(DRAFT_wRCh_lm)
 
   ## Build the generalized linear model; a 2nd-degree polynomial of wRC+ predicting Salary
 DRAFT_wRCh_glm2 = glm(data = CVSL_all_DRAFTS_hitters, formula = Salary ~ wRC. + I(wRC.^2))
-  ## Check the model
-#coef(summary(DRAFT_wRCh_glm2))
-#summary(DRAFT_wRCh_glm2)
 
   ## Build the generalized linear model; a 3rd-degree polynomial of wRC+ predicting Salary
 DRAFT_wRCh_glm3 = glm(data = CVSL_all_DRAFTS_hitters, formula = Salary ~ wRC. + I(wRC.^2) + I(wRC.^3))
-  ## Check the model
-#coef(summary(DRAFT_wRCh_glm3))
-#summary(DRAFT_wRCh_glm3)
+
 ```
 
 Repeat as above, but for `fWAR`
@@ -211,23 +191,14 @@ gammy_wRCh = gam(data = CVSL_all_DRAFTS_hitters, formula = Salary ~ bs(wRC., k =
   ##### Build WAR models #####
   ## Linear
 DRAFT_WARh_lm = lm(data = CVSL_all_DRAFTS_hitters, formula = Salary ~ WAR)
-  ## Check the model
-#coef(summary(DRAFT_WARh_lm))
-#summary(DRAFT_WARh_lm)
 
   ## 2nd-deg polyn.
 DRAFT_WARh_glm2 = glm(data = CVSL_all_DRAFTS_hitters, formula = Salary ~ WAR + I(WAR^2))
-  ## Check the model
-#coef(summary(DRAFT_WARh_glm2))
-#summary(DRAFT_WARh_glm2)
 
   ## 3rd-deg polyn.
 DRAFT_WARh_glm3 = glm(data = CVSL_all_DRAFTS_hitters, formula = Salary ~ WAR + I(WAR^2) + I(WAR^3))
-#coef(summary(DRAFT_WARh_glm3))
-#summary(DRAFT_WARh_glm3)
 
 gammy_WARh = gam(data = CVSL_all_DRAFTS_hitters, formula = Salary ~ bs(WAR, k = 3) + bs(Year, k = 3))
-#summary(gammy_WARh)
 
 ## Create sorted indeces for plotting
 idx = sort(CVSL_all_DRAFTS_hitters$Salary, index.return = T)$ix
@@ -330,7 +301,7 @@ abline(0,0, col = "black", lwd = 2)
 text(x = 8, y = 0, "Overpay\nUnderpay", col = "black")
 ```
 
-![](https://github.com/eriklarsen4/Baseball/blob/main/CVSL/2022/Base%20CVSL%20Hitter%20Salary%20by%20fWAR-1.png)<!-- -->
+![](https://github.com/eriklarsen4/Baseball/blob/main/CVSL/2022/Base%20CVSL%20Hitter%20Salary%20by%20wRC%2B%20residuals-1.png)<!-- -->
 
 `fWAR` model second
 
@@ -346,16 +317,9 @@ text(x = 8, y = 0, "Overpay\nUnderpay", col = "black")
 
 ![](https://github.com/eriklarsen4/Baseball/blob/main/CVSL/2022/Base%20CVSL%20Hitter%20Salary%20by%20fWAR%20residuals-1.png)<!-- -->
 
-``` r
-## See how the residuals are distributed
-#res_es = resid(DRAFT_glm2)
-#plot(density(res_es))
-```
+I created labels to be used for plotting as a df column of strings (not shown).
 
-Create the labels to be used for plotting. These will be names of more
-interesting points/players in the model (not shown)
-
-Create the `ggplot` object of the data, add labels, and plot
+Create the `ggplot` object of the data, add labels, and plot in subsequent calls
 
 ``` r
   ## Create the object
@@ -377,7 +341,10 @@ gg = ggplot(CVSL_all_DRAFTS_hitters,
   geom_line(aes(x = `wRC.`,
                  y = `wRC.PredSal3`), color = "salmon", size = 1.2, alpha = 0.3)
   ## Add the labels
-gg = gg + geom_text_repel(data = CVSL_all_DRAFTS_hitters, x = CVSL_all_DRAFTS_hitters$wRC., y = CVSL_all_DRAFTS_hitters$Salary, color = "black", aes(label = Labels), size = 3, max.overlaps = Inf, box.padding = 0.5)
+gg = gg + geom_text_repel(data = CVSL_all_DRAFTS_hitters,
+x = CVSL_all_DRAFTS_hitters$wRC.,
+y = CVSL_all_DRAFTS_hitters$Salary,
+color = "black", aes(label = Labels), size = 3, max.overlaps = Inf, box.padding = 0.5)
   ## Plot
 gg
 ```
@@ -406,7 +373,10 @@ ggresid = ggplot(CVSL_all_DRAFTS_hitters,
   geom_hline(yintercept = 0, color = "black", size = 1.2, alpha = 0.3) +
   geom_text(x = 49, y = 0, label = "Overpay\n\nUnderpay", size = 4)
 
-ggresid = ggresid + geom_text_repel(data = CVSL_all_DRAFTS_hitters, x = CVSL_all_DRAFTS_hitters$wRC.PredSal3, y = CVSL_all_DRAFTS_hitters$wRC.Resid, color = "black", aes(label = Labels), size = 3, max.overlaps = Inf)
+ggresid = ggresid + geom_text_repel(data = CVSL_all_DRAFTS_hitters,
+x = CVSL_all_DRAFTS_hitters$wRC.PredSal3,
+y = CVSL_all_DRAFTS_hitters$wRC.Resid,
+color = "black", aes(label = Labels), size = 3, max.overlaps = Inf)
 
 ggresid
 ```
