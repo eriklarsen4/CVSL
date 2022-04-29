@@ -3,8 +3,7 @@ Tanking Graphs
 Erik Larsen
 4/23/2022
 
-This snippet was used to generate the graphs in my article (currently
-under review) on [TheLeftyCatcher](https://www.theleftycatcher.com),
+This snippet was used to generate the graphs in my [article](https://www.theleftycatcher.com/post/diving-deep-into-tanking) on [TheLeftyCatcher](https://www.theleftycatcher.com),
 where I compared and contrasted how `Jeff Luhnow` and `Theo Epstein`
 tanked to rebuild the `Chicago Cubs` and `Houston Astros`, beginning in
 \~2011 into World Series winners. I acquired `MLB Free Agent` data,
