@@ -5,6 +5,8 @@ Erik Larsen
 
 ## Approach/Analysis
 
+(see [here](https://github.com/eriklarsen4/Baseball/blob/main/AnonEVandLA/DataProjectInstructions.pdf) for project goals/context).
+
 **Assessment**
 
 -   I skimmed the df to assess `NA` locations and did quick, broad-level
