@@ -5,57 +5,65 @@ Erik Larsen
 
 ## Approach/Analysis
 
-(see [here](https://github.com/eriklarsen4/Baseball/blob/main/AnonEVandLA/DataProjectInstructions.pdf) for project goals/context).
+(see [here](https://github.com/eriklarsen4/Baseball/blob/main/AnonEVandLA/DataProjectInstructions.pdf) for details on project goals/context).
 
-**Assessment**
+I was given a dataset with **7 columns**: `batter`, `pitcher`, `hittype`, `speed_A`, `vangle_A`, `speed_B`, `vangle_B`.
+I was told that in this dataset, `Exit Velocities` (`speed_A` or `speed_B`) and `Launch Angles` (`vangle_A` or `vangle_B`) were recorded by two measurement systems for each batted ball event. By the number of unique `batter`s and number of events that this was over the course of a season. Each batted ball event was manually annotated as one of a group of `hittype`s (`ground_ball`, `line_drive`, `fly_ball`, `popup`, or `unknown`). My goal was to use either or both systems to predict/project `Exit Velocities` for each player for the following season based only on this dataset. A hint was that one system was speculated to be better than another, and a strong component of the evaluation was how to handle events where the systems failed to record metrics (`NA`s). I was also given a time constraint.
 
--   I skimmed the df to assess `NA` locations and did quick, broad-level
+**General Approach**
+
+-   I first skimmed the df to assess `NA` locations and did quick, broad-level
     stats on the distributions of non-`NA` events in both systems. Once
     I felt I understood the systems and then visualized the data, I
-    would decide how to impute and project `EV`s. Initially, **I
+    could decide how to impute (replace) `NA`s and project `EV`s. Initially, **I
     intended to use multiple approaches** to impute `NA`s: to impute all
-    `NA`s with median values, to impute by `regression`, and to impute
+    `NA`s with median values by `hittype`, to impute by `regression`, and to impute
     by `k-Nearest Neighbors`, and compare the results. But even with
-    cutting and pasting plots and existing code, I realized I wouldn’t
+    cutting/pasting plots with pre-existing code, I realized I wouldn’t
     have time for even two strategies, **so I chose regression to impute
-    NAs** and **regression for predicting EVs**. I did not get to
+    NAs** and **linear regression for predicting EVs**. I did not get to
     inspect those projections by evaluating residuals, or by plotting
     the projections.
 
 **Visualization**
 
 -   Visualizing each system’s data was important because it showed me
-    why there was a “suspicion” one system (`System A` is `Hawkeye`?
-    `System B` is `TrackMan`?) was better than the other: “mis-tracked”
-    data (`ground_ball`s with `LA`s &gt; 0 and `EV`s \~ &lt; 60). This
+    why there was a suspicion one system (`System A` is `Hawkeye`?) was 
+    better than the other: `System B` contained “mis-tracked”
+    data: `ground_ball`s with `LA`s &gt; 0 and `EV`s \~ &lt; 60. These events
+    were manually/visually annotated, so I knew these data were incorrectly
+    tracked. `Ground_ball`s should have far smaller `launch angles`. This
     convinced me to remove that data and return to it, if possible (time
     ran out). Interestingly, after doing this, I confirmed both
-    `System A` and `System B` had very tightly linear values for `LA`,
-    making imputing `NA` `vangle_A` values a reality, based on a
-    regression of `vangle_A` \~ `vangle_B`.
+    `System A` and `System B` had very tightly linear values for `LA`.
+    This enabled me, where `vangle_B`s were recorded and `vangle_A`s were not,
+    to regress and use `vangle_B` values as a predictor/proxy for `vangle_A`
+    `NA`s.
 
 **Imputing NAs**
 
--   To clarify, there were 3 cases of `NA` conditions: in `System A`
-    **only**, in `System B` **only**, or in **both** (i.e. events `NA`
+-   To clarify, there were 3 cases of `NA` conditions: batted ball events
+    in `System A` **only**, in `System B` **only**, or in **both** (i.e. events `NA`
     by both tracking systems, but visually determined to be a ball in
-    play). Thus, my plan was to first impute the `NA`s in **both**
+    play).
+    Thus, my plan was to first impute the `NA`s in **both**
     systems with their respective medians across conditions: where `NA`s
     were present in `speed_A`, `vangle_A`, `speed_B`, `vangle_B`, impute
     `speed_A` `NA`s with the median `speed_A` value; repeat for each
     variable. This would account for as many missing data points as
-    possible ahead of regressions, but shrink the variation of the true
+    possible ahead of using regression to replace missing `vangle_A` `NA`s
+    when `vangle_B`s were known, but shrink the variation of the true
     dataset to a small degree.
 
--   After doing this, I regressed `vangle_A` with `vangle_B` in a
-    **generalized additive model**. I used the fit to make predictions
-    for all `vangle_A`s where there was a `vangle_B` and imputed the
-    `vangle_A` `NA`s with these predictions.
+-   After the double `NA` imputation with medians,
+    I regressed `vangle_A` with `vangle_B` in a **generalized additive model**.
+    I used the fit to make predictions for all `vangle_A` where there was
+    a `vangle_B` and imputed the `vangle_A` `NA`s with these predictions.
 
 -   The `EV` was tricky: plotting `ground_ball` `EV`s showed some events
     had a linear relationship between `speed_A` and `speed_B`, and some
     events with a non-linear relationship. I fit one **GAM** for
-    `speed_A` \~ `speed_B` for each `hittype` (four **GAM**s) and
+    `speed_A` \~ `speed_B` for each `hittype` (4 separate **GAM**s) and
     imputed the `speed_A` `NA`s with the predictions of each
     `hittype`-specific model.
 
@@ -218,7 +226,7 @@ SysB
 ![](https://github.com/eriklarsen4/Baseball/blob/main/AnonEVandLA/Figures/SystemA%20and%20SystemB-2.png)<!-- -->
 
 Remove the poorly-tracked data from `System B` (`ground_balls` with high
-`LA`s, low `EV`s)
+`LA`s and low `EV`s)
 
 ``` r
 Bad_SYS_B = BATTED_BALL_DF[
@@ -320,8 +328,8 @@ suggesting imputed `NA`s may drag values down.
 -   With all `Sys A` values, build a `GAM` to `speed_A` \~ `vangle_A`,
     with `hittype` as factors
 -   Predict each `EV` based on this `GAM`
--   Average the predictions for each hitter by hittype
--   Weight the averages by the corresponding number of observations
+-   Average the predictions for each hitter by `hittype`
+-   **Weight the averages** by the corresponding **number of observations**
 -   Average these averages (weighted average) for a predicted `EV`
 
 ## Calculate medians, impute events with NAs in both systems with medians
@@ -409,14 +417,15 @@ estimates.
 ## Conclusions/Interpretations
 
 -   Out of time. I did not intend for my approach to be (what feels)
-    redundant. Other algorithms and workflows capable of more sensitive
+    redundant (repeated linear regressions with GAMs). 
+    Other algorithms and workflows capable of more sensitive
     imputation (such as `k-Nearest Neighbors` off the top of my head)
     and estimation (simulations and sampling) may have been more useful.
     But I stuck to what I knew best/had time for.
 -   The maximum of my average projected `EV`s is \~100mph. I’m surprised
     at how high this number is (`Judge` had the highest of all qualified
-    hitters last year at \~ **96mph**), though the 100mph max is likely
-    due to only having one event. I was expecting lower, particularly
+    hitters last year (2021) at \~ **96mph**), though the 100mph max is likely
+    due to only having one event. I was expected lower, particularly
     after imputing with `GAM`s that led to some more extreme values,
     instead of piling on additional weight to the median. This is
     supported by a comparison of the distribution of variables in the
@@ -424,9 +433,8 @@ estimates.
     slightly lower.
 -   A bigger picture of these predictions, measuring spread, with
     **mean** = **86.8mph**, **median** = **87.4mph**, and **sd** =
-    **4.0mph** seem plausible.
+    **4.0mph** seems plausible.
 -   However, given that I omitted \~1400 `ground_balls` because they
     were mistracked in `System B`, a relatively high maximum predicted
     average isn’t too surprising. It is feasible, though would
-    definitely need much refining, investigation, and analysis to get
-    more constrained and more (likely) accurate predictions.
+    definitely need much refining, investigation, and analysis.
