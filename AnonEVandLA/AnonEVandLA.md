@@ -344,7 +344,7 @@ Re-fit `vangle_A`s from `vangle_B`s with imputed values
 
 ![](https://github.com/eriklarsen4/Baseball/blob/main/AnonEVandLA/Figures/unnamed-chunk-7-1.png)<!-- -->
 
-![](https://github.com/eriklarsen4/Baseball/blob/main/AnonEVandLA/Figures/unnamed-chunk-8-1.png)<!-- -->
+![](https://github.com/eriklarsen4/Baseball/blob/thought-process-revision/AnonEVandLA/Figures/unnamed-chunk-8-1.png)<!-- -->
 
 ![](https://github.com/eriklarsen4/Baseball/blob/main/AnonEVandLA/Figures/unnamed-chunk-9-1.png)<!-- -->
 
@@ -422,7 +422,7 @@ estimates.
     imputation (such as `k-Nearest Neighbors` off the top of my head)
     and estimation (simulations and sampling) may have been more useful.
     But I stuck to what I knew best/had time for.
--   The maximum of my average projected `EV`s is \~100mph. I’m surprised
+-   The maximum of my average projected `EV`s is \~**100mph**. I’m surprised
     at how high this number is (`Judge` had the highest of all qualified
     hitters last year (2021) at \~ **96mph**), though the 100mph max is likely
     due to only having one event. I was expected lower, particularly
