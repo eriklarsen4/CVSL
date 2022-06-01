@@ -420,8 +420,8 @@ estimates.
     redundant (repeated linear regressions with GAMs). 
     Other algorithms and workflows capable of more sensitive
     imputation (such as `k-Nearest Neighbors` off the top of my head)
-    and estimation (simulations and sampling) may have been more useful.
-    But I stuck to what I knew best/had time for.
+    and estimation (simulations and sampling) may have been more useful
+    with more time.
 -   The maximum of my average projected `EV`s is \~**100mph**. I’m surprised
     at how high this number is (`Judge` had the highest of all qualified
     hitters last year (2021) at \~ **96mph**), though the 100mph max is likely
