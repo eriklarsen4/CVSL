@@ -104,31 +104,39 @@ print(BBA_DRAFT_ALL[ which(BBA_DRAFT_ALL$Tm == "Chicago Cubs" & BBA_DRAFT_ALL$Rd
   ## Create a function to import the standings from 2011-2021 according to Baseball Reference
 br_stand_fn = function(Year){
   df = read_html(
-    paste("https://www.baseball-reference.com/leagues/majors/20", Year, "-standings.shtml#expanded_standings_overall", sep = "")
+    paste("https://www.baseball-reference.com/leagues/majors/20", Year, "-standings.shtml", sep = "")
   ) %>%
+    html_nodes(xpath = '//comment()') %>%
+    html_text() %>%
+    paste(collapse = '') %>%
+    read_html() %>%
+    html_node('#expanded_standings_overall') %>%
     html_table()
-  ## Combine the divisions into one standings dataframe
-  df = reduce(df[][], full_join, by = c("Tm", "W", "L", "W-L%", "GB"))
-  ## Convert the table into a dataframe
-  df = as.data.frame(df)
-  ## Add rankings within divisions
-  df$DivRank = rep(c(1:5), 6)
+  
   ## Re-order by most wins
   df = df[order(df$W, decreasing = TRUE),]
   ## Add a column to track the year for future df merging
   df$Year = as.numeric(paste("20", Year, sep = ""))
+  df = df[-which(df$Tm == "Average"),-1]
   ## Save the dataframe as a variable to the global environment
   assign(paste("Standings_20", Year, sep = ""), df, envir = .GlobalEnv)
 }
+
   ## Loop through and import the standings from 2011-2021
 for ( i in 11:21 ) {
   br_stand_fn(Year = i)
 }
 
-StandALL = rbind.data.frame(Standings_2011, Standings_2012, Standings_2013, Standings_2014, Standings_2015, Standings_2016, Standings_2017, Standings_2018, Standings_2019, Standings_2020, Standings_2021)
+StandALL = reduce(
+  mget(ls()[which(grepl(ls(), pattern = "Standings_") == TRUE)
+            ]
+       ), full_join)
+
 StandALL$Tm[ which(StandALL$Tm == "Los Angeles Angels of Anaheim")] = "Los Angeles Angels"
 StandALL$Tm[ which(StandALL$Tm == "Florida Marlins")] = "Miami Marlins"
-rm(Standings_2011, Standings_2012, Standings_2013, Standings_2014, Standings_2015, Standings_2016, Standings_2017, Standings_2018, Standings_2019, Standings_2020, Standings_2021)
+
+rm(list = ls()[which(grepl(ls(), pattern = "Standings_") == TRUE)
+])
 
 ##### Player WAR and Salary Data from Baseball Reference #####
 
