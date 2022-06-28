@@ -32,7 +32,7 @@ strings– this is useful because when you combine tables of different
 string encodings (i.e. `Baseball Reference` and `FanGraphs`), the tables
 won’t combine!
 
-Lastly, the [mlbplotR](https://github.com/camdenk/mlbplotR) is awesome.
+Lastly, the [mlbplotR](https://github.com/camdenk/mlbplotR) package is awesome.
 It is a wrapper for `ggplot2` and allows for plotting team colors,
 logos, player faces, official team nicknames, and cities.
 
