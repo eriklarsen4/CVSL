@@ -92,7 +92,7 @@ ValScrape = function(year){
       
       ## Use tidyverse/SQL functionality (the %>%) to send this output as input to the "html_node" function
         ## I found the selector for this node ("#teams_value_batting") using "Developer Tools"
-        ## using a Chrome Browser. You can find how to do this online, or just ask me/around.
+        ## within a Chrome Browser. You can find how to do this online, or just ask me/around.
     html_node('#teams_value_batting') %>%
       ## Pipe this output into the "html_table" function to create a table from the specific
       ## webpage you just scraped
