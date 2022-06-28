@@ -4,9 +4,10 @@ Erik Larsen
 June 6th, 2022
 
 This is a tutorial script for scraping and plotting some baseball data I've already investigated before.
+
 Not quite as nuanced as some other plots I developed for my doctoral work, but no less in quality.
-My code isn't typically as verbose as this, but for tutorial purposes, I'm explicit whether in comments or by
-these segments.
+
+My code isn't typically as verbose as this, but for tutorial purposes, I'm explicit whether in comments or in non-code snippets.
 
 ## Import Packages
 
