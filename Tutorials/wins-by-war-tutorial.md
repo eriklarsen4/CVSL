@@ -249,7 +249,7 @@ Use `WARPG` (`WAR` / `G`) as a predictor (independent/X-axis variable)
 for `W%` (`W_L`).
 
 ``` r
-  ## W% ~ WAR (all)
+  ## W% ~ WAR
 WL_WARPG_lm = lm(data = Tot_Val_All_sub, formula = W_L~WARPG)
   ## Inspect by showing the model's coefficient of determination
 summary(WL_WARPG_lm)$r.squared
