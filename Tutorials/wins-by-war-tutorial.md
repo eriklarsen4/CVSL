@@ -4,7 +4,9 @@ Erik Larsen
 June 6th, 2022
 
 This is a tutorial script for scraping and plotting some baseball data I've already investigated before.
-Not quite as nuanced as some other plots I developed for my doctoral work, but no less quality.
+Not quite as nuanced as some other plots I developed for my doctoral work, but no less in quality.
+My code isn't typically as verbose as this, but for tutorial purposes, I'm explicit whether in comments or by
+these segments.
 
 ## Import Packages
 
@@ -30,15 +32,15 @@ Might eventually need
 [stringr](https://cran.r-project.org/package=stringr) and
 [stringi](https://cran.r-project.org/package=stringi) to manipulate
 strings– this is useful because when you combine tables of different
-string encodings (i.e. `Baseball Reference` and `FanGraphs`), the tables
-won’t combine!
+string/data encodings (i.e. `Baseball Reference` and `FanGraphs`), the tables
+won’t combine (accents on `latin-1`-encoded characters)!
 
 Lastly, the [mlbplotR](https://github.com/camdenk/mlbplotR) package is awesome.
 It is a wrapper for `ggplot2` and allows for plotting team colors,
 logos, player faces, official team nicknames, and cities.
 
 A standard package to use is the
-[baseballr](https://cran.r-project.org/package=baseballr)
+[baseballr](https://cran.r-project.org/package=baseballr) package.
 
 ``` r
 library(tidyverse)
@@ -135,7 +137,7 @@ Now, loop over the years we want (in this case, 2011-2021) with the function we 
 make/get dataframes of team `WAR` values. The model we’ll build is from
 my article on
 [TheLeftyCatcher](https://www.theleftycatcher.com/post/diving-deep-into-tanking)-
-based off of 2011-2021 data. We'll visualize that data which will look strongly linear.
+based off of data from each season from 2011-2021. We'll visualize that data. It'll look strongly linear.
 
 ``` r
 for(i in 2011:2021){
