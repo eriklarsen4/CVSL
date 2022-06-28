@@ -3,7 +3,8 @@ Projecting Wins by WAR: A Tutorial
 Erik Larsen
 June 6th, 2022
 
-This is a tutorial script for scraping and plotting some baseball data.
+This is a tutorial script for scraping and plotting some baseball data I've already investigated before.
+Not quite as nuanced as some other plots I developed for my doctoral work, but no less quality.
 
 ## Import Packages
 
