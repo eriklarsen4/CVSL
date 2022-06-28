@@ -477,5 +477,5 @@ link](https://nyu-cdsc.github.io/learningr/assets/data-visualization-2.1.pdf),
 [SQL in R (aka tidyverse)
 link](https://nyu-cdsc.github.io/learningr/assets/data-transformation.pdf).
 
-There are tons more of material that I’ve saved over years of work. Just
-reach out if you can’t find something.
+There are tons more material that I’ve saved over years of work. Just
+reach out if you can’t find something. Usually, if you think of an idea or stumble onto a problem, it's been done or solved.
