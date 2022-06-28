@@ -321,7 +321,7 @@ WL_WAR = ggplot(data = Tot_Val_All_sub) +
 WL_WAR
 ```
 
-![](Wins-by-WAR-Tutorial_files/figure-gfm/W_L%20and%20WAR%20Regression-1.png)<!-- -->
+![](https://github.com/eriklarsen4/Baseball/blob/main/Tutorials/Wins-by-WAR-Tutorial_files/figure-gfm/W_L%20and%20WAR%20Regression-1.png)<!-- -->
 
 ## Scrape Current Data
 
@@ -450,7 +450,7 @@ ggplot(data = w_logos, aes(x = WARPG, y = W_L), width = 0.08) +
   geom_text(x = 0.39, y = 0.64, label = "Expected\nWin %", color = "black")
 ```
 
-![](Wins-by-WAR-Tutorial_files/figure-gfm/Generating%20the%20ggplot%20Regression-1.png)<!-- -->
+![](https://github.com/eriklarsen4/Baseball/blob/main/Tutorials/Wins-by-WAR-Tutorial_files/figure-gfm/Generating%20the%20ggplot%20Regression-1.png)<!-- -->
 
 Just a couple of the most useful R links out there: [ggplot color
 link](https://www.datanovia.com/en/blog/awesome-list-of-657-r-color-names/),
