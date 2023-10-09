@@ -5,10 +5,12 @@ Erik Larsen
 
 ## Approach/Analysis
 
-(see [here](https://github.com/eriklarsen4/Baseball/blob/main/AnonEVandLA/DataProjectInstructions.pdf) for details on project goals/context).
-
 I was given a dataset with **7 columns**: `batter`, `pitcher`, `hittype`, `speed_A`, `vangle_A`, `speed_B`, `vangle_B`.
-I was told that in this dataset, `Exit Velocities` (`speed_A` or `speed_B`) and `Launch Angles` (`vangle_A` or `vangle_B`) were recorded by two measurement systems for each batted ball event. By the number of unique `batter`s and number of events, I figured that this was over the course of a season. Each batted ball event was also described as one of a group of `hittype`s (`ground_ball`, `line_drive`, `fly_ball`, `popup`, or `unknown`). My goal was to use either or both systems to predict/project `Exit Velocities` for each player for the following season based only on this dataset. A hint was that one system was speculated to be better than another, and a strong component of the evaluation of my output was how I handled events where the systems failed to record metrics (`NA`s). I was also given a time constraint.
+I was told that in this dataset, `Exit Velocities` (`speed_A` or `speed_B`) and `Launch Angles` (`vangle_A` or `vangle_B`) were recorded by two measurement systems for each batted ball event.
+
+By the number of unique `batter`s and number of events, I figured that this data was over the course of one season. Each batted ball event was also described as belonging to one of a group of `hittype`s (`ground_ball`, `line_drive`, `fly_ball`, `popup`, or `unknown`).
+
+My goal was to use either or both systems to predict/project `Exit Velocities` for each player for the following season based only on this dataset. I was given one "hint": one system was speculated to be better than another, and a strong component of the evaluation of my output was how I handled events where the systems failed to record metrics (`NA`s). I was also given a time constraint.
 
 **General Approach**
 
@@ -31,19 +33,19 @@ I was told that in this dataset, `Exit Velocities` (`speed_A` or `speed_B`) and 
     why there was a suspicion one system (`System A` is `Hawkeye`?) was 
     better than the other: `System B` contained “mis-tracked”
     data: `ground_ball`s with `LA`s &gt; 0 and `EV`s \~ &lt; 60. These events
-    were manually/visually annotated, so I knew these data were incorrectly
+    were manually/visually annotated, so I assumed these data were incorrectly
     tracked. `Ground_ball`s should have far smaller `launch angles`. This
-    convinced me to remove that data and return to it, if possible (time
+    convinced me to remove "erroneous" data and return to it, if possible (time
     ran out). Interestingly, after doing this, I confirmed both
     `System A` and `System B` had very tightly linear values for `LA`.
-    This enabled me, where `vangle_B`s were recorded and `vangle_A`s were not,
-    to regress and use `vangle_B` values as a predictor/proxy for `vangle_A`
-    `NA`s.
+
+    This enabled me to use linear regression and impute `NA` `vangle_A`s with not-missing `vangle_B`s.
+    The relationship between `LA` and `EV` resembled something parabolic, so I figured to use general additive model to predict `EV`s using `LA`s once I had imputed enough missing values.
 
 **Imputing NAs**
 
 -   To clarify, there were 3 cases of `NA` conditions: batted ball events
-    in `System A` **only**, in `System B` **only**, or in **both** (i.e. events `NA`
+    in `System A` **only** (not recorded in `A`), in `System B` **only** (not recorded in `B`), or in **both** (i.e. events `NA`
     by both tracking systems, but visually determined to be a ball in
     play).
     Thus, my plan was to first impute the `NA`s in **both**
@@ -57,7 +59,7 @@ I was told that in this dataset, `Exit Velocities` (`speed_A` or `speed_B`) and 
 
 -   After the double `NA` imputation with medians,
     I regressed `vangle_A` with `vangle_B` in a **generalized additive model**.
-    I used the fit to make predictions for all `vangle_A` where there was
+    I used the fit to make predictions for all `vangle_A`s where there was
     a `vangle_B` and imputed the `vangle_A` `NA`s with these predictions.
 
 -   The `EV` was tricky: plotting `ground_ball` `EV`s showed some events
