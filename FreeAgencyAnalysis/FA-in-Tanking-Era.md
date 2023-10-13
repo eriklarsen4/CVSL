@@ -1,7 +1,7 @@
 Free-Agency in the Tanking Era
 ================
 Erik Larsen
-1/16/2021
+1/16/2022
 
 This snippet was used in my article on
 [TheLeftyCatcher](https://www.theleftycatcher.com/post/free-agency-spending-trends-in-the-tanking-era),
