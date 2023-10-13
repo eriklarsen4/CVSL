@@ -319,11 +319,10 @@ EV_no_bad_GBs +
 
 `speed_A` values are higher than `speed_B`. Based on the regression,
 there are many high velocity `ground_ball`s in `System A` above the fit,
-suggesting imputed `NA`s may drag values down.
+suggesting imputed `NA`s may drag values down. Since other hittypes are tightly linear, I suspect this is good, though not enough.
 
--   Impute medians for events with `NA`s in both systems
--   Impute `Sys A` `vangle_A` `NA`s with predictions from a GAM/lm
-    fitting `vangle_B` to `vangle_A`
+-   Impute medians of `Sys B` variables for events with `NA`s in both systems
+-   Impute `Sys A` `vangle_A` `NA`s with predictions from a GAM/lm where `vangle_A` ~ `vangle_B`
 -   Use individual `GAM`s by `hittype` to impute `speed_A` `NA`s
 -   `GAM` fit to `GB` `speed_B`, `speed_A`
 -   `GAM` fit to `LD` `speed_B`, `speed_A`, etc., etc.
