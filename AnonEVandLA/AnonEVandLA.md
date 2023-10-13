@@ -49,10 +49,10 @@ My goal was to use either or both systems to predict/project `Exit Velocities` f
     + in `System B` **only** (not recorded in `B`)
     + or in **both** (i.e. events `NA` by both tracking systems, but visually determined to be a ball in play).
 -   Thus, my plan was to first impute the `NA`s occurring in **both**
-    systems with their respective medians: where `NA`s
-    were present in `speed_A`, `vangle_A`, `speed_B`, `vangle_B`, impute
-    `speed_B` `NA`s with the median `speed_B` value; repeat for each
-    `System B` variable. This would account for as many missing data points as
+    systems with the respective medians for `System B` variables:
+    + where `NA`s were present in `speed_A`, `vangle_A`, `speed_B`, `vangle_B`, impute
+    `speed_B` `NA`s with the median `speed_B` value; repeat for `vangle_B`.
+-   This would account for as many missing data points as
     possible ahead of using regression to replace missing `vangle_A` `NA`s
     when `vangle_B`s were known, but shrink the variation of the true
     dataset to a small degree.
