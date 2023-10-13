@@ -40,24 +40,24 @@ My goal was to use either or both systems to predict/project `Exit Velocities` f
     `System A` and `System B` had very tightly linear values for `LA`.
 
     This enabled me to use linear regression and impute `NA` `vangle_A`s with not-missing `vangle_B`s.
-    The relationship between `LA` and `EV` resembled something parabolic, so I figured to use general additive model to predict `EV`s using `LA`s once I had imputed enough missing values.
+    The relationship between `LA` and `EV` resembled something parabolic, so I figured to use general additive model to predict `EV`s using `LA`s of `System A` once I had imputed enough missing values since `System A` seemed more accurate.
 
 **Imputing NAs**
 
--   To clarify, there were 3 cases of `NA` conditions: batted ball events
-    in `System A` **only** (not recorded in `A`), in `System B` **only** (not recorded in `B`), or in **both** (i.e. events `NA`
-    by both tracking systems, but visually determined to be a ball in
-    play).
-    Thus, my plan was to first impute the `NA`s in **both**
-    systems with their respective medians across conditions: where `NA`s
+-   To clarify, there were 3 cases of `NA` conditions:
+-   + batted ball events in `System A` **only** (not recorded in `A`)
+    + in `System B` **only** (not recorded in `B`)
+    + or in **both** (i.e. events `NA` by both tracking systems, but visually determined to be a ball in play).
+    Thus, my plan was to first impute the `NA`s occurring in **both**
+    systems with their respective medians: where `NA`s
     were present in `speed_A`, `vangle_A`, `speed_B`, `vangle_B`, impute
-    `speed_A` `NA`s with the median `speed_A` value; repeat for each
-    variable. This would account for as many missing data points as
+    `speed_B` `NA`s with the median `speed_B` value; repeat for each
+    `System B` variable. This would account for as many missing data points as
     possible ahead of using regression to replace missing `vangle_A` `NA`s
     when `vangle_B`s were known, but shrink the variation of the true
     dataset to a small degree.
 
--   After the double `NA` imputation with medians,
+-   After the imputation of `System B` variables,
     I regressed `vangle_A` with `vangle_B` in a **generalized additive model**.
     I used the fit to make predictions for all `vangle_A`s where there was
     a `vangle_B` and imputed the `vangle_A` `NA`s with these predictions.
