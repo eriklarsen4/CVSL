@@ -327,7 +327,7 @@ Import
 
 ``` r
   ## Import player value stats downloaded from Baseball Reference
-setwd("C:/Users/Erik/Desktop/BoxCopy/Programming Scripts and Data/Baseball/Projects/Tanking/Tanking/Player Value files/")
+setwd("https://github.com/eriklarsen4/Baseball/tree/main/Tanking/Player%20Value%20files")
 files = list.files(pattern = "Player_Value")
 for ( i in 1:length(files) ) {
   as.data.frame(
