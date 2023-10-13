@@ -45,10 +45,10 @@ My goal was to use either or both systems to predict/project `Exit Velocities` f
 **Imputing NAs**
 
 -   To clarify, there were 3 cases of `NA` conditions:
--   + batted ball events in `System A` **only** (not recorded in `A`)
+    + batted ball events in `System A` **only** (not recorded in `A`)
     + in `System B` **only** (not recorded in `B`)
     + or in **both** (i.e. events `NA` by both tracking systems, but visually determined to be a ball in play).
-    Thus, my plan was to first impute the `NA`s occurring in **both**
+-   Thus, my plan was to first impute the `NA`s occurring in **both**
     systems with their respective medians: where `NA`s
     were present in `speed_A`, `vangle_A`, `speed_B`, `vangle_B`, impute
     `speed_B` `NA`s with the median `speed_B` value; repeat for each
