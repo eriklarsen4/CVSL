@@ -37,10 +37,10 @@ My goal was to use either or both systems to predict/project `Exit Velocities` f
     tracked. `Ground_ball`s should have far smaller `launch angles`. This
     convinced me to remove "erroneous" data and return to it, if possible (time
     ran out). Interestingly, after doing this, I confirmed both
-    `System A` and `System B` had very tightly linear values for `LA`.
+    `System A` and `System B` had fairly tightly linear values for `LA`.
 
-    This enabled me to use linear regression and impute `NA` `vangle_A`s with not-missing `vangle_B`s.
-    The relationship between `LA` and `EV` resembled something parabolic, so I figured to use general additive model to predict `EV`s using `LA`s of `System A` once I had imputed enough missing values since `System A` seemed more accurate.
+    This enabled me to use linear regression and impute `NA` `vangle_A`s with not-missing `vangle_B`s, though the extreme ends would be slightly mis-calibrated.
+    The relationship between `LA` and `EV` resembled something parabolic. And since `System A` was hinted at being more accurate, I figured to use a general additive model to predict `EV`s using `LA`s of `System A` for projections once I imputed missing values accounted for. I did not re-calibrate `System A` `ground_ball` `EV`s, but I should have.
 
 **Imputing NAs**
 
@@ -53,8 +53,8 @@ My goal was to use either or both systems to predict/project `Exit Velocities` f
     + where `NA`s were present in `speed_A`, `vangle_A`, `speed_B`, `vangle_B`, impute
     `speed_B` `NA`s with the median `speed_B` value; repeat for `vangle_B`.
 -   This would account for as many missing data points as
-    possible ahead of using regression to replace missing `vangle_A` `NA`s
-    when `vangle_B`s were known, but shrink the variation of the true
+    possible ahead of using regression to replace missing `System A` `NA`s
+    when `System B`s were known, but shrink the variation of the true
     dataset to a small degree.
 
 -   After the imputation of `System B` variables,
@@ -62,12 +62,12 @@ My goal was to use either or both systems to predict/project `Exit Velocities` f
     I used the fit to make predictions for all `vangle_A`s where there was
     a `vangle_B` and imputed the `vangle_A` `NA`s with these predictions.
 
--   The `EV` was tricky: plotting `ground_ball` `EV`s showed some events
-    had a linear relationship between `speed_A` and `speed_B`, and some
+-   The `EV` was tricky: again, plotting `ground_ball` `EV`s showed some events
+    had a linear relationship between `speed_A` and `speed_B`, and many
     events with a non-linear relationship. I fit one **GAM** for
     `speed_A` \~ `speed_B` for each `hittype` (4 separate **GAM**s) and
     imputed the `speed_A` `NA`s with the predictions of each
-    `hittype`-specific model.
+    `hittype`-specific model between systems.
 
 **Projections**
 
@@ -80,7 +80,7 @@ My goal was to use either or both systems to predict/project `Exit Velocities` f
     appropriate `hittype` and computed a weighted average of these
     predictions: for each hitter, I weighted the average of the
     predictions of a given `hittype` by the number of events of that
-    type; I then averaged the sum. These were my projections.
+    type; I then averaged the sum. These were my projections. I did not account for random effects of any kind- hitter or pitcher.
 
 ## Environment Prep
 
