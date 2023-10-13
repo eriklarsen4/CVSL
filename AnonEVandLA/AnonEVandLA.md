@@ -322,16 +322,15 @@ there are many high velocity `ground_ball`s in `System A` above the fit,
 suggesting imputed `NA`s may drag values down. Since other hittypes are tightly linear, I suspect this is good, though not enough.
 
 -   Impute medians of `Sys B` variables for events with `NA`s in both systems
--   Impute `Sys A` `vangle_A` `NA`s with predictions from a GAM/lm where `vangle_A` ~ `vangle_B`
--   Use individual `GAM`s by `hittype` to impute `speed_A` `NA`s
+-   Impute `Sys A` `vangle_A` `NA`s with predictions from a GAM/lm where `vangle_A` ~ `vangle_B` (faster for one model)
+-   Use individual `GAM`s by `hittype` to impute `speed_A` `NA`s (necessary for multiple)
 -   `GAM` fit to `GB` `speed_B`, `speed_A`
 -   `GAM` fit to `LD` `speed_B`, `speed_A`, etc., etc.
 -   With all `Sys A` values, build a `GAM` to `speed_A` \~ `vangle_A`,
     with `hittype` as factors
 -   Predict each `EV` based on this `GAM`
--   Average the predictions for each hitter by `hittype`
--   **Weight the averages** by the corresponding **number of observations**
--   Average these averages (weighted average) for a predicted `EV`
+-   Compute a weighted average on the `EV`s for each hitter:hittype for their projected `EV`
+       + hitter's projected `EV` = sum of (each hittype avg `EV` * percent of hittype `EV` observations)
 
 ## Calculate medians, impute events with NAs in both systems with medians
 
@@ -417,18 +416,15 @@ estimates.
 
 ## Conclusions/Interpretations
 
--   Out of time. I did not intend for my approach to be (what feels)
-    redundant (repeated linear regressions with GAMs). 
+-   Out of time. Approach felt redundant (repeated linear regressions with GAMs). 
     Other algorithms and workflows capable of more sensitive
     imputation (such as `k-Nearest Neighbors` off the top of my head)
-    and estimation (simulations and sampling) may have been more useful
+    and estimation (simulations and sampling?) may have been more useful
     with more time.
 -   The maximum of my average projected `EV`s is \~**100mph**. I’m surprised
     at how high this number is (`Judge` had the highest of all qualified
     hitters last year (2021) at \~ **96mph**), though the 100mph max is likely
-    due to only having one event. I was expected lower, particularly
-    after imputing with `GAM`s that led to some more extreme values,
-    instead of piling on additional weight to the median. This is
+    due to only having one event. I was expecting lower in part because of the mass of `GB`s. This is
     supported by a comparison of the distribution of variables in the
     raw `BATTED_BALL_DF` with those of the `Bad_SYS_B`. The latter was
     slightly lower.
@@ -436,6 +432,6 @@ estimates.
     **mean** = **86.8mph**, **median** = **87.4mph**, and **sd** =
     **4.0mph** seems plausible.
 -   However, given that I omitted \~1400 `ground_balls` because they
-    were mistracked in `System B`, a relatively high maximum predicted
+    were "mistracked" in `System B`, a relatively high maximum predicted
     average isn’t too surprising. It is feasible, though would
-    definitely need much refining, investigation, and analysis.
+    definitely need more refining, investigation, and analysis.
