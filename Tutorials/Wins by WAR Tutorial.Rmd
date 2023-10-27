@@ -81,7 +81,7 @@ ValScrape = function(year){
   bat_df = read_html(paste("https://www.baseball-reference.com/leagues/majors/", year, "-value-batting.shtml", sep = "")) %>%
     html_node('#teams_value_batting') %>%
     html_table() %>%
-    select(Tm, oWAR, dWAR, WAR, Salary)
+    dplyr::select(Tm, oWAR, dWAR, WAR, Salary)
   
     ## Remove excess rows
   bat_df = bat_df[1:30,]
@@ -92,7 +92,7 @@ ValScrape = function(year){
   pit_df = read_html(paste("https://www.baseball-reference.com/leagues/majors/", year, "-value-pitching.shtml", sep = "")) %>%
     html_node('#teams_value_pitching') %>%
     html_table() %>%
-    select(Tm, RAA, WAA, WAR, Salary)
+    dplyr::select(Tm, RAA, WAA, WAR, Salary)
   
   pit_df = pit_df[1:30,]
   
@@ -118,8 +118,17 @@ Loop over the years we want with the function we just created to make/get datafr
 The model we'll build is from my article on [TheLeftyCatcher](https://www.theleftycatcher.com/post/diving-deep-into-tanking)- based off of 2011-2021 data. That data won't be visualized here.
 
 ```{r Looping over years for WAR values, include = TRUE, echo = TRUE, warning = FALSE, message = FALSE}
-for(i in 2011:2021){
-  ValScrape(year = i)
+for(i in 2011:2023){
+  
+  if (i %% 10 == 0 ){
+    
+    Sys.sleep(60)
+    
+    } else {
+      
+     ValScrape(year = i) 
+      
+    }
 }
     ## Put all together
       ## "reduce" will compact dataframes/variables of the same structure
@@ -127,13 +136,16 @@ for(i in 2011:2021){
         ## I took any variables from the global environment ("ls()")
         ## with the pattern, " 'Tot_Val' ". I used 'full_join' as the method by which to
         ## join all the dataframes; this keeps all columns
-Tot_Val_All = reduce(mget(ls()[which(grepl(ls(), pattern = "Tot_Val") == TRUE)]), full_join)
+Tot_Val_All = purrr::reduce(mget(ls()[which(grepl(ls(), pattern = "Tot_Val") == TRUE)]), full_join)
 
   ## Streamline team names (Marlins, Guardians, Angels); re-name "Tm" strings so that they are the same
   ## across dataframes
 Tot_Val_All$Tm[ which(Tot_Val_All$Tm == "Cleveland Indians")] = "Cleveland Guardians"
 Tot_Val_All$Tm[ which(grepl(Tot_Val_All$Tm, pattern = "Marlins") == TRUE) ] = "Miami Marlins"
 Tot_Val_All$Tm[ which(grepl(Tot_Val_All$Tm, pattern = "Angels") == TRUE) ] = "Los Angeles Angels"
+
+Tot_Val_All = Tot_Val_All %>%
+  dplyr::filter(year != 2020)
 ```
 
 Repeat the same process, but for `standings`.
@@ -178,12 +190,20 @@ Run the function and loop over it. Fix team name strings to be uniform throughou
 
 ```{r Scrape the Standings data by looping over the function within a desired length of time, include = TRUE, echo = TRUE, message = FALSE, warning = FALSE}
   ## Loop over the desired years
-for(i in 2011:2021){
-  StandScrape(year = i)
+for(i in 2011:2023){
+  
+  if (i %% 10 == 0) {
+  
+      Sys.sleep(60)
+  
+    } else {
+      
+      StandScrape(year = i) 
+  }
 }
 
     ## Put all together, as with WAR data
-Tot_Stand_All = reduce(mget(ls()[which(grepl(ls(), pattern = "Tot_Stand") == TRUE)]), full_join)
+Tot_Stand_All = purrr::reduce(mget(ls()[which(grepl(ls(), pattern = "Tot_Stand") == TRUE)]), full_join)
 
 ## Streamline team names (Marlins, Guardians, Angels
 Tot_Stand_All$Tm[ which(Tot_Stand_All$Tm == "Cleveland Indians")] = "Cleveland Guardians"
@@ -212,9 +232,6 @@ Tot_Val_All$WARPG = as.numeric(Tot_Val_All$WAR) / as.numeric(Tot_Stand_All$G)
 Tot_Val_All$W = as.numeric(Tot_Stand_All$W)
 Tot_Val_All$W_L = as.numeric(Tot_Stand_All$`W-L%`)
 
-    ## Build models
-  ## Subset to remove the 2020 season
-Tot_Val_All_sub = Tot_Val_All[-which(Tot_Val_All$year == 2020),]
 ```
 
 ## Build a Regresssion Model
@@ -225,15 +242,18 @@ Use `WARPG` (`WAR` / `G`) as a predictor (independent/X-axis variable) for `W%` 
 
 ```{r include = TRUE, echo = TRUE, warning = FALSE, message = FALSE}
   ## W% ~ WAR (all)
-WL_WARPG_lm = lm(data = Tot_Val_All_sub, formula = W_L~WARPG)
+WL_WARPG_lm = lm(data = Tot_Val_All, formula = W_L~WARPG)
   ## Inspect by seeing the model's coefficient of determination
 summary(WL_WARPG_lm)$r.squared
   ## Print some of the coefficients for plotting (intercept in this case)
 as.numeric(coefficients(WL_WARPG_lm)[1])
+
+  ## RMSE
+# sqrt(mean((Tot_Val_All$W_L - as.numeric(WL_WARPG_lm$fitted.values))^2))
 ```
 
 ```{r include = TRUE, echo = FALSE, warning = FALSE, message = FALSE}
-WL_WAR_lm = lm(data = Tot_Val_All_sub, formula = W_L~WAR)
+WL_WAR_lm = lm(data = Tot_Val_All, formula = W_L~WAR)
 ```
 
 ## Plot the Regression Fit
@@ -244,21 +264,21 @@ Add layers to the ggplot by using `+` after each function/command and continuing
 
 ```{r W_L and WAR Regression, include = TRUE, warning = FALSE, echo = TRUE, message = FALSE, render = TRUE}
   ## Create the object
-WL_WAR = ggplot(data = Tot_Val_All_sub) +
+WL_WAR = ggplot(data = Tot_Val_All) +
     ## Add specificity/layers (i.e. what kind of plot? dot/scatter
       ## that has WAR on X-axis, W% on Y, colored by team which will
       ## be specified later)
-  geom_point(aes(x = Tot_Val_All_sub$WAR,
-                 y = Tot_Val_All_sub$W_L,
-                 color = Tot_Val_All_sub$Tm),
+  geom_point(aes(x = Tot_Val_All$WAR,
+                 y = Tot_Val_All$W_L,
+                 color = Tot_Val_All$Tm),
              size = 4,
              alpha = 0.5) +
     ## Add the coefficient of determination using "expression" and "paste" functions within "geom_text"
-  geom_text(x = 59, y = 0.7, label = expression(paste(("R")^"2", "= 0.839")), color = "black") +
+  geom_text(x = 59, y = 0.7, label = expression(paste(("R")^"2", "= 0.849")), color = "black") +
     ## Provide coordinates
-  coord_cartesian(xlim = c(7,68), ylim = c(0.280, 0.750)) +
+  coord_cartesian(xlim = c(7,68), ylim = c(0.270, 0.780)) +
     ## Make plot and axis titles
-  labs(title = "MLB Team Performance Regression\n2011-2021",
+  labs(title = "MLB Team Performance Regression\n2011-2023",
        x = "Team bWAR",
        y = "W-L %",
        color = "Team") + 
@@ -300,18 +320,18 @@ Scrape current `BBRef` team `WAR` data.
 
 ```{r Scrape Current WAR data, include = TRUE, echo = TRUE, message = FALSE, warning = FALSE}
   ## Hitters
-BatValNew = read_html("https://www.baseball-reference.com/leagues/majors/2022-value-batting.shtml") %>%
+BatValNew = read_html("https://www.baseball-reference.com/leagues/majors/2023-value-batting.shtml") %>%
   html_node('#teams_value_batting') %>%
   html_table() %>%
-  select(Tm, oWAR, dWAR, WAR, Salary)
+  dplyr::select(Tm, oWAR, dWAR, WAR, Salary)
   ## Remove extra rows (league avg's and spaces, etc.)
 BatValNew = BatValNew[1:30,]
 
   ## Pitchers
-PitValNew = read_html("https://www.baseball-reference.com/leagues/majors/2022-value-pitching.shtml") %>%
+PitValNew = read_html("https://www.baseball-reference.com/leagues/majors/2023-value-pitching.shtml") %>%
   html_node('#teams_value_pitching') %>%
   html_table() %>%
-  select(Tm, RAA,WAA, WAR, Salary)
+  dplyr::select(Tm, RAA,WAA, WAR, Salary)
 PitValNew = PitValNew[1:30,]
 
   ## Copy the Hitters df
@@ -323,7 +343,7 @@ TotValNew$WAR = as.numeric(TotValNew$WAR) + as.numeric(PitValNew$WAR)
 Scrape current `BBRef` `Standings` data and add the relevant `Standings` data to the `WAR` df.
 
 ```{r Scrape Current Standings data, include = TRUE, echo = TRUE, message = FALSE, warning = FALSE}
-TotStandNew = read_html("https://www.baseball-reference.com/leagues/majors/2022-standings.shtml") %>%
+TotStandNew = read_html("https://www.baseball-reference.com/leagues/majors/2023-standings.shtml") %>%
   html_nodes(xpath = '//comment()') %>%
   html_text() %>%
   paste(collapse = '') %>%
@@ -362,7 +382,7 @@ Extract team logos with the `load_mlb_teams` function and join the logos with `S
 teams_colors_logos = load_mlb_teams() %>%
     ## Pipe the function to remove rows that don't have "AL", "NL", or "MLB" as strings
     ## in the "team_primary_abbr" column
-  filter(!team_primary_abbr %in% c("AL", "NL", "MLB"))
+  dplyr::filter(team_league %in% c("AL", "NL", "MLB"))
 
   ## Create a new variable (w_logos) by joining the Standings + WAR df with the logos variable by Tm/team_name
 w_logos = TotValNew %>%
@@ -381,14 +401,14 @@ ggplot(data = w_logos, aes(x = WARPG, y = W_L), width = 0.08) +
       ## Map the "team_savant_abbr" to "team_primary_abbr"; not the most intuitive,
       ## but I figured it out
         ## "alpha" controls transparency
-  geom_mlb_logos(aes(x = WARPG, y = W_L, team_savant_abbr = team_primary_abbr), alpha = 0.6, width = 0.08) +
+  geom_mlb_logos(aes(x = WARPG, y = W_L, team_abbr = team_abbr), alpha = 0.6, width = 0.08) +
     ## Set the X-axis and Y-axis limits (I used the min and max of each var)
   coord_cartesian(xlim = c(min(w_logos$WARPG),
                            max(w_logos$WARPG)),
                   ylim = c(min(w_logos$W_L),
                            max(w_logos$W_L))) +
     ## Set the Plot title, and X/Y axis titles
-  labs(title = "MLB Win % bWAR/G\nthrough 6/27",
+  labs(title = "MLB Win % bWAR/G in 2023 Reg. Season",
        x = "bWAR/G",
        y = "Win %",
        color = "Team") + 
