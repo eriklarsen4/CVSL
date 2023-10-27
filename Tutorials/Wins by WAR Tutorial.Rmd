@@ -78,7 +78,10 @@ ValScrape = function(year){
       ## the "select" function
     
     ## Make this table a variable 
-  bat_df = read_html(paste("https://www.baseball-reference.com/leagues/majors/", year, "-value-batting.shtml", sep = "")) %>%
+  bat_df = read_html(paste("https://www.baseball-reference.com/leagues/majors/",
+                           year,
+                           "-value-batting.shtml",
+                           sep = "")) %>%
     html_node('#teams_value_batting') %>%
     html_table() %>%
     dplyr::select(Tm, oWAR, dWAR, WAR, Salary)
@@ -89,7 +92,10 @@ ValScrape = function(year){
   bat_df = add_column(bat_df, year = year)
   
     ## Scrape pitchers as above
-  pit_df = read_html(paste("https://www.baseball-reference.com/leagues/majors/", year, "-value-pitching.shtml", sep = "")) %>%
+  pit_df = read_html(paste("https://www.baseball-reference.com/leagues/majors/",
+                           year,
+                           "-value-pitching.shtml",
+                           sep = "")) %>%
     html_node('#teams_value_pitching') %>%
     html_table() %>%
     dplyr::select(Tm, RAA, WAA, WAR, Salary)
@@ -158,7 +164,10 @@ It took a long time for me to figure out a work-around.
 ```{r Create the Standings Scraping Function, include = TRUE, echo = TRUE, warning = FALSE, message = FALSE}
     ## Scrape team standings
 StandScrape = function(year){
-  df = read_html(paste("https://www.baseball-reference.com/leagues/majors/", year, "-standings.shtml", sep = "")) %>%
+  df = read_html(paste("https://www.baseball-reference.com/leagues/majors/",
+                       year,
+                       "-standings.shtml",
+                       sep = "")) %>%
     ## Find commented nodes
     html_nodes(xpath = '//comment()') %>%
     ## Pipe them "html_text" to convert to text
