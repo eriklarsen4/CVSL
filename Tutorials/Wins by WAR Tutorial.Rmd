@@ -436,7 +436,7 @@ ggplot(data = w_logos, aes(x = WARPG, y = W_L), width = 0.08) +
               size = 1,
               linetype = "dashed") +
     ## Fiddle around with where to put the text that labels the regression line
-  geom_text(x = 0.39, y = 0.64, label = "Expected\nWin %", color = "black")
+  geom_text(x = 0.10, y = 0.41, label = "Expected\nWin %", color = "black")
 ```
 
 Just a couple of the most useful R links out there:
