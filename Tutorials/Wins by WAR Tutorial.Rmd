@@ -5,11 +5,6 @@ date: 'June 6th, 2022'
 output: github_document
 ---
 
-```{r setup, include = FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-knitr::opts_chunk$set(fig.show = TRUE)
-```
-
 This is a tutorial script for scraping and plotting some baseball data.
 
 ## Import Packages
