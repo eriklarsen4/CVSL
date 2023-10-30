@@ -13,12 +13,17 @@ output:
 
 # Overview
 
-This snippet was used in my article (currently under review) on [TheLeftyCatcher](https://www.theleftycatcher.com), where I compared and contrasted how `Jeff Luhnow` and `Theo Epstein` tanked to rebuild the `Chicago Cubs` and `Houston Astros`, beginning in ~2011 into World Series winners. I acquired `MLB Free Agent` data, `MLB Amateur Draft` data, `International Signing` data, `MLB Standings` data, `MLB Payroll` data, and "`MLB Value`" data. I scraped or downloaded this data from multiple sites, including `Baseball Reference`, `ESPN`, and `Baseball Almanac`. It required some processing to compile and analyze with or without graphs.
+This snippet was used in my article (currently under review) on [TheLeftyCatcher](https://www.theleftycatcher.com), where I compared and contrasted how `Jeff Luhnow` and `Theo Epstein` tanked to rebuild the `Chicago Cubs` and `Houston Astros`, beginning in ~2011 into World Series winners.
+
+I acquired `MLB Free Agent` data, `MLB Amateur Draft` data, `International Signing` data, `MLB Standings` data, `MLB Payroll` data, and "`MLB Value`" data. I scraped or downloaded this data from multiple sites, including `Baseball Reference`, `ESPN`, and `Baseball Almanac`. It required some processing to compile and analyze with or without graphs.
 
 Subsequent pieces and snippets will revolve around this data.
 
+The functions used are sourced from (this)[] file.
+
 # Environment Prep {.tabset .tabset-pills .tabset-fade}
 
+Load packages and functions
 
 ## Load packages
 
@@ -38,66 +43,29 @@ library(ggplot2)
 library(ggrepel)
 library(GGally)
 library(ggpubr)
-# library(plotly)
+library(plotly)
 
   ## Modeling
 library(mgcv)
 library(splines)
+
+source("~/GitHub/Baseball/Tanking/Tanking Functions.R")
 ```
 
 # Amateur Draft Data {.tabset .tabset-pills .tabset-fade}
 
-## Scrape Amateur Draft Data
+## Scrape and Clean Amateur Draft Data
 
 Scrape amateur draft data from `Baseball Almanac`
 
-```{r Scrape amateur draft data from Baseball Almanac pt.1, include = T, warning = F, message = F, echo = T}
-  ## Create a selector for the relevant element
-almanac_selector = "#wrapper > div.container > div.ba-table > table"
-
-    ## Create a function to scrape the Baseball Almanac draft data
-BBA_import_fn = function(Year, selector){
-    ## Read in the URL with desired year and selector
-  df = rvest::read_html(
-    paste("https://www.baseball-almanac.com/draft/baseball-draft.php?yr=20",
-          Year,
-          sep = "")
-    ) %>%
-    html_element(css = selector) %>%
-    html_table()
-    ## Remove the first row
-  df = df[ -1, ]
-    ## Re-name the columns
-  colnames(df) = df[ 1, ]
-    ## Remove the first row and last two rows
-  df = df[ -1, ]
-  df = df[ -nrow(df), ]
-  df = df[ -nrow(df), ]
-  
-    ## Co-erce the Name strings into UTF-8 encoding
-  Encoding(df$`Player Name`) = "UTF-8"
-  df$`Player Name` = iconv(df$`Player Name`, "UTF-8", "UTF-8", sub = " ")
-  
-    ## Coerce Rd and pick (`#`) numbers to be numeric (integers)
-      ## Add a "year" column for eventual df merging
-  df = df %>%
-    dplyr::mutate(Rd = as.numeric(Rd),
-                  `#` = as.numeric(`#`),
-                  Year = as.numeric(paste("20", Year, sep = "")))
-    
-    ## Save the dataframe as a variable to the global environment
-  assign(paste("BBA20", Year, sep = ""), df, envir = .GlobalEnv)
-}
-```
-
-## Clean Amateur Draft Data
-
 Data is rife with errors, so clean it up
 
-```{r Clean Amateur draft data, include = T, message = F, warning = F, echo = T}
+```{r Scrape and Clean Amateur draft data, include = T, message = F, warning = F, echo = T}
+  ## set the selector
+almanac_selector = "#wrapper > div.container > div.ba-table > table"
   ## Loop through and scrape the data starting from Epstein and Luhnow hires with Cubs/Astros (2011) to present
-for ( i in 11:23 ){
-  BBA_import_fn(Year = i, selector = almanac_selector)
+for ( i in 11:21 ){
+  BBA_IMPORT_fn(Year = i, selector = almanac_selector)
 }
   ## Merge the dataframes together
 BBA_DRAFT_ALL = purrr::reduce(mget(ls()[which(grepl(ls(), pattern = "BBA20") == TRUE)]), full_join)
@@ -127,33 +95,13 @@ BBA_DRAFT_ALL = BBA_DRAFT_ALL %>%
 
 # Baseball Reference Standings Data {.tabset .tabset-pills .tabset-fade}
 
+Import `Baseball Reference`'s `Standings` data over relevant years
+
 ## Scrape and Clean Baseball Reference Standings Data
 
 ```{r Scrape standings data from Baseball Reference, include = TRUE, warning = FALSE, echo = TRUE, message = FALSE}
-  ## Create a function to import the standings from 2011-2021 according to Baseball Reference
-br_stand_fn = function(Year){
-  df = read_html(
-    paste("https://www.baseball-reference.com/leagues/majors/20",
-          Year,
-          "-standings.shtml#expanded_standings_overall",
-          sep = "")
-  ) %>%
-    html_table()
-  ## Combine the divisions into one standings dataframe
-  df = purrr::reduce(df[][], full_join, by = c("Tm", "W", "L", "W-L%", "GB"))
-  ## Convert the table into a dataframe
-  df = as.data.frame(df)
-  ## Add rankings within divisions
-  df$DivRank = rep(c(1:5), 6)
-  ## Re-order by most wins
-  df = df[order(df$W, decreasing = TRUE),]
-  ## Add a column to track the year for future df merging
-  df$Year = as.numeric(paste("20", Year, sep = ""))
-  ## Save the dataframe as a variable to the global environment
-  assign(paste("Standings_20", Year, sep = ""), df, envir = .GlobalEnv)
-}
   ## Loop through and import the standings from 2011-2021
-for ( i in 11:23 ) {
+for ( i in 11:21 ) {
   if (i %% 10 == 0 ) {
     
     Sys.sleep(60)
@@ -164,15 +112,15 @@ for ( i in 11:23 ) {
     
   }
 }
-
+  ## merge the dfs together
 StandALL = purrr::reduce(mget(ls()[which(grepl(ls(), pattern = "Standings") == TRUE)]), full_join)
-
+  ## correct team name changes
 StandALL = StandALL %>%
   dplyr::mutate(Tm = case_when(grepl(Tm, pattern = "Angels") ~ "Los Angeles Angels",
                                grepl(Tm, pattern = "Florida") ~ "Miami Marlins",
                                grepl(Tm, pattern = "Indians") ~ "Cleveland Guardians",
                                TRUE ~ Tm))
-
+  ## remove the individual dfs
 rm(list = ls()[which(grepl(ls(), pattern = "Standings") == T)])
 ```
 
@@ -223,7 +171,7 @@ Import the data from Git repo
 # }
 ```
 
-```{r Import player WAR and salary data from BBRef, include = T, warning = F, message = F, echo = T}
+```{r Import player WAR and salary data from BBRef, include = F, warning = F, message = F, echo = F}
 rm(Player_Value_Batting_ALL)
 rm(Player_Value_Pitching_ALL)
 
@@ -281,6 +229,24 @@ for (i in 1:length(Batting.list)) {
   
 }
 
+
+```
+
+```{r Import Player Value Data from BBRef, include = T, warning = F, message = F, echo = T}
+## compile player type data into a list over which to loop
+# batter_files = vector()
+# pitcher_files = vector()
+
+for ( i in 11:21 ){
+  if (i %% 10 == 0 ) {
+    
+      Sys.sleep(60)
+    
+    } else {
+      
+      BR_PLAYER_VAL_IMPORT_fn(Year = i, Player_data_type = "batting")
+    }
+}
 
 ```
 
@@ -510,7 +476,7 @@ PLAYER_YEAR_WAR_df = CAREER_hitter_year_WAR_df %>%
 
 # Baseball Reference Team Salary/Payroll data {.tabset .tabset-pills .tabset-fade}
 
-## Scrape Team data 
+## Scrape and Clean Team Salary/Payroll data 
 
 ```{r Scrape team bWAR and salary/payroll data from Baseball Reference, include = T, warning = F, echo = T, message = F}
   ## Create a function that will import team value tables from Baseball Reference (for pitching stats and hitting stats)
@@ -539,49 +505,149 @@ br_team_value_import_fn = function(Year, Player_data_type) {
 ```{r Clean Team Salary and Payroll BR data, include = T, warning = F, message= F, echo = T}
   ## Loop through the relevant years and import the tables as dataframes
 for ( i in 11:21 ){
-  br_team_value_import_fn(Year = i, Player_data_type = "batting")
+  if (i %% 10 == 0 ) {
+    
+      Sys.sleep(60)
+    
+    } else {
+      
+      br_team_value_import_fn(Year = i, Player_data_type = "batting")
+    }
 }
   ## Repeat the loop for pitching stats
 for ( i in 11:21 ){
-  br_team_value_import_fn(Year = i, Player_data_type = "pitching")
+  if( i %% 10 == 0 ) {
+    
+    Sys.sleep(60)
+    
+  } else {
+    
+    br_team_value_import_fn(Year = i, Player_data_type = "pitching")
+  }
 }
   ## Concatenate into a aggregate dataframes by player type
-TeamBatALL = rbind.data.frame(Team_battingvalue_2011[c(1:30),],Team_battingvalue_2012[c(1:30),], Team_battingvalue_2013[c(1:30),],
-                              Team_battingvalue_2014[c(1:30),],Team_battingvalue_2015[c(1:30),], Team_battingvalue_2016[c(1:30),],
-                              Team_battingvalue_2017[c(1:30),],Team_battingvalue_2018[c(1:30),], Team_battingvalue_2019[c(1:30),],
-                              Team_battingvalue_2020[c(1:30),],Team_battingvalue_2021[c(1:30),])
+TeamBatALL = purrr::reduce(mget(ls()[which(grepl(ls(), pattern = "Team_batting") == T)]), full_join)
 
-TeamBatALL$Tm[ which(TeamBatALL$Tm == "Los Angeles Angels of Anaheim")] = "Los Angeles Angels"
-TeamBatALL$Tm[ which(TeamBatALL$Tm == "Florida Marlins")] = "Miami Marlins"
+  ## Remove the Xinn pitching column
+Team_pitchingvalue_2021 = Team_pitchingvalue_2021 %>%
+  dplyr::select(-RA9extras)
 
-  ## BR added a value metric to Xinn pitching (col 10)
-    ## Remove to concatenate
-TeamPitALL = rbind.data.frame(Team_pitchingvalue_2011[c(1:30),], Team_pitchingvalue_2012[c(1:30),], Team_pitchingvalue_2013[c(1:30),],
-                              Team_pitchingvalue_2014[c(1:30),], Team_pitchingvalue_2015[c(1:30),], Team_pitchingvalue_2016[c(1:30),],
-                              Team_pitchingvalue_2017[c(1:30),], Team_pitchingvalue_2018[c(1:30),], Team_pitchingvalue_2019[c(1:30),],
-                              Team_pitchingvalue_2020[c(1:30),-10], Team_pitchingvalue_2021[c(1:30),-10])
+TeamPitALL = purrr::reduce(mget(ls()[which(grepl(ls(), pattern = "Team_pitching") == T)]), full_join)
 
-TeamPitALL$Tm[ which(TeamPitALL$Tm == "Los Angeles Angels of Anaheim")] = "Los Angeles Angels"
-TeamPitALL$Tm[ which(TeamPitALL$Tm == "Florida Marlins")] = "Miami Marlins"
+TeamPitALL = TeamPitALL %>%
+  dplyr::filter(Tm != "0") %>%
+  dplyr::mutate(Tm = case_when(grepl(Tm, pattern = "Angels") ~ "Los Angeles Angels",
+                               grepl(Tm, pattern = "Marlins") ~ "Miami Marlins",
+                               grepl(Tm, pattern = "Cleveland") ~ "Cleveland Guardians",
+                               TRUE ~ Tm))
 
-  ## Convert the WAR and Salary columns to numerical data to add together in a new df
-TeamBatALL$WAR = as.numeric(TeamBatALL$WAR)
-TeamBatALL$Salary = as.numeric(TeamBatALL$Salary)
-TeamPitALL$WAR = as.numeric(TeamPitALL$WAR)
-TeamPitALL$Salary = as.numeric(TeamPitALL$Salary)
-
+## Remove league summ rows and correct team names
+TeamBatALL = TeamBatALL %>%
+  dplyr::filter(Tm != "0") %>%
+  dplyr::mutate(Tm = case_when(grepl(Tm, pattern = "Angels") ~ "Los Angeles Angels",
+                               grepl(Tm, pattern = "Marlins") ~ "Miami Marlins",
+                               grepl(Tm, pattern = "Cleveland") ~ "Cleveland Guardians",
+                               TRUE ~ Tm))
+rm(list = ls()[which(grepl(ls(), pattern = "Team_") == T)])
 ```
 
 Add player acquisition data to the cleaned `Baseball Reference` player value data
 
-```{r Add player acquisition data to the Baseball Reference player value data pt.1, include = TRUE, warning = FALSE, echo = TRUE, message = FALSE}
-  ## Iniitialize vector
-df = vector()
+```{r Add player acquisition data to the Baseball Reference player value data pt.1, include = T, warning = F, echo = T, message = F}
+
+
+Player_Value_Batting_ALL = Player_Value_Batting_ALL %>%
+  dplyr::mutate(Positions = batPositions,
+                Year = X) %>%
+  dplyr::select(-X, -Pos.Summary, -idx)
+
+Team_Changers_hitters = Player_Value_Batting_ALL %>%
+  dplyr::filter(grepl(Tm, pattern = "TM")) %>%
+  dplyr::select(Name, Year, Tm, Salary, Acquired) %>%
+  dplyr::distinct()
+  
+Player_Value_Pitching_ALL = Player_Value_Pitching_ALL %>%
+  dplyr::mutate(Year = X) %>%
+  dplyr::select(-X)
+
+Team_Changers_pitchers = Player_Value_Pitching_ALL %>%
+  dplyr::filter(grepl(Tm, pattern = "TM")) %>%
+  dplyr::select(Name, Year, Tm, Salary, Acquired) %>%
+  dplyr::distinct()
+
+Player_Value_Batting_ALL %>%
+  dplyr::filter(grepl(Tm, pattern = "TM")) %>%
+  dplyr::mutate(last_abbrev = str_to_lower(str_extract(playerid, pattern = "[a-z]{1}"))) %>%
+  dplyr::select(Name, last_abbrev, Year, playerid) %>%
+  dplyr::slice_head(n = 5)
+
   ## Loop through and tab each team's number of acqusitions for the main acq. types in each year;
     ## Put them in their own dfs
       ## For hitters
-for(i in 1:11){
-  df = cleaned_br_hitter_val_df_list[[i]][-which(cleaned_br_hitter_val_df_list[[i]]$Tm == "2TM" |
+Player_Value_Batting_ALL = Player_Value_Batting_ALL %>%
+  dplyr::mutate(Positions = gsub(Pos.Summary, pattern = "\\*|\\/|D|H", replacement = "")) %>%
+  dplyr::mutate(Positions = case_when(grepl(Positions, pattern = "\\-Mar") ~ gsub(Positions, pattern = "\\-Mar", replacement = "03"),
+                                      grepl(Positions, pattern = "\\-Apr") ~ gsub(Positions, pattern = "\\-Apr", replacement = "04"),
+                                      grepl(Positions, pattern = "\\-May") ~ gsub(Positions, pattern = "\\-May", replacement = "05"),
+                                      grepl(Positions, pattern = "\\-Jun") ~ gsub(Positions, pattern = "\\-Jun", replacement = "06"),
+                                      grepl(Positions, pattern = "\\-Jul") ~ gsub(Positions, pattern = "\\-Jul", replacement = "07"),
+                                      grepl(Positions, pattern = "\\-Aug") ~ gsub(Positions, pattern = "\\-Aug", replacement = "08"),
+                                      grepl(Positions, pattern = "\\-Sep") ~ gsub(Positions, pattern = "\\-Sep", replacement = "09"),
+                                      Positions == "" ~ "0",
+                                      TRUE ~ Positions))
+
+batPositions = Player_Value_Batting_ALL %>%
+  dplyr::select(Positions) %>%
+  as.vector() %>%
+  unlist() %>%
+  as.character()
+
+listy = vector()
+for (i in 1:length(batPositions)) {
+  listy[i] = str_extract_all(strsplit(batPositions[i], split = "\\D"), pattern = "[:digit:]")
+  
+  for (j in 1:length(listy[[i]])) {
+    
+    if (listy[[i]][j] == 2){
+      listy[[i]][j] = "C"
+  }
+    if (listy[[i]][j] == 3){
+      listy[[i]][j] = "1B"
+  }
+    if (listy[[i]][j] == 4){
+      listy[[i]][j] = "2B"
+  }
+    if (listy[[i]][j] == 5){
+      listy[[i]][j] = "3B"
+  }
+    if (listy[[i]][j] == 6){
+      listy[[i]][j] = "SS"
+  }
+    if (listy[[i]][j] == 7){
+      listy[[i]][j] = "LF"
+  }
+    if (listy[[i]][j] == 8){
+      listy[[i]][j] = "CF"
+  }
+    if (listy[[i]][j] == 9){
+      listy[[i]][j] = "RF"
+    }
+    }
+  batPositions[i] = paste(unlist(listy[[i]]), collapse = " ")
+}
+
+
+rm(batPositions)
+
+
+
+
+
+Player_Value_Batting_ALL %>%
+  dplyr::group_by(Tm)
+
+
+  cleaned_br_hitter_val_df_list[[i]][-which(cleaned_br_hitter_val_df_list[[i]]$Tm == "2TM" |
                                                    cleaned_br_hitter_val_df_list[[i]]$Tm == "3TM" |
                                                    cleaned_br_hitter_val_df_list[[i]]$Tm == "4TM" |
                                                    cleaned_br_hitter_val_df_list[[i]]$Tm == "5TM"),
@@ -595,6 +661,41 @@ for(i in 1:11){
     as.data.frame()
   assign(paste("HitterAcqs_", i, sep = ""), df, .GlobalEnv)
 }
+
+HITTING_LEADERS_BR$Positions = gsub(x = HITTING_LEADERS_BR$Positions, pattern = "\\*|\\/|D|H", replacement = "")
+  ## Loop through and replace position code with abbrevs, splitting different positions by spaces
+for (i in 1:nrow(HITTING_LEADERS_BR)) {
+  listy[i] = str_extract_all(strsplit(HITTING_LEADERS_BR$Positions[i], split = "\\D"), pattern = "[:digit:]")
+  for (j in 1:length(listy[[i]])){
+    if (listy[[i]][j] == 2) {
+      listy[[i]][j] = "C"
+    }
+    if (listy[[i]][j] == 3) {
+      listy[[i]][j] = "1B"
+    }
+    if (listy[[i]][j] == 4) {
+      listy[[i]][j] = "2B"
+    }
+    if (listy[[i]][j] == 5) {
+      listy[[i]][j] = "3B"
+    }
+    if (listy[[i]][j] == 6) {
+      listy[[i]][j] = "SS"
+    }
+    if (listy[[i]][j] == 7) {
+      listy[[i]][j] = "LF"
+    }
+    if (listy[[i]][j] == 8) {
+      listy[[i]][j] = "CF"
+    }
+    if (listy[[i]][j] == 9) {
+      listy[[i]][j] = "RF"
+    }
+  }
+  HITTING_LEADERS_BR$Positions[i] = paste(unlist(listy[[i]]), collapse = " ")
+}
+  ## Replace guys who only DH'd with "DH"
+HITTING_LEADERS_BR$Positions[ which(HITTING_LEADERS_BR$Positions == "0") ] = "DH"
 ```
 
 Repeat for pitchers
