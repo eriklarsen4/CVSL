@@ -33,6 +33,7 @@ library(readr)
 library(reshape2)
 library(tidyverse)
 library(stringr)
+library(stringi)
 
   ## Web scraping
 library(rvest)
@@ -108,7 +109,7 @@ for ( i in 11:21 ) {
     
   } else {
     
-    br_stand_fn(Year = i)
+    BR_STAND_IMPORT_fn(Year = i)
     
   }
 }
@@ -172,7 +173,7 @@ Import the data from Git repo
 ```
 
 ```{r Import player WAR and salary data from BBRef, include = F, warning = F, message = F, echo = F}
-rm(Player_Value_Batting_ALL)
+rm(list = ls()[which(grepl(ls(), pattern = "Player_Value_"))])
 rm(Player_Value_Pitching_ALL)
 
 
@@ -237,6 +238,8 @@ for (i in 1:length(Batting.list)) {
 # batter_files = vector()
 # pitcher_files = vector()
 
+rm(list = ls()[which(grepl(ls(), pattern = "Player_Value") == T)])
+
 for ( i in 11:21 ){
   if (i %% 10 == 0 ) {
     
@@ -245,6 +248,8 @@ for ( i in 11:21 ){
     } else {
       
       BR_PLAYER_VAL_IMPORT_fn(Year = i, Player_data_type = "batting")
+      BR_PLAYER_VAL_IMPORT_fn(Year = i, Player_data_type = "pitching")
+  
     }
 }
 
@@ -257,29 +262,684 @@ Clean the data
 
 ```{r Join BBRef data and correct columns, include = T, warning = F, message = F, echo = T}
   ## Combine the each data "type" into one df
-Player_Value_Batting_ALL = purrr::reduce(mget(ls()[which(grepl(ls(), pattern = "Value_Batting") == T)]), full_join)
-Player_Value_Pitching_ALL = purrr::reduce(mget(ls()[which(grepl(ls(), pattern = "Value_Pitching") == T)]), full_join)
-  ## remove individual (yearly) dfs
-rm(list = ls()[which(grepl(ls(), pattern = "Batting_2|Pitching_2|Batting.list|Pitching.list") == T)])
+Player_Value_Batting_ALL = purrr::reduce(mget(ls()[which(grepl(ls(), pattern = "Value_batting") == T)]), full_join)
 
-## Add "playerid" to the playerid column
-  ## For position players
-PP_val_colnames = colnames(Player_Value_Batting_ALL)
-PP_val_colnames = c(PP_val_colnames[c(1,2)], "playerid", PP_val_colnames[c(3:(length(PP_val_colnames)-1))])
-  ## Re-name to include playerid for pitchers
-PO_val_colnames = colnames(Player_Value_Pitching_ALL)
-PO_val_colnames = c(PO_val_colnames[c(1,2)], "playerid", PO_val_colnames[c(3:(length(PO_val_colnames)-1))])
-  
-  ## Correct column names
-colnames(Player_Value_Batting_ALL) = PP_val_colnames
-colnames(Player_Value_Pitching_ALL) = PO_val_colnames
+# Player_Value_pitching_2021 = Player_Value_pitching_2021 %>%
+#   dplyr::select(-RA9extras)
+Player_Value_Pitching_ALL = purrr::reduce(mget(ls()[which(grepl(ls(), pattern = "Value_pitching") == T)]), full_join)
+  ## remove individual (yearly) dfs
+rm(list = ls()[which(grepl(ls(), pattern = "batting_2|pitching_2") == T)])
+
+Player_Value_Pitching_ALL = BR_PLAYER_VAL_CLEAN_fn(df = Player_Value_Pitching_ALL, Player_data_type = "pitching")
+Player_Value_Batting_ALL = BR_PLAYER_VAL_CLEAN_fn(df = Player_Value_Batting_ALL, Player_data_type = "batting")
+
+pitchernames = Player_Value_Pitching_ALL %>%
+  dplyr::select(Name) %>%
+  as.vector() %>%
+  unlist() %>%
+  as.character()
+hitternames = Player_Value_Batting_ALL %>%
+  dplyr::select(Name) %>%
+  as.vector() %>%
+  unlist() %>%
+  as.character()
+
+
+## use the Chadwick DB as a cross-ref for playerids
+CHAD_LU = baseballr::chadwick_player_lu()
+
+  ## concatenate the separated strings for players with initials as first names;
+  ## remove players without bbref ids and remove excess columns
+CHAD_LU = CHAD_LU %>%
+  dplyr::mutate(name_first = case_when(grepl(name_first, pattern = "[A-Z]\\.") ~
+                                         gsub(name_first, pattern = "\\s", replacement = ""),
+                                       TRUE ~ name_first)) %>%
+  dplyr::filter(key_bbref != "") %>%
+  dplyr::mutate(Name = paste(name_first, name_last, sep = " ")) %>%
+  dplyr::select(contains("name"),
+                contains("Name"),
+                key_mlbam,
+                key_bbref,
+                key_fangraphs,
+                key_retro,
+                contains("mlb_played"))
+
+## because of encoding discrepancies, will need to loop through and assign bbref ids and last initials for each player in the dataset
+  ## function created for this
+    ## used to enable scraping individual bbref pages (for when players changed teams in this project)
+Player_Value_Batting_ALL = ID_ADD_fn(df = Player_Value_Batting_ALL, player_type = "hitters", site_abbrev = "bbref")
+
+Player_Value_Pitching_ALL = ID_ADD_fn(df = Player_Value_Pitching_ALL, player_type = "pitchers", site_abbrev = "bbref")
+
+Player_Value_Pitching_ALL_2 %>%
+  dplyr::filter(is.na(bbref_id))
+
+
+Player_Value_Pitching_ALL_2 %>%
+  dplyr::filter(!grepl(Name, pattern = "Jr." ) &
+                  !grepl(Name, pattern = "III") &
+                  is.na(bbref_id))
+
+Player_Value_Pitching_ALL_3 %>%
+  dplyr::filter(is.na(bbref_id)) &
+                  grepl(Name, pattern = "Josh") &
+                  grepl(Name, pattern = "D.")) &
+                  grepl(Name, pattern = "Le"))
+
 
 ```
 
+```{r Correct player name spellings and ids 1, eval = T, include = F, warning = F, message = F, echo = F}
 
-Put the hitter and pitcher value dfs into separate lists to loop through for cleaning
+## correct names that impacted ids and last name initials
+  ## -> all juniors, players with accents, or different first names between CHAD and bbref
 
-```{r Clean Baseball Reference player stats data pt.3, include = T, warning = F, echo = F, message = F}
+Player_Value_Batting_ALL = Player_Value_Batting_ALL %>%
+  
+  
+  dplyr::mutate(bbref_id = case_when(grepl(Name, pattern = "Jackie") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Jackie Bradley")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Vladimir") &
+                                       is.na(bbref_id) ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Vladimir Guerrero") &
+                                                       grepl(key_bbref, pattern = "2")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Souza") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Souza") &
+                                                       grepl(name_first, pattern = "Steven")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Ronald") &
+                                       is.na(bbref_id) ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Ronald") &
+                                                       grepl(name_matrilineal, pattern = "Blanco")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Dwight") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Dwight Smith") &
+                                                       grepl(name_suffix, pattern = "Jr.")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Lourdes") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Lourdes")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Shed") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Shed")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Tatis") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Fernando Tat")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "LaMonte") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "LaMonte Wade")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Jazz") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Jazz")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Kazmar") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Kazmar")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Luis") &
+                                       is.na(bbref_id) ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Luis Robert")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Stokes") &
+                                       is.na(bbref_id) ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Troy Stokes")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Jr.") &
+                                       is.na(bbref_id) ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Eric Young") &
+                                                       grepl(name_suffix, pattern = "Jr.")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     TRUE ~ bbref_id
+                                     ),
+                lastinit = str_extract(bbref_id, pattern = "[a-z]{1}"),
+                
+                
+                ## correct additional oddities
+                bbref_id = case_when(grepl(Name, pattern = "Alejandro") &
+                                       is.na(bbref_id) ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "De Aza")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Iv") &
+                                       is.na(bbref_id) ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Iv") &
+                                                       grepl(name_last, pattern = "De Jes")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Wily") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(name_first, pattern = "Wily Mo")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Van") &
+                                       is.na(bbref_id) ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Van") &
+                                                       grepl(name_first, pattern = "Scott")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Dekker") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(name_last, pattern = "den Dekker")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Gosselin") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Gosselin")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Murphy") &
+                                       is.na(bbref_id) ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Murphy") &
+                                                       grepl(name_given, pattern = "John Ryan")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Tommy") &
+                                       is.na(bbref_id) ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Tommy") &
+                                                       grepl(name_given, pattern = "Thomas Frank")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Yolmer") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Yolmer")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Michael") &
+                                       is.na(bbref_id) ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Michael Taylor") &
+                                                       grepl(name_given, pattern = "Michael A")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Kang") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Kang")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Choi") &
+                                       is.na(bbref_id) ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Choi") &
+                                                       grepl(name_given, pattern = "Ji Man")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Hyun") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Hyun") &
+                                                       grepl(name_first, pattern = "Hyun Soo")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Byung") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(name_first, pattern = "Byung Ho")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Reed") &
+                                       is.na(bbref_id) ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Reed") &
+                                                       grepl(name_given, pattern = "Andrew Joseph")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Vogelbach") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Vogelbach")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Nicky") &
+                                       is.na(bbref_id) ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Delmonico")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Granite") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Granite")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Fernandez") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Jos") &
+                                                       grepl(key_bbref, pattern = "fernajo03")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Alex") &
+                                       is.na(bbref_id) ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(name_first, pattern = "Alex") &
+                                                       grepl(name_last, pattern = "De Goti")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Bryan") &
+                                       is.na(bbref_id) ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(name_first, pattern = "Bryan") &
+                                                       grepl(name_last, pattern = "De La Cruz")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     TRUE ~ bbref_id
+                                     ),
+                
+                ## and their lastname initial
+                lastinit = str_extract(bbref_id, pattern = "[a-z]{1}")
+                )
+
+Player_Value_Pitching_ALL = Player_Value_Pitching_ALL %>%
+  dplyr::mutate(bbref_id = case_when(grepl(Name, pattern = "III") &
+                                       grepl(Name, pattern = "Alvarez") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(name_first, pattern = "Henderson")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "III") &
+                                       grepl(Name, pattern = "Vidal") ~ CHAD_LU %>%
+                                       dplyr::filter(key_bbref == "nunovi01") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Jr.") &
+                                       grepl(Name, pattern = "Fernando") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(name_first, pattern = "Fernando") &
+                                                       grepl(name_last, pattern = "Rodr")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Jr.") &
+                                       grepl(Name, pattern = "Carl") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(name_first, pattern = "Carl") &
+                                                       grepl(name_last, pattern = "Edwards")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Jr.") &
+                                       grepl(Name, pattern = "Lance") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "McCullers") &
+                                                       name_suffix == "Jr.") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Jr.") &
+                                       grepl(Name, pattern = "Wright") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(name_first, pattern = "Mike") &
+                                                       grepl(name_last, pattern = "Wright")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Jr.") &
+                                       grepl(Name, pattern = "Leiter") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Leiter") &
+                                                       name_suffix == "Jr.") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Jr.") &
+                                       grepl(Name, pattern = "Underwood") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(name_last, pattern = "Underwood") &
+                                                       grepl(name_given, pattern = "Duane Lee")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Jr.") &
+                                       grepl(Name, pattern = "Flores") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(name_last, pattern = "Flores") &
+                                                       grepl(name_first, pattern = "Bernardo")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Jr.") &
+                                       grepl(Name, pattern = "Honeywell") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(name_last, pattern = "Honeywell")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     TRUE ~ bbref_id),
+                
+                ## Des
+                bbref_id = case_when(grepl(Name, pattern = "De") &
+                                       is.na(bbref_id) &
+                                       grepl(Name, pattern = "Justin") ~ CHAD_LU %>%
+                                       dplyr::filter(name_first == "Justin" &
+                                                       grepl(name_last, pattern = "Fratus")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "De") &
+                                       is.na(bbref_id) &
+                                       grepl(Name, pattern = "Frankie") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(name_last, pattern = "De") &
+                                                       grepl(name_first, pattern = "Frankie")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "De") &
+                                       is.na(bbref_id) &
+                                       grepl(Name, pattern = "Dane") ~ CHAD_LU %>%
+                                       dplyr::filter(name_first == "Dane" &
+                                                       grepl(name_last, pattern = "Rosa")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "De") &
+                                       is.na(bbref_id) &
+                                       grepl(Name, pattern = "Jorge") ~ CHAD_LU %>%
+                                       dplyr::filter(name_first == "Jorge" &
+                                                       grepl(name_last, pattern = "De La")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "De") &
+                                       is.na(bbref_id) &
+                                       grepl(Name, pattern = "Rubby") ~ CHAD_LU %>%
+                                       dplyr::filter(name_first == "Rubby") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "De") &
+                                       grepl(Name, pattern = "Eury") ~ CHAD_LU %>%
+                                       dplyr::filter(name_first == "Eury" &
+                                                       name_last == "De La Rosa") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Fautino") ~ CHAD_LU %>%
+                                       dplyr::filter(name_first == "Fautino") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Enerio") ~ CHAD_LU %>%
+                                       dplyr::filter(name_first == "Enerio") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Cole") &
+                                       is.na(bbref_id) ~ CHAD_LU %>%
+                                       dplyr::filter(name_first == "Cole" &
+                                                       name_last == "De Vries") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Jose") &
+                                       grepl(Name, pattern = "Torre") ~ CHAD_LU %>%
+                                       dplyr::filter(name_first == "Jose" &
+                                                       name_last == "De La Torre") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "De") &
+                                       is.na(bbref_id) &
+                                       grepl(Name, pattern = "Jorge") &
+                                       grepl(Name, pattern = "Leon") ~ CHAD_LU %>%
+                                       dplyr::filter(name_first == "Jorge" &
+                                                       name_last == "De Leon") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Abel") &
+                                       is.na(bbref_id) ~ CHAD_LU %>%
+                                       dplyr::filter(name_first == "Abel" &
+                                                       name_last == "De Los Santos") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Paula") &
+                                       is.na(bbref_id) ~ CHAD_LU %>%
+                                       dplyr::filter(name_first == "Jose" &
+                                                       name_last == "De Paula") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "De") &
+                                       grepl(Name, pattern = "Joel") &
+                                       is.na(bbref_id) ~ CHAD_LU %>%
+                                       dplyr::filter(name_first == "Joel" &
+                                                       name_last == "De La Cruz") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "De") &
+                                       is.na(bbref_id) &
+                                       grepl(Name, pattern = "Jos") &
+                                       grepl(Name, pattern = "Le") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Jos") &
+                                                       grepl(name_given, pattern = "Eugenio")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Jong") &
+                                       is.na(bbref_id) ~ CHAD_LU %>%
+                                       dplyr::filter(name_first == "Chase" &
+                                                       name_last == "De Jong") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Enyel") ~ CHAD_LU %>%
+                                       dplyr::filter(name_first == "Enyel") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Pozo") &
+                                       is.na(bbref_id) ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Pozo") &
+                                                       name_first == "Miguel") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     is.na(bbref_id) &
+                                       grepl(Name, pattern = "Hurk") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "van den Hurk")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     is.na(bbref_id) &
+                                       grepl(Name, pattern = "Oviedo") ~ CHAD_LU %>%
+                                       dplyr::filter(name_given == "Juan Carlos" &
+                                                       name_last == "Oviedo") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     is.na(bbref_id) &
+                                       grepl(Name, pattern = "Niese") ~ CHAD_LU %>%
+                                       dplyr::filter(name_last == "Niese") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     is.na(bbref_id) &
+                                       grepl(Name, pattern = "JC") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "J") &
+                                                       grepl(Name, pattern = "C") &
+                                                       grepl(Name, pattern = "Ram")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Ryu") ~ CHAD_LU %>%
+                                       dplyr::filter(name_last == "Ryu" &
+                                                       name_first == "Hyun Jin") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     TRUE ~ bbref_id),
+                
+                ## misfits
+                bbref_id = case_when(grepl(Name, pattern = "Boyd") ~ CHAD_LU %>%
+                                       dplyr::filter(name_last == "Boyd" &
+                                                       grepl(Name, pattern = "Matt")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Chi") &
+                                       is.na(bbref_id) ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Chi Chi")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Sugar") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Sugar Ray")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Josh") &
+                                       is.na(bbref_id) ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(name_first, pattern = "Josh") &
+                                                       name_given == "Joshua Allen") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Felipe") &
+                                       is.na(bbref_id) ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(name_last, pattern = "V") &
+                                                       name_given == "Felipe Javier") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Bowman") &
+                                       is.na(bbref_id) ~ CHAD_LU %>%
+                                       dplyr::filter(name_last == "Bowman" &
+                                                       name_first == "Matthew") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Chargois") ~ CHAD_LU %>%
+                                       dplyr::filter(name_last == "Chargois") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Whalen") ~ CHAD_LU %>%
+                                       dplyr::filter(name_last == "Whalen") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Chasen Bradford") ~ CHAD_LU %>%
+                                       dplyr::filter(name_first == "Chase" &
+                                                       name_given == "Chasen David") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Infante") &
+                                       is.na(bbref_id) ~ CHAD_LU %>%
+                                       dplyr::filter(name_last == "Infante" &
+                                                       grepl(name_first, pattern = "Greg")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "King") &
+                                       is.na(bbref_id) ~ CHAD_LU %>%
+                                       dplyr::filter(name_last == "King" &
+                                                       grepl(name_first, pattern = "Mi")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Reed") &
+                                       is.na(bbref_id) ~ CHAD_LU %>%
+                                       dplyr::filter(name_last == "Reed" &
+                                                       name_first == "A.J.") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Lakins") ~ CHAD_LU %>%
+                                       dplyr::filter(name_first == "Travis" &
+                                                       name_last == "Lakins") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Ponce") ~ CHAD_LU %>%
+                                       dplyr::filter(name_first == "Daniel" &
+                                                       grepl(name_last, pattern = "Ponce")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Josh") &
+                                       is.na(bbref_id) &
+                                       grepl(Name, pattern = "D.") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(name_first, pattern = "Josh") &
+                                                       name_given == "Joshua Dwayne") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Lakins") ~ CHAD_LU %>%
+                                       dplyr::filter(name_first == "Travis" &
+                                                       name_last == "Lakins") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Locke") ~ CHAD_LU %>%
+                                       dplyr::filter(name_first == "Locke") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Daniel") &
+                                       is.na(bbref_id) &
+                                       grepl(Name, pattern = "Cam") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(name_first, pattern = "Dan") &
+                                                       grepl(name_last, pattern = "Cam")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Vladimir") &
+                                       is.na(bbref_id) ~ CHAD_LU %>%
+                                       dplyr::filter(name_first == "Vladimir" &
+                                                       grepl(name_last, pattern = "Guti")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Kwang") ~ CHAD_LU %>%
+                                       dplyr::filter(name_last == "Kim" &
+                                                       grepl(name_first, pattern = "Kwang")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Lynch") ~ CHAD_LU %>%
+                                       dplyr::filter(name_last == "Lynch" &
+                                                       name_first == "Daniel") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     TRUE ~ bbref_id
+                                     ),
+                lastinit = str_extract(bbref_id, pattern = "[a-z]{1}")
+  ) %>%
+  dplyr::filter(!is.na(bbref_id))
+```
+
+```{r Correct player name spellings and ids 2, include = T, message = F, warning = F, echo = F}
+Player_Value_Batting_ALL = Player_Value_Batting_ALL %>%
+  dplyr::mutate(bbref_id = case_when(grepl(Name, pattern = "Bill") &
+                                       grepl(Name, pattern = "Hall") ~ CHAD_LU %>%
+                                       dplyr::filter(name_last == "Hall" &
+                                                       name_given == "William") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "John") &
+                                       grepl(Name, pattern = "McDonald") ~ CHAD_LU %>%
+                                       dplyr::filter(name_last == "McDonald" &
+                                                       mlb_played_last == 2014) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Chris") &
+                                       grepl(Name, pattern = "Young") ~ CHAD_LU %>%
+                                       dplyr::filter(name_last == "Young" &
+                                                       name_given == "Christopher Brandon") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Nelson") &
+                                       grepl(Name, pattern = "Cruz") ~ CHAD_LU %>%
+                                       dplyr::filter(name_given == "Nelson Ramon" &
+                                                       name_last == "Cruz") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     TRUE ~ bbref_id))
+
+Player_Value_Pitching_ALL = Player_Value_Pitching_ALL %>%
+  dplyr::filter(bbref_id %notin% Player_Value_Batting_ALL$bbref_id) %>%
+  dplyr::filter(bbref_id != "mcdonjo01") %>%
+  dplyr::filter(bbref_id != "fieldjo04") %>%
+  dplyr::mutate(bbref_id = case_when(grepl(Name, pattern = "Mike") &
+                                       grepl(Name, pattern = "Adams") ~ CHAD_LU %>%
+                                       dplyr::filter(name_last == "Adams" &
+                                                       name_given == "Jon Michael") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Rich") &
+                                       grepl(Name, pattern = "Thompson") ~ CHAD_LU %>%
+                                       dplyr::filter(name_last == "Thompson" &
+                                                       name_given == "Richard Graeme") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Freddy") &
+                                       grepl(Name, pattern = "Garcia") ~ CHAD_LU %>%
+                                       dplyr::filter(Name == "Freddy Garcia" &
+                                                       name_given == "Freddy Antonio") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Joe") &
+                                       grepl(Name, pattern = "Kelly") ~CHAD_LU %>%
+                                       dplyr::filter(name_given == "Joseph William" &
+                                                       name_last == "Kelly") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Josh") &
+                                       grepl(Name, pattern = "Fields") ~ CHAD_LU %>%
+                                       dplyr::filter(Name == "Josh Fields" &
+                                                       name_given == "Joshua David") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Joe") &
+                                       grepl(Name, pattern = "Smith") ~ CHAD_LU %>%
+                                       dplyr::filter(Name == "Joe Smith" &
+                                                       name_given == "Joseph Michael") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Diego") &
+                                       grepl(Name, pattern = "Castillo") ~ CHAD_LU %>%
+                                       dplyr::filter(Name == "Diego Castillo" &
+                                                       name_given == "Diego") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Austin") &
+                                       grepl(Name, pattern = "Davis") ~ CHAD_LU %>%
+                                       dplyr::filter(Name == "Austin Davis" &
+                                                       name_given == "Austin Richard") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     TRUE ~ bbref_id))
+```
+
+```{r scratch, eval = F, include = F, message = F, warning = F, echo = F}
+
+str_extract(hitternames[9], pattern = "\\s+.*$") # first name
+str_split_1(hitternames[9], pattern = "\\s+") # all names split
+str_extract(pitchernames[11], pattern = "\\S+") # first name
+str_split_1(pitchernames[11], pattern = "\\s+") # all names split
+
+```
+
+```{r scratch 2, eval = F, include = F, warning = F, echo = F, message = F}
 
 ## Create a function to clean the hitter dfs
 clean_br_hitter_value_df_fn = function(df){
@@ -361,7 +1021,7 @@ Player_Value_Batting_ALL= Player_Value_Batting_ALL %>%
 
 Find **position players** in the `Player_Value_Pitching_df` and remove them
 
-```{r Clean Baseball Reference player stats data pt.5, include = T, warning = F, message = F, echo = F, message = F}
+```{r scratch 3, eval = F, include = F, warning = F, message = F, echo = F, message = F}
 pitchers = unique(Player_Value_Pitching_ALL$playerid)
 hitters = unique(Player_Value_Batting_ALL$playerid)
 
@@ -429,80 +1089,59 @@ Player_Value_Batting_ALL = Player_Value_Batting_ALL %>%
 
 ```
 
-Aggregate the data to obtain `Career WAR`
+Aggregate the player value data to obtain `Career bWAR`, `Career Salary`, and `Service time`
 
 ```{r Summarize the data, include = T, warning = F, echo = T, message = F}
 
 CAREER_hitter_WAR_df = Player_Value_Batting_ALL %>%
-  dplyr::group_by(Name, playerid) %>%
-  dplyr::summarize(Career_bWAR = as.numeric(round(sum(WAR, na.rm = T), 1)),
+  dplyr::group_by(Name, bbref_id) %>%
+  dplyr::summarize(Career_bWAR = as.numeric(round(sum(as.numeric(WAR), na.rm = T), 1)),
                    Career_Sal = sum(Salary, na.rm = T),
-                   Service_time = max(Age) - min(Age))
+                   Service_time = max(as.numeric(Age)) - min(as.numeric(Age)))
 
 CAREER_pitcher_WAR_df = Player_Value_Pitching_ALL %>%
-  dplyr::group_by(Name, playerid) %>%
-  dplyr::summarize(Career_bWAR = as.numeric(round(sum(WAR, na.rm = T), 1)),
+  dplyr::group_by(Name, bbref_id) %>%
+  dplyr::summarize(Career_bWAR = as.numeric(round(sum(as.numeric(WAR), na.rm = T), 1)),
                    Career_Sal = sum(Salary, na.rm = T),
-                   Service_time = max(Age) - min(Age))
+                   Service_time = max(as.numeric(Age)) - min(as.numeric(Age)))
 
 CAREER_WAR_df = CAREER_hitter_WAR_df %>%
-  dplyr::full_join(CAREER_pitcher_WAR_df, by = c("Name", "playerid", "Career_bWAR", "Career_Sal", "Service_time")) %>%
+  dplyr::full_join(CAREER_pitcher_WAR_df, by = c("Name", "bbref_id", "Career_bWAR", "Career_Sal", "Service_time")) %>%
   dplyr::arrange(desc(Career_bWAR))
 
 
 
 Hitter_year_WAR_df = Player_Value_Batting_ALL %>%
-  dplyr::group_by(Name, playerid, X) %>%
-  dplyr::summarize(WAR = as.numeric(round(sum(WAR, na.rm = T), 1)),
-                   Age = as.numeric(round(sum(Age, na.rm = T))),
-                   Salary = as.numeric(mean(Salary, na.rm = T)),
-                   Year = max(X, na.rm = T)) %>%
+  dplyr::group_by(Name, bbref_id, Year) %>%
+  dplyr::summarize(WAR = as.numeric(round(sum(as.numeric(WAR), na.rm = T), 1)),
+                   Age = as.numeric(round(max(as.numeric(Age), na.rm = T))),
+                   Salary = as.numeric(mean(Salary, na.rm = T))) %>%
   dplyr::ungroup() %>%
-  dplyr::select(Name, playerid, Year, WAR, Salary, Age)
+  dplyr::select(Name, bbref_id, Year, WAR, Salary, Age)
 
 Pitcher_year_WAR_df = Player_Value_Pitching_ALL %>%
-  dplyr::group_by(Name, playerid, X) %>%
-  dplyr::summarize(WAR = as.numeric(round(sum(WAR, na.rm = T), 1)),
-                   Age = as.numeric(round(sum(Age, na.rm = T))),
+  dplyr::group_by(Name, bbref_id, Year) %>%
+  dplyr::summarize(WAR = as.numeric(round(sum(as.numeric(WAR), na.rm = T), 1)),
+                   Age = as.numeric(round(max(as.numeric(Age), na.rm = T))),
                    Salary = as.numeric(mean(Salary, na.rm = T)),
-                   Year = max(X, na.rm = T)) %>%
+                   Year = max(Year, na.rm = T)) %>%
   dplyr::ungroup() %>%
-  dplyr::select(Name, playerid, Year, WAR, Salary, Age)
+  dplyr::select(Name, bbref_id, Year, WAR, Salary, Age)
 
-PLAYER_YEAR_WAR_df = CAREER_hitter_year_WAR_df %>%
-  dplyr::full_join(CAREER_pitcher_year_WAR_df, by = c("Name", "playerid", "Year", "WAR", "Salary", "Age")) %>%
-  dplyr::arrange(desc(Salary))
+PLAYER_YEAR_WAR_df = Hitter_year_WAR_df %>%
+  dplyr::full_join(Pitcher_year_WAR_df, by = c("Name", "bbref_id", "Year", "WAR", "Salary", "Age")) %>%
+  dplyr::arrange(desc(as.numeric(Salary)))
+
+rm(list = ls()[which(grepl(ls(), pattern = "CAREER_hitter|CAREER_pitcher|Hitter_year|Pitcher_year"))])
 ```
 
 # Baseball Reference Team Salary/Payroll data {.tabset .tabset-pills .tabset-fade}
 
+Acquire team salary data
+
 ## Scrape and Clean Team Salary/Payroll data 
 
 ```{r Scrape team bWAR and salary/payroll data from Baseball Reference, include = T, warning = F, echo = T, message = F}
-  ## Create a function that will import team value tables from Baseball Reference (for pitching stats and hitting stats)
-br_team_value_import_fn = function(Year, Player_data_type) {
-  ## Read in the URL with desired year and player type
-  df = read_html(
-    paste("https://www.baseball-reference.com/leagues/majors/20", Year, "-value-", Player_data_type, ".shtml", sep = "")
-  ) %>%
-    html_table()
-  ## Convert the table into a dataframe
-  df = as.data.frame(df)
-  ## Remove the duplicate row on the bottom
-  df = df[ -32, ]
-  ## Remove the "$" signs and ","s and divide the salaries by 1M
-  df$Salary = as.numeric(
-    gsub(df$Salary, pattern = "\\$|\\,", replacement = ""))/1000000
-  ## Add a column to track the year for future df merging
-  df$Year = as.numeric(paste("20", Year, sep = ""))
-  ## Save the dataframe as a variable to the global environment
-  assign(paste("Team_", Player_data_type, "value_20", Year, sep = ""), df, envir = .GlobalEnv)
-}
-```
-
-## Clean Team Salary/Payroll Data
-
-```{r Clean Team Salary and Payroll BR data, include = T, warning = F, message= F, echo = T}
   ## Loop through the relevant years and import the tables as dataframes
 for ( i in 11:21 ){
   if (i %% 10 == 0 ) {
@@ -511,7 +1150,7 @@ for ( i in 11:21 ){
     
     } else {
       
-      br_team_value_import_fn(Year = i, Player_data_type = "batting")
+      BR_TEAM_VALUE_IMPORT_fn(Year = i, Player_data_type = "batting")
     }
 }
   ## Repeat the loop for pitching stats
@@ -522,7 +1161,7 @@ for ( i in 11:21 ){
     
   } else {
     
-    br_team_value_import_fn(Year = i, Player_data_type = "pitching")
+    BR_TEAM_VALUE_IMPORT_fn(Year = i, Player_data_type = "pitching")
   }
 }
   ## Concatenate into a aggregate dataframes by player type
@@ -535,7 +1174,8 @@ Team_pitchingvalue_2021 = Team_pitchingvalue_2021 %>%
 TeamPitALL = purrr::reduce(mget(ls()[which(grepl(ls(), pattern = "Team_pitching") == T)]), full_join)
 
 TeamPitALL = TeamPitALL %>%
-  dplyr::filter(Tm != "0") %>%
+  dplyr::filter(Tm != "0" &
+                  Tm != "") %>%
   dplyr::mutate(Tm = case_when(grepl(Tm, pattern = "Angels") ~ "Los Angeles Angels",
                                grepl(Tm, pattern = "Marlins") ~ "Miami Marlins",
                                grepl(Tm, pattern = "Cleveland") ~ "Cleveland Guardians",
@@ -543,7 +1183,8 @@ TeamPitALL = TeamPitALL %>%
 
 ## Remove league summ rows and correct team names
 TeamBatALL = TeamBatALL %>%
-  dplyr::filter(Tm != "0") %>%
+  dplyr::filter(Tm != "0" &
+                  Tm != "") %>%
   dplyr::mutate(Tm = case_when(grepl(Tm, pattern = "Angels") ~ "Los Angeles Angels",
                                grepl(Tm, pattern = "Marlins") ~ "Miami Marlins",
                                grepl(Tm, pattern = "Cleveland") ~ "Cleveland Guardians",
@@ -551,36 +1192,29 @@ TeamBatALL = TeamBatALL %>%
 rm(list = ls()[which(grepl(ls(), pattern = "Team_") == T)])
 ```
 
+## Clean Team Salary/Payroll Data
+
 Add player acquisition data to the cleaned `Baseball Reference` player value data
 
-```{r Add player acquisition data to the Baseball Reference player value data pt.1, include = T, warning = F, echo = T, message = F}
++ first, identify players who changed teams
 
-
-Player_Value_Batting_ALL = Player_Value_Batting_ALL %>%
-  dplyr::mutate(Positions = batPositions,
-                Year = X) %>%
-  dplyr::select(-X, -Pos.Summary, -idx)
+```{r Identify players who changed teams, include = T, warning = F, echo = T, message = F}
 
 Team_Changers_hitters = Player_Value_Batting_ALL %>%
   dplyr::filter(grepl(Tm, pattern = "TM")) %>%
-  dplyr::select(Name, Year, Tm, Salary, Acquired) %>%
+  dplyr::mutate(Tms = Tm) %>%
+  dplyr::select(Name, lastinit, bbref_id, Year, Tms, Salary, Acquired) %>%
   dplyr::distinct()
-  
-Player_Value_Pitching_ALL = Player_Value_Pitching_ALL %>%
-  dplyr::mutate(Year = X) %>%
-  dplyr::select(-X)
+
 
 Team_Changers_pitchers = Player_Value_Pitching_ALL %>%
   dplyr::filter(grepl(Tm, pattern = "TM")) %>%
-  dplyr::select(Name, Year, Tm, Salary, Acquired) %>%
+  dplyr::mutate(Tms = Tm) %>%
+  dplyr::select(Name, lastinit, bbref_id, Year, Tms, Salary, Acquired) %>%
   dplyr::distinct()
+```
 
-Player_Value_Batting_ALL %>%
-  dplyr::filter(grepl(Tm, pattern = "TM")) %>%
-  dplyr::mutate(last_abbrev = str_to_lower(str_extract(playerid, pattern = "[a-z]{1}"))) %>%
-  dplyr::select(Name, last_abbrev, Year, playerid) %>%
-  dplyr::slice_head(n = 5)
-
+```{r Correct hitter positions, eval = F, include = T, message = F, warning = F, echo = F}
   ## Loop through and tab each team's number of acqusitions for the main acq. types in each year;
     ## Put them in their own dfs
       ## For hitters
@@ -603,11 +1237,15 @@ batPositions = Player_Value_Batting_ALL %>%
   as.character()
 
 listy = vector()
+
 for (i in 1:length(batPositions)) {
   listy[i] = str_extract_all(strsplit(batPositions[i], split = "\\D"), pattern = "[:digit:]")
   
   for (j in 1:length(listy[[i]])) {
     
+    if (listy[[i]][j] == 0){
+      listy[[i]][j] = "DH"
+  }
     if (listy[[i]][j] == 2){
       listy[[i]][j] = "C"
   }
@@ -637,14 +1275,404 @@ for (i in 1:length(batPositions)) {
 }
 
 
-rm(batPositions)
+Player_Value_Batting_ALL = Player_Value_Batting_ALL %>%
+  dplyr::mutate(Positions = batPositions)
+```
+
++ next, scrape the player's `Baseball Reference` player page to identify which teams for whom these players played
+
+  + for hitters first
+  
+  + aggregate the data
+
+```{r Scrape Individual hitters pages, include = T, message = F, warning = F, echo = T}
+
+for (i in 1:nrow(Team_Changers_hitters)){
+  if (i %% 19 == 0) {
+    
+    Sys.sleep(60)
+    
+    BR_PLAYER_CHANGER_IMPORT_fn(year = Team_Changers_hitters$Year[i],
+                                lastinitial = Team_Changers_hitters$lastinit[i],
+                                bbref_id = Team_Changers_hitters$bbref_id[i],
+                                Player_data_type = "batting")
+    
+  } else {
+    
+    BR_PLAYER_CHANGER_IMPORT_fn(year = Team_Changers_hitters$Year[i],
+                                lastinitial = Team_Changers_hitters$lastinit[i],
+                                bbref_id = Team_Changers_hitters$bbref_id[i],
+                                Player_data_type = "batting")
+    
+  }
+}
+
+
+Changing_hitters = purrr::reduce(mget(ls()[which(grepl(ls(), pattern = "Changer_") == T)]), full_join)
+rm(list = ls()[which(grepl(ls(), pattern = "Changer_") == T)])
+
+Team_Changers_hitters = Team_Changers_hitters %>%
+  dplyr::ungroup() %>%
+  left_join(Changing_hitters, by = c("lastinit", "bbref_id", "Year")) %>%
+  dplyr::mutate(Tm = case_when(is.na(Tm.x) ~ Tm.y,
+                               TRUE ~ Tm.x)) %>%
+  dplyr::select(-Tm.x, -Tm.y) %>%
+  dplyr::mutate(From = case_when(bbref_id == lead(bbref_id) ~ Tm,
+                                 TRUE ~ ""),
+                From = case_when(From == ""  ~ lag(From),
+                                 TRUE ~ From),
+                To = case_when(bbref_id == lag(bbref_id) ~ Tm,
+                               TRUE ~ ""),
+                To = case_when(To == "" ~ lead(To),
+                               TRUE ~ To)) %>%
+  dplyr::distinct() %>%
+  # dplyr::group_by(bbref_id, Year, Tm) %>%
+  dplyr::mutate(Salary = case_when(!is.na(Salary) &
+                                     Salary > 0 &
+                                     grepl(Acquired, pattern = "Traded|Waivers|Amateur Draft|Free|Conditional") &
+                                     Tm == From ~ -Salary,
+                                   TRUE ~ Salary)) %>%
+  dplyr::ungroup() %>%
+  dplyr::group_by(bbref_id, Year, Tm) %>%
+  dplyr::select(-From, -To) %>%
+  dplyr::distinct()
+
+
+```
+
+```{r repeat changing hitters I, include = T, message = F, warning = F, echo = F }
+## putting the system to sleep can skip iterations
+## so find those that were skipped and repeat the process above
+
+# double check if any players were skipped; should be two more times
+skipped = Team_Changers_hitters %>%
+  dplyr::filter(is.na(Tm))
+
+for (i in 1:nrow(skipped)) {
+  if (nrow(skipped) > 0) {
+    
+    if (i %% 19 == 0) {
+    
+    Sys.sleep(60)
+    
+    BR_PLAYER_CHANGER_IMPORT_fn(year = skipped$Year[i],
+                                lastinitial = skipped$lastinit[i],
+                                bbref_id = skipped$bbref_id[i],
+                                Player_data_type = "batting")
+  
+    } else {
+    
+    BR_PLAYER_CHANGER_IMPORT_fn(year = skipped$Year[i],
+                                lastinitial = skipped$lastinit[i],
+                                bbref_id = skipped$bbref_id[i],
+                                Player_data_type = "batting")
+    }
+  }
+}
+    
+Changing_hitters = purrr::reduce(mget(ls()[which(grepl(ls(), pattern = "Changer_") == T)]), full_join)
+rm(list = ls()[which(grepl(ls(), pattern = "Changer_") == T)])
+
+Team_Changers_hitters = Team_Changers_hitters %>%
+  dplyr::ungroup() %>%
+  left_join(Changing_hitters, by = c("lastinit", "bbref_id", "Year")) %>%
+  dplyr::mutate(Tm = case_when(is.na(Tm.x) ~ Tm.y,
+                               TRUE ~ Tm.x)) %>%
+  dplyr::select(-Tm.x, -Tm.y) %>%
+  dplyr::mutate(From = case_when(bbref_id == lead(bbref_id) ~ Tm,
+                                 TRUE ~ ""),
+                From = case_when(From == ""  ~ lag(From),
+                                 TRUE ~ From),
+                To = case_when(bbref_id == lag(bbref_id) ~ Tm,
+                               TRUE ~ ""),
+                To = case_when(To == "" ~ lead(To),
+                               TRUE ~ To)) %>%
+  dplyr::distinct() %>%
+  # dplyr::group_by(bbref_id, Year, Tm) %>%
+  dplyr::mutate(Salary = case_when(!is.na(Salary) &
+                                     Salary > 0 &
+                                     grepl(Acquired, pattern = "Traded|Waivers|Amateur Draft|Free|Conditional") &
+                                     Tm == From ~ -Salary,
+                                   TRUE ~ Salary)) %>%
+  dplyr::ungroup() %>%
+  dplyr::group_by(bbref_id, Year, Tm) %>%
+  dplyr::select(-From, -To) %>%
+  dplyr::distinct()
+    
+skipped = Team_Changers_hitters %>%
+  dplyr::filter(is.na(Tm))
+
+for (i in 1:nrow(skipped)) {
+  if (nrow(skipped) > 0) {
+    
+    if (i %% 19 == 0) {
+    
+    Sys.sleep(60)
+    
+    BR_PLAYER_CHANGER_IMPORT_fn(year = skipped$Year[i],
+                                lastinitial = skipped$lastinit[i],
+                                bbref_id = skipped$bbref_id[i],
+                                Player_data_type = "batting")
+  
+  } else {
+    
+    BR_PLAYER_CHANGER_IMPORT_fn(year = skipped$Year[i],
+                                lastinitial = skipped$lastinit[i],
+                                bbref_id = skipped$bbref_id[i],
+                                Player_data_type = "batting")
+    
+  }
+  }
+}
+Changing_hitters = purrr::reduce(mget(ls()[which(grepl(ls(), pattern = "Changer_") == T)]), full_join)
+rm(list = ls()[which(grepl(ls(), pattern = "Changer_") == T)])
+
+Team_Changers_hitters = Team_Changers_hitters %>%
+  dplyr::ungroup() %>%
+  left_join(Changing_hitters, by = c("lastinit", "bbref_id", "Year")) %>%
+  dplyr::mutate(Tm = case_when(is.na(Tm.x) ~ Tm.y,
+                               TRUE ~ Tm.x)) %>%
+  dplyr::select(-Tm.x, -Tm.y) %>%
+  dplyr::mutate(From = case_when(bbref_id == lead(bbref_id) ~ Tm,
+                                 TRUE ~ ""),
+                From = case_when(From == ""  ~ lag(From),
+                                 TRUE ~ From),
+                To = case_when(bbref_id == lag(bbref_id) ~ Tm,
+                               TRUE ~ ""),
+                To = case_when(To == "" ~ lead(To),
+                               TRUE ~ To)) %>%
+  dplyr::distinct() %>%
+  # dplyr::group_by(bbref_id, Year, Tm) %>%
+  dplyr::mutate(Salary = case_when(!is.na(Salary) &
+                                     Salary > 0 &
+                                     grepl(Acquired, pattern = "Traded|Waivers|Amateur Draft|Free|Conditional") &
+                                     Tm == From ~ -Salary,
+                                   TRUE ~ Salary)) %>%
+  dplyr::ungroup() %>%
+  dplyr::group_by(bbref_id, Year, Tm) %>%
+  dplyr::select(-From, -To) %>%
+  dplyr::distinct()
+
+```
+
+
+```{r Aggregate the hitters data who changed teams, include = F, message = F, warning = F, echo = F}
+  ## join all the individual dfs
+Changing_hitters = purrr::reduce(mget(ls()[which(grepl(ls(), pattern = "Changer_") == T)]), full_join)
+  ## remove all the individual dfs
+rm(list = ls()[which(grepl(ls(), pattern = "Changer_"))])
+
+  ## aggregate by player-team-year to account for the salaries to team payrolls from mid-season
+    ## player acquisitions
+Team_Changers_hitters = Team_Changers_hitters %>%
+  left_join(Changing_hitters, by = c("lastinit", "bbref_id", "Year")) %>%
+  dplyr::mutate(From = case_when(bbref_id == lead(bbref_id) ~ Tm,
+                                 TRUE ~ ""),
+                From = case_when(From == ""  ~ lag(From),
+                                 TRUE ~ From),
+                To = case_when(bbref_id == lag(bbref_id) ~ Tm,
+                               TRUE ~ ""),
+                To = case_when(To == "" ~ lead(To),
+                               TRUE ~ To)) %>%
+  dplyr::select(-Tms, Tm) %>%
+  dplyr::distinct() %>%
+  dplyr::group_by(bbref_id, Year, Tm) %>%
+  dplyr::mutate(Salary = case_when(!is.na(Salary) &
+                                     grepl(Acquired, pattern = "Traded|Waivers|Amateur Draft|Free Agency") &
+                                     Tm == From ~ -Salary,
+                                   TRUE ~ Salary)) %>%
+  dplyr::ungroup() %>%
+  dplyr::group_by(bbref_id, Year, Tm) %>%
+  dplyr::select(-From, -To) %>%
+  dplyr::distinct()
+```
+
+  + repeat for pitchers
+  
+```{r Scrape Individual pitchers pages, include = T, message = F, warning = F, echo = T}
+
+for (i in 1:nrow(Team_Changers_pitchers)){
+  if (i %% 19 == 0) {
+    
+    Sys.sleep(60)
+    
+    BR_PLAYER_CHANGER_IMPORT_fn(year = Team_Changers_pitchers$Year[i],
+                                lastinitial = Team_Changers_pitchers$lastinit[i],
+                                bbref_id = Team_Changers_pitchers$bbref_id[i],
+                                Player_data_type = "pitching")
+    
+  } else {
+    
+    BR_PLAYER_CHANGER_IMPORT_fn(year = Team_Changers_pitchers$Year[i],
+                                lastinitial = Team_Changers_pitchers$lastinit[i],
+                                bbref_id = Team_Changers_pitchers$bbref_id[i],
+                                Player_data_type = "pitching")
+    
+  }
+}
+
+  ## join all the individual dfs
+Changing_pitchers = purrr::reduce(mget(ls()[which(grepl(ls(), pattern = "Changer_") == T)]), full_join)
+  ## remove all the individual dfs
+rm(list = ls()[which(grepl(ls(), pattern = "Changer_"))])
+
+  ## aggregate by player-team-year to account for the salaries to team payrolls from mid-season
+    ## player acquisitions
+Team_Changers_pitchers = Team_Changers_pitchers %>%
+  left_join(Changing_pitchers, by = c("lastinit", "bbref_id", "Year")) %>%
+  dplyr::mutate(From = case_when(bbref_id == lead(bbref_id) ~ Tm,
+                                 TRUE ~ ""),
+                From = case_when(From == ""  ~ lag(From),
+                                 TRUE ~ From),
+                To = case_when(bbref_id == lag(bbref_id) ~ Tm,
+                               TRUE ~ ""),
+                To = case_when(To == "" ~ lead(To),
+                               TRUE ~ To)) %>%
+  dplyr::select(-Tms, Tm) %>%
+  dplyr::distinct() %>%
+  dplyr::group_by(bbref_id, Year, Tm) %>%
+  dplyr::mutate(Salary = case_when(!is.na(Salary) &
+                                     grepl(Acquired, pattern = "Traded|Waivers|Amateur Draft|Free Agency|Conditional") &
+                                     Tm == From ~ -Salary,
+                                   TRUE ~ Salary)) %>%
+  dplyr::ungroup() %>%
+  dplyr::group_by(bbref_id, Year, Tm) %>%
+  dplyr::select(-From, -To) %>%
+  dplyr::distinct()
 
 
 
 
+```
 
+  + (aggregate the pitchers' data)
+
+```{r Aggregate the pitchers data who changed teams, include = T, message = F, warning = F, echo = F}
+
+skipped = Team_Changers_pitchers %>%
+  dplyr::filter(is.na(Tm))
+
+skipped = skipped %>%
+  dplyr::mutate(bbref_id = case_when(grepl(Name, pattern = "Erik") &
+                                       grepl(Name, pattern = "Johnson") ~ CHAD_LU %>%
+                                       dplyr::filter(Name == "Erik Johnson" &
+                                                       name_given == "Erik Craig") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "John") &
+                                       grepl(Name, pattern = "Nogowski") ~ CHAD_LU %>%
+                                       dplyr::filter(Name == "John Nogowski") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     TRUE ~ bbref_id))
+
+for (i in 1:nrow(skipped)) {
+  if (nrow(skipped) > 0) {
+    
+    if (i %% 19 == 0) {
+    
+    Sys.sleep(60)
+    
+    BR_PLAYER_CHANGER_IMPORT_fn(year = skipped$Year[i],
+                                lastinitial = skipped$lastinit[i],
+                                bbref_id = skipped$bbref_id[i],
+                                Player_data_type = "pitching")
+  
+    } else {
+    
+    BR_PLAYER_CHANGER_IMPORT_fn(year = skipped$Year[i],
+                                lastinitial = skipped$lastinit[i],
+                                bbref_id = skipped$bbref_id[i],
+                                Player_data_type = "pitching")
+    }
+  }
+}
+
+Changing_pitchers = purrr::reduce(mget(ls()[which(grepl(ls(), pattern = "Changer_") == T)]), full_join)
+rm(list = ls()[which(grepl(ls(), pattern = "Changer_") == T)])
+
+Team_Changers_pitchers = Team_Changers_pitchers %>%
+  dplyr::ungroup() %>%
+  left_join(Changing_hitters, by = c("lastinit", "bbref_id", "Year")) %>%
+  dplyr::mutate(Tm = case_when(is.na(Tm.x) ~ Tm.y,
+                               TRUE ~ Tm.x)) %>%
+  dplyr::select(-Tm.x, -Tm.y) %>%
+  dplyr::mutate(From = case_when(bbref_id == lead(bbref_id) ~ Tm,
+                                 TRUE ~ ""),
+                From = case_when(From == ""  ~ lag(From),
+                                 TRUE ~ From),
+                To = case_when(bbref_id == lag(bbref_id) ~ Tm,
+                               TRUE ~ ""),
+                To = case_when(To == "" ~ lead(To),
+                               TRUE ~ To)) %>%
+  dplyr::distinct() %>%
+  # dplyr::group_by(bbref_id, Year, Tm) %>%
+  dplyr::mutate(Salary = case_when(!is.na(Salary) &
+                                     Salary > 0 &
+                                     grepl(Acquired, pattern = "Traded|Waivers|Amateur Draft|Free|Conditional") &
+                                     Tm == From ~ -Salary,
+                                   TRUE ~ Salary)) %>%
+  dplyr::ungroup() %>%
+  dplyr::group_by(bbref_id, Year, Tm) %>%
+  dplyr::select(-From, -To) %>%
+  dplyr::distinct()
+
+  ## aggregate by player-team-year to account for the salaries to team payrolls from mid-season
+    ## player acquisitions
+Team_Changers_pitchers = Team_Changers_pitchers %>%
+  left_join(Changing_pitchers, by = c("lastinit", "bbref_id", "Year")) %>%
+  dplyr::mutate(From = case_when(bbref_id == lead(bbref_id) ~ Tm,
+                                 TRUE ~ ""),
+                From = case_when(From == ""  ~ lag(From),
+                                 TRUE ~ From),
+                To = case_when(bbref_id == lag(bbref_id) ~ Tm,
+                               TRUE ~ ""),
+                To = case_when(To == "" ~ lead(To),
+                               TRUE ~ To)) %>%
+  dplyr::select(-Tms, Tm) %>%
+  dplyr::distinct() %>%
+  dplyr::group_by(bbref_id, Year, Tm) %>%
+  dplyr::mutate(Salary = case_when(!is.na(Salary) &
+                                     grepl(Acquired, pattern = "Traded|Waivers|Amateur Draft|Free Agency") &
+                                     Tm == From ~ -Salary,
+                                   TRUE ~ Salary)) %>%
+  dplyr::ungroup() %>%
+  dplyr::group_by(bbref_id, Year, Tm) %>%
+  dplyr::select(-From, -To) %>%
+  dplyr::distinct()
+```
+
++ aggregate all the changers' data
+
++ a negative salary change equates to dumping payroll; positive equates to adding payroll
+
+```{r Combine the changers data, include = T, message = F, warning = F, echo = T}
+  ## join all hitters and pitchers who changed teams
+Team_Changers_ALL = Team_Changers_hitters %>%
+  full_join(Team_Changers_pitchers)
+
+Team_Changers_ALL %>%
+  dplyr::filter(is.na(Tm))
+
+    ## adjust each team's payroll for the players they acquired or traded away
+      ## - Salary adjustment = gaining space (salary dumping)
+Team_Changers_ALL %>%
+  dplyr::group_by(Tm, Year) %>%
+  dplyr::summarize(Sum_Num_Trades = sum(case_when(Acquired == "Traded" ~ 1,
+                                                  Acquired == "Amateur Draft" ~ 1,
+                                                  Acquired == "Conditional Deal" ~ 1,
+                                                  TRUE ~ 0), na.rm = T),
+                   Sum_Num_FAs = sum(case_when(Acquired == "Free Agency" ~ 1,
+                                               Acquired == "Amateur Free Agent" ~ 1,
+                                               TRUE ~ 0), na.rm = T),
+                   Sum_Num_Claims = sum(case_when(Acquired == "Waivers" ~ 1,
+                                                  TRUE ~ 0), na.rm = T),
+                   Sum_Sal_Change = sum(Salary, na.rm = T)) %>%
+  dplyr::arrange(Sum_Sal_Change)
 Player_Value_Batting_ALL %>%
-  dplyr::group_by(Tm)
+  dplyr::group_by(Tm) %>%
+  
 
 
   cleaned_br_hitter_val_df_list[[i]][-which(cleaned_br_hitter_val_df_list[[i]]$Tm == "2TM" |
@@ -662,40 +1690,6 @@ Player_Value_Batting_ALL %>%
   assign(paste("HitterAcqs_", i, sep = ""), df, .GlobalEnv)
 }
 
-HITTING_LEADERS_BR$Positions = gsub(x = HITTING_LEADERS_BR$Positions, pattern = "\\*|\\/|D|H", replacement = "")
-  ## Loop through and replace position code with abbrevs, splitting different positions by spaces
-for (i in 1:nrow(HITTING_LEADERS_BR)) {
-  listy[i] = str_extract_all(strsplit(HITTING_LEADERS_BR$Positions[i], split = "\\D"), pattern = "[:digit:]")
-  for (j in 1:length(listy[[i]])){
-    if (listy[[i]][j] == 2) {
-      listy[[i]][j] = "C"
-    }
-    if (listy[[i]][j] == 3) {
-      listy[[i]][j] = "1B"
-    }
-    if (listy[[i]][j] == 4) {
-      listy[[i]][j] = "2B"
-    }
-    if (listy[[i]][j] == 5) {
-      listy[[i]][j] = "3B"
-    }
-    if (listy[[i]][j] == 6) {
-      listy[[i]][j] = "SS"
-    }
-    if (listy[[i]][j] == 7) {
-      listy[[i]][j] = "LF"
-    }
-    if (listy[[i]][j] == 8) {
-      listy[[i]][j] = "CF"
-    }
-    if (listy[[i]][j] == 9) {
-      listy[[i]][j] = "RF"
-    }
-  }
-  HITTING_LEADERS_BR$Positions[i] = paste(unlist(listy[[i]]), collapse = " ")
-}
-  ## Replace guys who only DH'd with "DH"
-HITTING_LEADERS_BR$Positions[ which(HITTING_LEADERS_BR$Positions == "0") ] = "DH"
 ```
 
 Repeat for pitchers
