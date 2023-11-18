@@ -2101,7 +2101,7 @@ LEAGUE_INTL_SUB = IntlALL[ which(IntlALL$Team != "HOU" & IntlALL$Team != "CHC"),
 LEAGUE_ESPN_SUB = ESPN[ which(ESPN$Team != "Astros" & ESPN$Team != "Cubs"), ]
 ```
 
-Populate Astros, Cubs, and League "Tanking" dfs
+Prepare `Astros`, `Cubs`, and `League` `Tanking` dfs
 
 ```{r TANK DF filling pt.1, include = T, message = F, warning = F, echo = T}
   ## Create separate dfs for the Cubs and Astros
@@ -2119,6 +2119,7 @@ colnames(ASTROS_TANK_DF) = c("Year", "Win%", "# Top 5 picks", "# SS Drafted", "#
                              "Team payroll")
 
 colnames(CUBS_TANK_DF) = colnames(ASTROS_TANK_DF)
+
   ## Create a df for lg avg stats to merge
 LG_TANK_DF = matrix(nrow = nrow(ASTROS_TANK_DF), ncol = ncol(ASTROS_TANK_DF))
 LG_TANK_DF = as.data.frame(LG_TANK_DF)
@@ -2137,7 +2138,7 @@ CUBS_TANK_DF[-c(which(CUBS_TANK_DF$Year == 2020)),2] = StandALL$`W-L%`[ which(St
 LG_TANK_DF$`Win%` = 0.500
 ```
 
-Fill various columns (not shown), including `# Top 5 picks` (shown)
+Fill `# Top 5 picks` (shown) and remaining columns (not shown)
 
 ```{r TANK DF filling draft picks 2, include = T, message = F, warning = F, echo = T}
 
@@ -2454,9 +2455,9 @@ LG_TANK_DF[,10] = round((LG_TANK_DF[,6] / LG_TANK_DF[,7])*100, digits = 2)
 
 ```
 
-Add career bWAR of draftees to the dfs
+Add `Career bWAR` of draftees to the dfs
 
-```{r Merge TANK DFs, include = TRUE, warning = FALSE, echo = TRUE, message = FALSE}
+```{r Merge TANK DFs, include = T, message = F, warning = F, echo = T}
 ## Add Career WAR of draftees
 ASTROS_TANK_DF = ASTROS_CUBS_DRAFT_SUB %>%
   group_by(Year) %>%
@@ -2464,6 +2465,7 @@ ASTROS_TANK_DF = ASTROS_CUBS_DRAFT_SUB %>%
   summarize(Draft_Class_Career_WAR = sum(Career_bWAR, na.rm = T)) %>%
   select(Draft_Class_Career_WAR) %>%
   bind_cols(ASTROS_TANK_DF)
+
 ASTROS_TANK_DF = ASTROS_TANK_DF %>%
   relocate(Draft_Class_Career_WAR, .after = 19)
 
@@ -2473,6 +2475,7 @@ CUBS_TANK_DF = ASTROS_CUBS_DRAFT_SUB %>%
   summarize(Draft_Class_Career_WAR = sum(Career_bWAR, na.rm = T)) %>%
   select(Draft_Class_Career_WAR) %>%
   bind_cols(CUBS_TANK_DF)
+
 CUBS_TANK_DF = CUBS_TANK_DF %>%
     relocate(Draft_Class_Career_WAR, .after = 19)
 
@@ -2481,6 +2484,7 @@ LG_TANK_DF = LEAGUE_DRAFT_SUB %>%
   summarize(Draft_Class_Career_WAR = sum(Career_bWAR, na.rm = T)/28) %>%
   select(Draft_Class_Career_WAR) %>%
   bind_cols(LG_TANK_DF)
+
 LG_TANK_DF = LG_TANK_DF %>%
   relocate(Draft_Class_Career_WAR, .after = 19)
 LG_TANK_DF[ , 19] = round(LG_TANK_DF[ , 19], digits = 1)
