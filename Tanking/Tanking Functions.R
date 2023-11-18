@@ -6,21 +6,23 @@
 # Baseball Almanac Draft data import function ----
 BBA_IMPORT_fn = function(Year, selector){
   ## Read in the URL with desired year and selector
-  df = rvest::read_html(
-    paste("https://www.baseball-almanac.com/draft/baseball-draft.php?yr=20",
-          Year,
-          sep = "")
+  df = rvest::read_html(paste("https://www.baseball-almanac.com/draft/baseball-draft.php?yr=20", Year, sep = "")
   ) %>%
-    html_element(css = selector) %>%
-    html_table()
-  ## Remove the first row
-  df = df[ -1, ]
-  ## Re-name the columns
-  colnames(df) = df[ 1, ]
-  ## Remove the first row and last two rows
-  df = df[ -1, ]
-  df = df[ -nrow(df), ]
-  df = df[ -nrow(df), ]
+    html_element(css = almanac_selector) %>%
+    html_table() %>%
+    as.data.frame() %>% 
+    dplyr::slice(c(2:n())) %>%
+    dplyr::rename("Rd" = "X1",
+                  "#" = "X2",
+                  "Phase" = "X3",
+                  "Player Name" = "X4",
+                  "Drafted By" = "X5",
+                  "POS" = "X6",
+                  "Drafted From" = "X7") %>%
+    dplyr::slice(
+      c( 2:(n()-1)
+      )
+    )
   
   ## Co-erce the Name strings into UTF-8 encoding
   Encoding(df$`Player Name`) = "UTF-8"
@@ -72,7 +74,10 @@ BR_PLAYER_VAL_IMPORT_fn = function(Year, Player_data_type){
     df = read_html(
       paste("https://www.baseball-reference.com/leagues/majors/20", Year, "-value-batting.shtml", sep = "")
     ) %>%
-      html_element(css = '')
+      html_nodes(xpath = '//comment()') %>%
+      html_text() %>%
+      paste(collapse = '') %>%
+      read_html() %>%
       html_node('#players_value_batting') %>%
       html_table() %>%
       as.data.frame()
@@ -488,60 +493,121 @@ DRAFT_DF_DATA_ANALYSIS_fn = function(df, Team){
 # ESPN Free Agent Data import function ----
 
 ESPN_FA_import_fn = function(Year, selector){
+  
   df = read_html(
     paste("https://www.espn.com/mlb/freeagents/_/year/20", Year, "/type/signed", sep = "")
   ) %>%
     html_element(css = selector) %>%
     html_table()
   df = as.data.frame(df)
-  df = df[ -c(1,nrow(df)), -c(4,5,8)]
-  df = df[ -which(df$X1 == "PLAYER"), ]
-  ## Duplicate the total value column
-  df$TotalValue = df$X9
-  ## Add a column of character values, describing whether the contract was a minors contract
-  df$Type = ""
-  ## Fill values of Minor Lg contracts with "MiLB" string
-  if ( length(
-    which(grepl(df$X9, pattern = "Minor Lg") == TRUE)
-  ) > 0){
-    df$Type[ which(grepl(df$X9, pattern = "Minor Lg") == TRUE) ] = "MiLB"
-  } 
-  if ( length(
-    which(grepl(df$X9, pattern = "--") == TRUE) 
-  ) > 0 ){
-    df$Type[ which(grepl(df$X9, pattern = "--") == TRUE) ] = "Undisclosed"
-  }
-  df$Type[ which(grepl(df$X9, pattern = "\\,") == TRUE) ] = "MLB"
+  df = df %>%
+    dplyr::slice(c(2:nrow(df))) %>%
+    dplyr::filter(X1 != "PLAYER") %>%
+    dplyr::filter(X1 != "Total:") %>%
+    dplyr::select(-4, -5, -8) %>%
+    dplyr::mutate(TotalValue = X9,
+                  TotalValue = gsub(TotalValue, pattern = "--", replacement = "0"),
+                  TotalValue = gsub(TotalValue, pattern = "\\$", replacement = ""),
+                  TotalValue = gsub(TotalValue, pattern = "\\,", replacement = ""),
+                  TotalValue = gsub(TotalValue, pattern = "Minor Lg", replacement = "0"),
+                  TotalValue = as.numeric(TotalValue) / 1000000,
+                  Type = X9,
+                  Type = case_when(Type == "--" ~ "Undisclosed",
+                                   Type == "Minor Lg" ~ "MiLB",
+                                   grepl(Type, pattern = "\\,") ~ "MLB",
+                                   TRUE ~ "")
+    ) %>%
+    dplyr::select(-X9) %>%
+    dplyr::rename("Name" = "X1",
+                  "Position" = "X2",
+                  "Age" = "X3",
+                  "Team" = "X6",
+                  "Yrs" = "X7") %>%
+    dplyr::mutate(AAV = as.numeric(TotalValue) / as.numeric(Yrs)) %>%
+    dplyr::select(Name, Position, Age, Team, AAV, TotalValue, Yrs, Type) %>%
+    dplyr::mutate(Age = as.numeric(Age) - (2021 - as.numeric(paste("20",Year, sep = ""))),
+                  Year = paste("20", Year, sep = ""))
   
-  ## Change undisclosed contract values to 0
-  df$X9[ which(grepl(df$X9, pattern = "--") == TRUE) ] = 0
-  ## Change minor league deal values to 0
-  df$X9[ which(grepl(df$X9, pattern = "Minor Lg") == TRUE) ] = 0
   
-  ## Change undisclosed contract values to 0
-  df$TotalValue[ which(grepl(df$TotalValue, pattern = "--") == TRUE) ] = 0
-  ## Change minor league deal values to 0
-  df$TotalValue[ which(grepl(df$TotalValue, pattern = "Minor Lg") == TRUE) ] = 0
-  ## Remove dollar signs and commas from value; replace ,s and divide by 1M to display values in terms of millions of dollars
-  df$X9 = gsub(df$X9, pattern = "\\$", replacement = "")
-  df$X9 = gsub(df$X9, pattern = "\\,", replacement = "")
-  df$TotalValue = gsub(df$TotalValue, pattern = "\\$", replacement = "")
-  df$TotalValue = gsub(df$TotalValue, pattern = "\\,", replacement = "")
-  df$TotalValue = as.numeric(df$TotalValue) / 1000000 ## Data is in Millions of USD
-  df$X9 = (as.numeric(df$X9) / as.numeric(df$X7)) / 1000000
-  df = add_column(df, Year = "", .before = 2)
-  df[,2] = as.numeric(paste("20", Year, sep = ""))
-  colnames(df)[c(1,3:7)] = c("Name", "Position", "Age", "Team", "Years", "AAV")
   
-  df$Age = as.numeric(df$Age) - (2021 - as.numeric(df$Year) )
+  # df = read_html(
+  #   paste("https://www.espn.com/mlb/freeagents/_/year/20", Year, "/type/signed", sep = "")
+  # ) %>%
+  #   html_element(css = selector) %>%
+  #   html_table()
+  # df = as.data.frame(df)
+  # df = df[ c(1,nrow(df)), -c(4,5,8)]
+  # df = df[ -which(df$X1 == "PLAYER"), ]
+  # ## Duplicate the total value column
+  # df$TotalValue = df$X9
+  # ## Add a column of character values, describing whether the contract was a minors contract
+  # df$Type = ""
+  # ## Fill values of Minor Lg contracts with "MiLB" string
+  # 
+  # df = df %>%
+  #   dplyr::mutate(Type = case_when(length(which(grepl(X9, pattern = "Minor Lg") == T)) > 0 ~ "MiLB",
+  #                                  length(which(grepl(X9, pattern = "--") == T)) > 0 ~ "Undisclosed",
+  #                                  grepl(X9, pattern = "\\,") ~ "MLB",
+  #                                  TRUE ~ ""),
+  #                 X9 = case_when(grepl(X9, pattern = "--") ~ "",
+  #                                grepl(X9, pattern = "Minor Lg") ~ "",
+  #                                TRUE ~ X9),
+  #                 X9 = gsub(X9, pattern = "\\$", replacement = ""),
+  #                 X9 = gsub(X9, pattern = "\\,", replacement = ""),
+  #                 TotalValue = gsub(TotalValue, pattern = "\\$", replacement = ""),
+  #                 TotalValue = gsub(TotalValue, pattern = "\\,", replacement = ""),
+  #                 TotalValue = as.numeric(TotalValue) / 1000000, # data is in M of USD
+  #                 X9 = as.numeric(X9) / as.numeric(X7) / 1000000) %>%
+  #   dplyr::mutate(year = "", .before = 2) %>%
+  #   dplyr::mutate(year = as.numeric(paste("20", Year, sep = ""))) %>%
+  #   dplyr::mutate(Year = year, .before = 2) %>%
+  #   dplyr::select(-year) %>%
+  #   dplyr::mutate(Age = as.numeric(Age) - (2021 - as.numeric(Year)))
+  # 
+  # colnames(df)[c(1,3,7)] = c("Name", "Position", "Age", "Team", "Years", "AAV")
   
-  for (i in 11:21){
-    if ( df$Year == as.numeric(
-      paste("20", i, sep = "") )
-    ) {
-      
-    }
-  }
+  
+  # if ( length(
+  #   which(grepl(df$X9, pattern = "Minor Lg") == TRUE)
+  # ) > 0){
+  #   df$Type[ which(grepl(df$X9, pattern = "Minor Lg") == TRUE) ] = "MiLB"
+  # } 
+  # if ( length(
+  #   which(grepl(df$X9, pattern = "--") == TRUE) 
+  # ) > 0 ){
+  #   df$Type[ which(grepl(df$X9, pattern = "--") == TRUE) ] = "Undisclosed"
+  # }
+  # df$Type[ which(grepl(df$X9, pattern = "\\,") == TRUE) ] = "MLB"
+  # 
+  # ## Change undisclosed contract values to 0
+  # df$X9[ which(grepl(df$X9, pattern = "--") == TRUE) ] = 0
+  # ## Change minor league deal values to 0
+  # df$X9[ which(grepl(df$X9, pattern = "Minor Lg") == TRUE) ] = 0
+  # 
+  # ## Change undisclosed contract values to 0
+  # df$TotalValue[ which(grepl(df$TotalValue, pattern = "--") == TRUE) ] = 0
+  # ## Change minor league deal values to 0
+  # df$TotalValue[ which(grepl(df$TotalValue, pattern = "Minor Lg") == TRUE) ] = 0
+  # ## Remove dollar signs and commas from value; replace ,s and divide by 1M to display values in terms of millions of dollars
+  # df$X9 = gsub(df$X9, pattern = "\\$", replacement = "")
+  # df$X9 = gsub(df$X9, pattern = "\\,", replacement = "")
+  # df$TotalValue = gsub(df$TotalValue, pattern = "\\$", replacement = "")
+  # df$TotalValue = gsub(df$TotalValue, pattern = "\\,", replacement = "")
+  # df$TotalValue = as.numeric(df$TotalValue) / 1000000 ## Data is in Millions of USD
+  # df$X9 = (as.numeric(df$X9) / as.numeric(df$X7)) / 1000000
+  # df = add_column(df, Year = "", .before = 2)
+  # df[,2] = as.numeric(paste("20", Year, sep = ""))
+  # colnames(df)[c(1,3:7)] = c("Name", "Position", "Age", "Team", "Years", "AAV")
+  # 
+  # df$Age = as.numeric(df$Age) - (2021 - as.numeric(df$Year) )
+  
+  # for (i in 11:21){
+  #   if ( df$Year == as.numeric(
+  #     paste("20", i, sep = "") )
+  #   ) {
+  #     
+  #   }
+  # }
   
   assign(paste("ESPN_FA_20", Year, sep = ""), df, envir = .GlobalEnv)
   return(df)

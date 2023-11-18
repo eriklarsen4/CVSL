@@ -53,57 +53,16 @@ library(splines)
 source("~/GitHub/Baseball/Tanking/Tanking Functions.R")
 ```
 
-# Amateur Draft Data {.tabset .tabset-pills .tabset-fade}
-
-## Scrape and Clean Amateur Draft Data
-
-Scrape amateur draft data from `Baseball Almanac`
-
-Data is rife with errors, so clean it up
-
-```{r Scrape and Clean Amateur draft data, include = T, message = F, warning = F, echo = T}
-  ## set the selector
-almanac_selector = "#wrapper > div.container > div.ba-table > table"
-  ## Loop through and scrape the data starting from Epstein and Luhnow hires with Cubs/Astros (2011) to present
-for ( i in 11:21 ){
-  BBA_IMPORT_fn(Year = i, selector = almanac_selector)
-}
-  ## Merge the dataframes together
-BBA_DRAFT_ALL = purrr::reduce(mget(ls()[which(grepl(ls(), pattern = "BBA20") == TRUE)]), full_join)
-rm(list = ls()[which(grepl(ls(), pattern = "BBA([0-9])") == T)])
-
-Encoding(BBA_DRAFT_ALL$`Player Name`) = "UTF-8"
-BBA_DRAFT_ALL$`Player Name` = iconv(BBA_DRAFT_ALL$`Player Name`, "UTF-8", "UTF-8", sub = " ")
-
-
-  ## Fix team name mistakes
-    ## Change " `Drafted By` " to "Tm", and " `Player Name` " to "Name"
-BBA_DRAFT_ALL = BBA_DRAFT_ALL %>%
-  dplyr::mutate(`Drafted By` = case_when(`Drafted By` == "Chicago" ~ "Chicago Cubs",
-                                         `Drafted By` == "Florida Marlins" ~ "Miami Marlins",
-                                         grepl(`Drafted By`, pattern = "Miami") ~ "Miami Marlins",
-                                         grepl(`Drafted By`, pattern = "Phillies") ~ "Philadelphia Phillies",
-                                         grepl(`Drafted By`, pattern = "Pittsburg") ~ "Pittsburgh Pirates",
-                                         grepl(`Drafted By`, pattern = "Baltimore") ~ "Baltimore Orioles",
-                                         grepl(`Drafted By`, pattern = "Athletics") ~ "Oakland Athletics",
-                                         grepl(`Drafted By`, pattern = "Anaheim") ~ "Los Angeles Angels",
-                                         grepl(`Drafted By`, pattern = "Senators") ~ "Oakland Athletics",
-                                         TRUE ~ `Drafted By`),
-                Tm = `Drafted By`,
-                Name = `Player Name`) %>%
-  dplyr::select(-`Drafted By`, -`Player Name`)
-```
-
 # Baseball Reference Standings Data {.tabset .tabset-pills .tabset-fade}
 
 Import `Baseball Reference`'s `Standings` data over relevant years
 
 ## Scrape and Clean Baseball Reference Standings Data
 
-```{r Scrape standings data from Baseball Reference, include = TRUE, warning = FALSE, echo = TRUE, message = FALSE}
+```{r Scrape standings data from Baseball Reference, include = T, message = F, warning = F, echo = T}
   ## Loop through and import the standings from 2011-2021
 for ( i in 11:21 ) {
-  if (i %% 10 == 0 ) {
+  if (i %% 17 == 0 ) {
     
     Sys.sleep(60)
     
@@ -133,121 +92,33 @@ Import `BBRef`'s `player value` data, originally scraped from `BBRef`
 
 Import the data from Git repo
 
-```{r Old BR Import, include = F, warning = F, message = F, echo = F}
-  ## Import player value stats downloaded from Baseball Reference
-# setwd("C:/Users/Erik/Desktop/BoxCopy/Programming Scripts and Data/Baseball/Projects/Tanking/")
-# files = list.files(pattern = "Player_Value")
-# for ( i in 1:length(files) ) {
-#   as.data.frame(
-#     assign(
-#       gsub(".csv", "", files[], fixed = TRUE)[i], read.csv(file = files[i]))
-#   )
-# }
-
-# files = list.files(path = "https://raw.githubusercontent.com/eriklarsen4/Baseball/main/Tanking/Player%20Value%20files")
-# for (i in 1:length(files) ) {
-#   as.data.frame(
-#     assign(
-#       gsub(".csv", "", files[], fixed = TRUE)[i], read.csv(file = paste("https://github.com/eriklarsen4/Baseball/tree/main/Tanking/Player%20Value%20files",files[i], sep = ""), encoding = "UTF8")
-#     )
-#   )
-# }
-
-#   ## Re-name them to include underscores
-#     ##  First, concatenate the dataframe names into a list
-# BR_list = ls()[
-#   which(grepl(ls(), pattern = "Value") == TRUE)
-# ]
-#     ## Replace the spaces with underscores and assign the files to the names
-# for(i in 1:length(unlist(BR_list))){
-#     
-#     BR_list[i] = gsub(" ", "_", ls()[
-#       which(grepl(ls(), pattern = "BR") == TRUE)[i]
-#     ], fixed = TRUE)
-#     
-#     as.data.frame(
-#       assign(unlist(BR_list)[i], read.csv(file = paste("https://github.com/eriklarsen4/Baseball/tree/main/CVSL/FG%20and%20BR%20Data", files[i], sep = ""), encoding = "UTF8")
-#     )
-#     )
-# }
-```
-
-```{r Import player WAR and salary data from BBRef, include = F, warning = F, message = F, echo = F}
-rm(list = ls()[which(grepl(ls(), pattern = "Player_Value_"))])
-rm(Player_Value_Pitching_ALL)
-
-
-batter_files = vector()
-pitcher_files = vector()
-
-for (i in 1:length(2011:2021)){
-  batter_files[i] = c(
-    paste("https://raw.githubusercontent.com/eriklarsen4/Baseball/main/Tanking/Player%20Value%20files/Player_Value_Batting_",2010+i,".csv", sep = "")
-  )
-  
-  as.data.frame(
-  assign(
-    str_extract(batter_files[i], pattern = paste("Player_Value_Batting_", 2010+i, sep = "")),
-    read.csv(file = batter_files[i], encoding = "UTF-8")
-  )
-)
-  
-  pitcher_files[i] = c(
-      paste("https://raw.githubusercontent.com/eriklarsen4/Baseball/main/Tanking/Player%20Value%20files/Player_Value_Pitching_",2010+i,".csv", sep = "")
-    )
-  
-  as.data.frame(
-    assign(
-      str_extract(pitcher_files[i], pattern = paste("Player_Value_Pitching_", 2010+i, sep = "")),
-      read.csv(file = pitcher_files[i], encoding = "UTF-8")
-    )
-  )
-}
-
-## 2020, 2021 have Xinn value added for pitchers; remove it to join and clean
-Player_Value_Pitching_2020 = Player_Value_Pitching_2020[ , -13]
-Player_Value_Pitching_2021 = Player_Value_Pitching_2021[ , -13]
-
-  ## Add Year column
-Batting.list = mget(ls()[which(grepl(ls(), pattern = "Batting"))])
-Pitching.list = mget(ls()[which(grepl(ls(), pattern = "Pitching"))])
-
-Batting.list = lapply(Batting.list, transform, Year = 0)
-Pitching.list = lapply(Pitching.list, transform, Year = 0)
-
-for (i in 1:length(Batting.list)) {
-  
-  Batting.list[[i]]$Year = as.numeric(paste(2010+i, sep = ""))
-  Pitching.list[[i]]$Year = as.numeric(paste(2010+i, sep = ""))
-  
-  assign(ls()[which(grepl(ls(), pattern = paste("Batting_", 2010+i, sep = "")) == T)],
-         as.data.frame(Batting.list[[i]])
-         )
-  
-  assign(ls()[which(grepl(ls(), pattern = paste("Pitching_", 2010+i, sep = "")) == T)],
-         as.data.frame(Pitching.list[[i]])
-         )
-  
-}
-
-
-```
-
 ```{r Import Player Value Data from BBRef, include = T, warning = F, message = F, echo = T}
-## compile player type data into a list over which to loop
-# batter_files = vector()
-# pitcher_files = vector()
 
-rm(list = ls()[which(grepl(ls(), pattern = "Player_Value") == T)])
+# rm(list = ls()[which(grepl(ls(), pattern = "Player_Value") == T)])
 
 for ( i in 11:21 ){
-  if (i %% 10 == 0 ) {
+  if (i %% 17 == 0 ) {
     
       Sys.sleep(60)
+    
+    BR_PLAYER_VAL_IMPORT_fn(Year = i, Player_data_type = "batting")
     
     } else {
       
       BR_PLAYER_VAL_IMPORT_fn(Year = i, Player_data_type = "batting")
+  
+    }
+}
+
+for ( i in 11:21 ){
+  if (i %% 17 == 0 ) {
+    
+      Sys.sleep(60)
+    
+    BR_PLAYER_VAL_IMPORT_fn(Year = i, Player_data_type = "pitching")
+    
+    } else {
+      
       BR_PLAYER_VAL_IMPORT_fn(Year = i, Player_data_type = "pitching")
   
     }
@@ -255,10 +126,16 @@ for ( i in 11:21 ){
 
 ```
 
-
 ## Clean the BR Player Value Data
 
-Clean the data
+Clean the data:
+
++ names in these tables scraped from `Baseball Reference` are encoded differently from the `CHADWICK DB` and cannot be coerced for joining
+
++ scraped data in these tables do not contain `Baseball Reference` playerids
+
+  + add playerids from the `CHADWICK DB` in order to scrape individual player pages
+    to account for players that changed teams within a given season
 
 ```{r Join BBRef data and correct columns, include = T, warning = F, message = F, echo = T}
   ## Combine the each data "type" into one df
@@ -311,25 +188,11 @@ Player_Value_Batting_ALL = ID_ADD_fn(df = Player_Value_Batting_ALL, player_type 
 
 Player_Value_Pitching_ALL = ID_ADD_fn(df = Player_Value_Pitching_ALL, player_type = "pitchers", site_abbrev = "bbref")
 
-Player_Value_Pitching_ALL_2 %>%
-  dplyr::filter(is.na(bbref_id))
-
-
-Player_Value_Pitching_ALL_2 %>%
-  dplyr::filter(!grepl(Name, pattern = "Jr." ) &
-                  !grepl(Name, pattern = "III") &
-                  is.na(bbref_id))
-
-Player_Value_Pitching_ALL_3 %>%
-  dplyr::filter(is.na(bbref_id)) &
-                  grepl(Name, pattern = "Josh") &
-                  grepl(Name, pattern = "D.")) &
-                  grepl(Name, pattern = "Le"))
-
-
 ```
 
-```{r Correct player name spellings and ids 1, eval = T, include = F, warning = F, message = F, echo = F}
+Correct hitter name spellings and IDs (not shown)
+
+```{r Correct hitter name spellings and ids, eval = T, include = T, warning = F, message = F, echo = F}
 
 ## correct names that impacted ids and last name initials
   ## -> all juniors, players with accents, or different first names between CHAD and bbref
@@ -523,7 +386,62 @@ Player_Value_Batting_ALL = Player_Value_Batting_ALL %>%
                 lastinit = str_extract(bbref_id, pattern = "[a-z]{1}")
                 )
 
+Player_Value_Batting_ALL = Player_Value_Batting_ALL %>%
+  dplyr::mutate(bbref_id = case_when(grepl(Name, pattern = "Bill") &
+                                       grepl(Name, pattern = "Hall") ~ CHAD_LU %>%
+                                       dplyr::filter(name_last == "Hall" &
+                                                       name_given == "William") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "John") &
+                                       grepl(Name, pattern = "McDonald") ~ CHAD_LU %>%
+                                       dplyr::filter(name_last == "McDonald" &
+                                                       mlb_played_last == 2014) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Chris") &
+                                       grepl(Name, pattern = "Young") ~ CHAD_LU %>%
+                                       dplyr::filter(name_last == "Young" &
+                                                       name_given == "Christopher Brandon") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Nelson") &
+                                       grepl(Name, pattern = "Cruz") ~ CHAD_LU %>%
+                                       dplyr::filter(name_given == "Nelson Ramon" &
+                                                       name_last == "Cruz") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Ike") &
+                                       grepl(Name, pattern = "Davis") ~ CHAD_LU %>%
+                                       dplyr::filter(Name == "Ike Davis" &
+                                                       name_given == "Isaac Benjamin") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Luis") &
+                                           grepl(Name, pattern = "Jimenez") ~ CHAD_LU %>%
+                                       dplyr::filter(Name == "Luis Jimenez" &
+                                                       name_given == "Luis Domingo") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Boog") &
+                                       grepl(Name, pattern = "Powell") ~ CHAD_LU %>%
+                                       dplyr::filter(Name == "Boog Powell" &
+                                                       name_given == "Herschel Mack") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     TRUE ~ bbref_id))
+
+
+
+```
+
+Repeat for pitchers and remove hitters from the data frame (not shown)
+
+```{r Correct pitcher name spellings and ids 2, eval = T, include = T, message = F, warning = F, echo = F}
+
 Player_Value_Pitching_ALL = Player_Value_Pitching_ALL %>%
+  
   dplyr::mutate(bbref_id = case_when(grepl(Name, pattern = "III") &
                                        grepl(Name, pattern = "Alvarez") ~ CHAD_LU %>%
                                        dplyr::filter(grepl(name_first, pattern = "Henderson")) %>%
@@ -838,41 +756,13 @@ Player_Value_Pitching_ALL = Player_Value_Pitching_ALL %>%
                                                        name_first == "Daniel") %>%
                                        dplyr::select(key_bbref) %>%
                                        as.character(),
+                                     
                                      TRUE ~ bbref_id
                                      ),
                 lastinit = str_extract(bbref_id, pattern = "[a-z]{1}")
   ) %>%
   dplyr::filter(!is.na(bbref_id))
-```
 
-```{r Correct player name spellings and ids 2, include = T, message = F, warning = F, echo = F}
-Player_Value_Batting_ALL = Player_Value_Batting_ALL %>%
-  dplyr::mutate(bbref_id = case_when(grepl(Name, pattern = "Bill") &
-                                       grepl(Name, pattern = "Hall") ~ CHAD_LU %>%
-                                       dplyr::filter(name_last == "Hall" &
-                                                       name_given == "William") %>%
-                                       dplyr::select(key_bbref) %>%
-                                       as.character(),
-                                     grepl(Name, pattern = "John") &
-                                       grepl(Name, pattern = "McDonald") ~ CHAD_LU %>%
-                                       dplyr::filter(name_last == "McDonald" &
-                                                       mlb_played_last == 2014) %>%
-                                       dplyr::select(key_bbref) %>%
-                                       as.character(),
-                                     grepl(Name, pattern = "Chris") &
-                                       grepl(Name, pattern = "Young") ~ CHAD_LU %>%
-                                       dplyr::filter(name_last == "Young" &
-                                                       name_given == "Christopher Brandon") %>%
-                                       dplyr::select(key_bbref) %>%
-                                       as.character(),
-                                     grepl(Name, pattern = "Nelson") &
-                                       grepl(Name, pattern = "Cruz") ~ CHAD_LU %>%
-                                       dplyr::filter(name_given == "Nelson Ramon" &
-                                                       name_last == "Cruz") %>%
-                                       dplyr::select(key_bbref) %>%
-                                       as.character(),
-                                     
-                                     TRUE ~ bbref_id))
 
 Player_Value_Pitching_ALL = Player_Value_Pitching_ALL %>%
   dplyr::filter(bbref_id %notin% Player_Value_Batting_ALL$bbref_id) %>%
@@ -926,8 +816,35 @@ Player_Value_Pitching_ALL = Player_Value_Pitching_ALL %>%
                                                        name_given == "Austin Richard") %>%
                                        dplyr::select(key_bbref) %>%
                                        as.character(),
+                                     grepl(Name, pattern = "Erik") &
+                                       grepl(Name, pattern = "Johnson") ~ CHAD_LU %>%
+                                       dplyr::filter(Name == "Erik Johnson" &
+                                                       name_given == "Erik Craig") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Jeff") &
+                                       grepl(Name, pattern = "Gray") ~ CHAD_LU %>%
+                                       dplyr::filter(Name == "Jeff Gray" &
+                                                       name_given == "Jeffrey Michael") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Logan") &
+                                       grepl(Name, pattern = "Allen") ~ CHAD_LU %>%
+                                       dplyr::filter(Name == "Logan Allen" &
+                                                       name_given == "Logan Shane") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Walker") &
+                                       grepl(Name, pattern = "Lockett") ~ CHAD_LU %>%
+                                       dplyr::filter(Name == "Walker Lockett") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
                                      
-                                     TRUE ~ bbref_id))
+                                     TRUE ~ bbref_id
+                                     ),
+                
+                lastinit = str_extract(bbref_id, pattern = "[a-z]{1}")
+  )
 ```
 
 ```{r scratch, eval = F, include = F, message = F, warning = F, echo = F}
@@ -1019,8 +936,6 @@ Player_Value_Batting_ALL= Player_Value_Batting_ALL %>%
   dplyr::select(-idx)
 ```
 
-Find **position players** in the `Player_Value_Pitching_df` and remove them
-
 ```{r scratch 3, eval = F, include = F, warning = F, message = F, echo = F, message = F}
 pitchers = unique(Player_Value_Pitching_ALL$playerid)
 hitters = unique(Player_Value_Batting_ALL$playerid)
@@ -1089,7 +1004,11 @@ Player_Value_Batting_ALL = Player_Value_Batting_ALL %>%
 
 ```
 
-Aggregate the player value data to obtain `Career bWAR`, `Career Salary`, and `Service time`
+## Determine Career-Level bWAR and Value
+
++ Aggregate the player value data to obtain `Career bWAR`, `Career Salary`, and `Service time`
+
++ Aggregate the player value data to obtain `Player-Year-level` `bWAR` and `Salaries`
 
 ```{r Summarize the data, include = T, warning = F, echo = T, message = F}
 
@@ -1144,9 +1063,10 @@ Acquire team salary data
 ```{r Scrape team bWAR and salary/payroll data from Baseball Reference, include = T, warning = F, echo = T, message = F}
   ## Loop through the relevant years and import the tables as dataframes
 for ( i in 11:21 ){
-  if (i %% 10 == 0 ) {
+  if (i %% 17 == 0 ) {
     
       Sys.sleep(60)
+      BR_TEAM_VALUE_IMPORT_fn(Year = i, Player_data_type = "batting")
     
     } else {
       
@@ -1155,9 +1075,10 @@ for ( i in 11:21 ){
 }
   ## Repeat the loop for pitching stats
 for ( i in 11:21 ){
-  if( i %% 10 == 0 ) {
+  if( i %% 17 == 0 ) {
     
     Sys.sleep(60)
+    BR_TEAM_VALUE_IMPORT_fn(Year = i, Player_data_type = "pitching")
     
   } else {
     
@@ -1189,30 +1110,14 @@ TeamBatALL = TeamBatALL %>%
                                grepl(Tm, pattern = "Marlins") ~ "Miami Marlins",
                                grepl(Tm, pattern = "Cleveland") ~ "Cleveland Guardians",
                                TRUE ~ Tm))
-rm(list = ls()[which(grepl(ls(), pattern = "Team_") == T)])
+rm(list = ls()[which(grepl(ls(), pattern = "Team_batting|Team_pitching") == T)])
 ```
 
-## Clean Team Salary/Payroll Data
+## Clean Individual Player Salary/Payroll Data
 
 Add player acquisition data to the cleaned `Baseball Reference` player value data
 
 + first, identify players who changed teams
-
-```{r Identify players who changed teams, include = T, warning = F, echo = T, message = F}
-
-Team_Changers_hitters = Player_Value_Batting_ALL %>%
-  dplyr::filter(grepl(Tm, pattern = "TM")) %>%
-  dplyr::mutate(Tms = Tm) %>%
-  dplyr::select(Name, lastinit, bbref_id, Year, Tms, Salary, Acquired) %>%
-  dplyr::distinct()
-
-
-Team_Changers_pitchers = Player_Value_Pitching_ALL %>%
-  dplyr::filter(grepl(Tm, pattern = "TM")) %>%
-  dplyr::mutate(Tms = Tm) %>%
-  dplyr::select(Name, lastinit, bbref_id, Year, Tms, Salary, Acquired) %>%
-  dplyr::distinct()
-```
 
 ```{r Correct hitter positions, eval = F, include = T, message = F, warning = F, echo = F}
   ## Loop through and tab each team's number of acqusitions for the main acq. types in each year;
@@ -1279,6 +1184,22 @@ Player_Value_Batting_ALL = Player_Value_Batting_ALL %>%
   dplyr::mutate(Positions = batPositions)
 ```
 
+```{r Identify players who changed teams, include = T, warning = F, echo = T, message = F}
+
+Team_Changers_hitters = Player_Value_Batting_ALL %>%
+  dplyr::filter(grepl(Tm, pattern = "TM")) %>%
+  dplyr::mutate(Tms = Tm) %>%
+  dplyr::select(Name, lastinit, bbref_id, Year, Tms, Salary, Acquired) %>%
+  dplyr::distinct()
+
+
+Team_Changers_pitchers = Player_Value_Pitching_ALL %>%
+  dplyr::filter(grepl(Tm, pattern = "TM")) %>%
+  dplyr::mutate(Tms = Tm) %>%
+  dplyr::select(Name, lastinit, bbref_id, Year, Tms, Salary, Acquired) %>%
+  dplyr::distinct()
+```
+
 + next, scrape the player's `Baseball Reference` player page to identify which teams for whom these players played
 
   + for hitters first
@@ -1288,7 +1209,7 @@ Player_Value_Batting_ALL = Player_Value_Batting_ALL %>%
 ```{r Scrape Individual hitters pages, include = T, message = F, warning = F, echo = T}
 
 for (i in 1:nrow(Team_Changers_hitters)){
-  if (i %% 19 == 0) {
+  if (i %% 17 == 0) {
     
     Sys.sleep(60)
     
@@ -1314,9 +1235,9 @@ rm(list = ls()[which(grepl(ls(), pattern = "Changer_") == T)])
 Team_Changers_hitters = Team_Changers_hitters %>%
   dplyr::ungroup() %>%
   left_join(Changing_hitters, by = c("lastinit", "bbref_id", "Year")) %>%
-  dplyr::mutate(Tm = case_when(is.na(Tm.x) ~ Tm.y,
-                               TRUE ~ Tm.x)) %>%
-  dplyr::select(-Tm.x, -Tm.y) %>%
+  # dplyr::mutate(Tm = case_when(is.na(Tm.x) ~ Tm.y,
+  #                              TRUE ~ Tm.x)) %>%
+  # dplyr::select(-Tm.x, -Tm.y) %>%
   dplyr::mutate(From = case_when(bbref_id == lead(bbref_id) ~ Tm,
                                  TRUE ~ ""),
                 From = case_when(From == ""  ~ lag(From),
@@ -1338,153 +1259,6 @@ Team_Changers_hitters = Team_Changers_hitters %>%
   dplyr::distinct()
 
 
-```
-
-```{r repeat changing hitters I, include = T, message = F, warning = F, echo = F }
-## putting the system to sleep can skip iterations
-## so find those that were skipped and repeat the process above
-
-# double check if any players were skipped; should be two more times
-skipped = Team_Changers_hitters %>%
-  dplyr::filter(is.na(Tm))
-
-for (i in 1:nrow(skipped)) {
-  if (nrow(skipped) > 0) {
-    
-    if (i %% 19 == 0) {
-    
-    Sys.sleep(60)
-    
-    BR_PLAYER_CHANGER_IMPORT_fn(year = skipped$Year[i],
-                                lastinitial = skipped$lastinit[i],
-                                bbref_id = skipped$bbref_id[i],
-                                Player_data_type = "batting")
-  
-    } else {
-    
-    BR_PLAYER_CHANGER_IMPORT_fn(year = skipped$Year[i],
-                                lastinitial = skipped$lastinit[i],
-                                bbref_id = skipped$bbref_id[i],
-                                Player_data_type = "batting")
-    }
-  }
-}
-    
-Changing_hitters = purrr::reduce(mget(ls()[which(grepl(ls(), pattern = "Changer_") == T)]), full_join)
-rm(list = ls()[which(grepl(ls(), pattern = "Changer_") == T)])
-
-Team_Changers_hitters = Team_Changers_hitters %>%
-  dplyr::ungroup() %>%
-  left_join(Changing_hitters, by = c("lastinit", "bbref_id", "Year")) %>%
-  dplyr::mutate(Tm = case_when(is.na(Tm.x) ~ Tm.y,
-                               TRUE ~ Tm.x)) %>%
-  dplyr::select(-Tm.x, -Tm.y) %>%
-  dplyr::mutate(From = case_when(bbref_id == lead(bbref_id) ~ Tm,
-                                 TRUE ~ ""),
-                From = case_when(From == ""  ~ lag(From),
-                                 TRUE ~ From),
-                To = case_when(bbref_id == lag(bbref_id) ~ Tm,
-                               TRUE ~ ""),
-                To = case_when(To == "" ~ lead(To),
-                               TRUE ~ To)) %>%
-  dplyr::distinct() %>%
-  # dplyr::group_by(bbref_id, Year, Tm) %>%
-  dplyr::mutate(Salary = case_when(!is.na(Salary) &
-                                     Salary > 0 &
-                                     grepl(Acquired, pattern = "Traded|Waivers|Amateur Draft|Free|Conditional") &
-                                     Tm == From ~ -Salary,
-                                   TRUE ~ Salary)) %>%
-  dplyr::ungroup() %>%
-  dplyr::group_by(bbref_id, Year, Tm) %>%
-  dplyr::select(-From, -To) %>%
-  dplyr::distinct()
-    
-skipped = Team_Changers_hitters %>%
-  dplyr::filter(is.na(Tm))
-
-for (i in 1:nrow(skipped)) {
-  if (nrow(skipped) > 0) {
-    
-    if (i %% 19 == 0) {
-    
-    Sys.sleep(60)
-    
-    BR_PLAYER_CHANGER_IMPORT_fn(year = skipped$Year[i],
-                                lastinitial = skipped$lastinit[i],
-                                bbref_id = skipped$bbref_id[i],
-                                Player_data_type = "batting")
-  
-  } else {
-    
-    BR_PLAYER_CHANGER_IMPORT_fn(year = skipped$Year[i],
-                                lastinitial = skipped$lastinit[i],
-                                bbref_id = skipped$bbref_id[i],
-                                Player_data_type = "batting")
-    
-  }
-  }
-}
-Changing_hitters = purrr::reduce(mget(ls()[which(grepl(ls(), pattern = "Changer_") == T)]), full_join)
-rm(list = ls()[which(grepl(ls(), pattern = "Changer_") == T)])
-
-Team_Changers_hitters = Team_Changers_hitters %>%
-  dplyr::ungroup() %>%
-  left_join(Changing_hitters, by = c("lastinit", "bbref_id", "Year")) %>%
-  dplyr::mutate(Tm = case_when(is.na(Tm.x) ~ Tm.y,
-                               TRUE ~ Tm.x)) %>%
-  dplyr::select(-Tm.x, -Tm.y) %>%
-  dplyr::mutate(From = case_when(bbref_id == lead(bbref_id) ~ Tm,
-                                 TRUE ~ ""),
-                From = case_when(From == ""  ~ lag(From),
-                                 TRUE ~ From),
-                To = case_when(bbref_id == lag(bbref_id) ~ Tm,
-                               TRUE ~ ""),
-                To = case_when(To == "" ~ lead(To),
-                               TRUE ~ To)) %>%
-  dplyr::distinct() %>%
-  # dplyr::group_by(bbref_id, Year, Tm) %>%
-  dplyr::mutate(Salary = case_when(!is.na(Salary) &
-                                     Salary > 0 &
-                                     grepl(Acquired, pattern = "Traded|Waivers|Amateur Draft|Free|Conditional") &
-                                     Tm == From ~ -Salary,
-                                   TRUE ~ Salary)) %>%
-  dplyr::ungroup() %>%
-  dplyr::group_by(bbref_id, Year, Tm) %>%
-  dplyr::select(-From, -To) %>%
-  dplyr::distinct()
-
-```
-
-
-```{r Aggregate the hitters data who changed teams, include = F, message = F, warning = F, echo = F}
-  ## join all the individual dfs
-Changing_hitters = purrr::reduce(mget(ls()[which(grepl(ls(), pattern = "Changer_") == T)]), full_join)
-  ## remove all the individual dfs
-rm(list = ls()[which(grepl(ls(), pattern = "Changer_"))])
-
-  ## aggregate by player-team-year to account for the salaries to team payrolls from mid-season
-    ## player acquisitions
-Team_Changers_hitters = Team_Changers_hitters %>%
-  left_join(Changing_hitters, by = c("lastinit", "bbref_id", "Year")) %>%
-  dplyr::mutate(From = case_when(bbref_id == lead(bbref_id) ~ Tm,
-                                 TRUE ~ ""),
-                From = case_when(From == ""  ~ lag(From),
-                                 TRUE ~ From),
-                To = case_when(bbref_id == lag(bbref_id) ~ Tm,
-                               TRUE ~ ""),
-                To = case_when(To == "" ~ lead(To),
-                               TRUE ~ To)) %>%
-  dplyr::select(-Tms, Tm) %>%
-  dplyr::distinct() %>%
-  dplyr::group_by(bbref_id, Year, Tm) %>%
-  dplyr::mutate(Salary = case_when(!is.na(Salary) &
-                                     grepl(Acquired, pattern = "Traded|Waivers|Amateur Draft|Free Agency") &
-                                     Tm == From ~ -Salary,
-                                   TRUE ~ Salary)) %>%
-  dplyr::ungroup() %>%
-  dplyr::group_by(bbref_id, Year, Tm) %>%
-  dplyr::select(-From, -To) %>%
-  dplyr::distinct()
 ```
 
   + repeat for pitchers
@@ -1492,7 +1266,7 @@ Team_Changers_hitters = Team_Changers_hitters %>%
 ```{r Scrape Individual pitchers pages, include = T, message = F, warning = F, echo = T}
 
 for (i in 1:nrow(Team_Changers_pitchers)){
-  if (i %% 19 == 0) {
+  if (i %% 17 == 0) {
     
     Sys.sleep(60)
     
@@ -1540,124 +1314,28 @@ Team_Changers_pitchers = Team_Changers_pitchers %>%
   dplyr::select(-From, -To) %>%
   dplyr::distinct()
 
-
-
-
 ```
 
-  + (aggregate the pitchers' data)
++ aggregate all the changers' data into a `Team_Transactions` df
 
-```{r Aggregate the pitchers data who changed teams, include = T, message = F, warning = F, echo = F}
++ a **negative salary change = to dumping payroll**
 
-skipped = Team_Changers_pitchers %>%
-  dplyr::filter(is.na(Tm))
-
-skipped = skipped %>%
-  dplyr::mutate(bbref_id = case_when(grepl(Name, pattern = "Erik") &
-                                       grepl(Name, pattern = "Johnson") ~ CHAD_LU %>%
-                                       dplyr::filter(Name == "Erik Johnson" &
-                                                       name_given == "Erik Craig") %>%
-                                       dplyr::select(key_bbref) %>%
-                                       as.character(),
-                                     grepl(Name, pattern = "John") &
-                                       grepl(Name, pattern = "Nogowski") ~ CHAD_LU %>%
-                                       dplyr::filter(Name == "John Nogowski") %>%
-                                       dplyr::select(key_bbref) %>%
-                                       as.character(),
-                                     
-                                     TRUE ~ bbref_id))
-
-for (i in 1:nrow(skipped)) {
-  if (nrow(skipped) > 0) {
-    
-    if (i %% 19 == 0) {
-    
-    Sys.sleep(60)
-    
-    BR_PLAYER_CHANGER_IMPORT_fn(year = skipped$Year[i],
-                                lastinitial = skipped$lastinit[i],
-                                bbref_id = skipped$bbref_id[i],
-                                Player_data_type = "pitching")
-  
-    } else {
-    
-    BR_PLAYER_CHANGER_IMPORT_fn(year = skipped$Year[i],
-                                lastinitial = skipped$lastinit[i],
-                                bbref_id = skipped$bbref_id[i],
-                                Player_data_type = "pitching")
-    }
-  }
-}
-
-Changing_pitchers = purrr::reduce(mget(ls()[which(grepl(ls(), pattern = "Changer_") == T)]), full_join)
-rm(list = ls()[which(grepl(ls(), pattern = "Changer_") == T)])
-
-Team_Changers_pitchers = Team_Changers_pitchers %>%
-  dplyr::ungroup() %>%
-  left_join(Changing_hitters, by = c("lastinit", "bbref_id", "Year")) %>%
-  dplyr::mutate(Tm = case_when(is.na(Tm.x) ~ Tm.y,
-                               TRUE ~ Tm.x)) %>%
-  dplyr::select(-Tm.x, -Tm.y) %>%
-  dplyr::mutate(From = case_when(bbref_id == lead(bbref_id) ~ Tm,
-                                 TRUE ~ ""),
-                From = case_when(From == ""  ~ lag(From),
-                                 TRUE ~ From),
-                To = case_when(bbref_id == lag(bbref_id) ~ Tm,
-                               TRUE ~ ""),
-                To = case_when(To == "" ~ lead(To),
-                               TRUE ~ To)) %>%
-  dplyr::distinct() %>%
-  # dplyr::group_by(bbref_id, Year, Tm) %>%
-  dplyr::mutate(Salary = case_when(!is.na(Salary) &
-                                     Salary > 0 &
-                                     grepl(Acquired, pattern = "Traded|Waivers|Amateur Draft|Free|Conditional") &
-                                     Tm == From ~ -Salary,
-                                   TRUE ~ Salary)) %>%
-  dplyr::ungroup() %>%
-  dplyr::group_by(bbref_id, Year, Tm) %>%
-  dplyr::select(-From, -To) %>%
-  dplyr::distinct()
-
-  ## aggregate by player-team-year to account for the salaries to team payrolls from mid-season
-    ## player acquisitions
-Team_Changers_pitchers = Team_Changers_pitchers %>%
-  left_join(Changing_pitchers, by = c("lastinit", "bbref_id", "Year")) %>%
-  dplyr::mutate(From = case_when(bbref_id == lead(bbref_id) ~ Tm,
-                                 TRUE ~ ""),
-                From = case_when(From == ""  ~ lag(From),
-                                 TRUE ~ From),
-                To = case_when(bbref_id == lag(bbref_id) ~ Tm,
-                               TRUE ~ ""),
-                To = case_when(To == "" ~ lead(To),
-                               TRUE ~ To)) %>%
-  dplyr::select(-Tms, Tm) %>%
-  dplyr::distinct() %>%
-  dplyr::group_by(bbref_id, Year, Tm) %>%
-  dplyr::mutate(Salary = case_when(!is.na(Salary) &
-                                     grepl(Acquired, pattern = "Traded|Waivers|Amateur Draft|Free Agency") &
-                                     Tm == From ~ -Salary,
-                                   TRUE ~ Salary)) %>%
-  dplyr::ungroup() %>%
-  dplyr::group_by(bbref_id, Year, Tm) %>%
-  dplyr::select(-From, -To) %>%
-  dplyr::distinct()
-```
-
-+ aggregate all the changers' data
-
-+ a negative salary change equates to dumping payroll; positive equates to adding payroll
++ **positive salary change = adding payroll**
 
 ```{r Combine the changers data, include = T, message = F, warning = F, echo = T}
   ## join all hitters and pitchers who changed teams
-Team_Changers_ALL = Team_Changers_hitters %>%
+Team_Transactions_ALL = Team_Changers_hitters %>%
   full_join(Team_Changers_pitchers)
 
-Team_Changers_ALL %>%
-  dplyr::filter(is.na(Tm))
+# Team_Changers_ALL %>% # check to see all players are accounted for
+#   dplyr::filter(is.na(Tm))
 
     ## adjust each team's payroll for the players they acquired or traded away
       ## - Salary adjustment = gaining space (salary dumping)
-Team_Changers_ALL %>%
+Team_Transactions_Sum = Team_Transactions_ALL %>%
+  dplyr::mutate(Tm = case_when(Tm == "WAS" ~ "WSN",
+                               Tm == "FLA" ~ "MIA",
+                               TRUE ~ Tm)) %>%
   dplyr::group_by(Tm, Year) %>%
   dplyr::summarize(Sum_Num_Trades = sum(case_when(Acquired == "Traded" ~ 1,
                                                   Acquired == "Amateur Draft" ~ 1,
@@ -1668,231 +1346,136 @@ Team_Changers_ALL %>%
                                                TRUE ~ 0), na.rm = T),
                    Sum_Num_Claims = sum(case_when(Acquired == "Waivers" ~ 1,
                                                   TRUE ~ 0), na.rm = T),
-                   Sum_Sal_Change = sum(Salary, na.rm = T)) %>%
+                   Sum_Acqs = sum(Sum_Num_Claims, Sum_Num_FAs, Sum_Num_Trades),
+                   Sum_Sal_Change = sum(Salary, na.rm = T)
+                   
+                   ) %>%
   dplyr::arrange(Sum_Sal_Change)
-Player_Value_Batting_ALL %>%
-  dplyr::group_by(Tm) %>%
-  
 
-
-  cleaned_br_hitter_val_df_list[[i]][-which(cleaned_br_hitter_val_df_list[[i]]$Tm == "2TM" |
-                                                   cleaned_br_hitter_val_df_list[[i]]$Tm == "3TM" |
-                                                   cleaned_br_hitter_val_df_list[[i]]$Tm == "4TM" |
-                                                   cleaned_br_hitter_val_df_list[[i]]$Tm == "5TM"),
-  ] %>%
-    group_by(Tm, Year) %>%
-    summarise(Sum_Num_Trades = sum(length(which(Acquired == "Traded"))),
-              Sum_Num_FAs = sum(length(which(Acquired == "Free Agency"))),
-              Sum_Num_Ams = sum(length(which(Acquired == "Amateur Draft" | Acquired == "Amateur Free Agent"))),
-              Sum_Sal = sum(Salary, na.rm = T)) %>%
-    arrange(Tm) %>%
-    as.data.frame()
-  assign(paste("HitterAcqs_", i, sep = ""), df, .GlobalEnv)
-}
-
+Team_Transactions_Sum %>%
+  dplyr::filter(Year != "2020")
 ```
 
-Repeat for pitchers
++ Join the `Team_Transactions_Sum` df to the `TeamBatALL`, `TeamPitALL` dfs and summarize
 
-```{r Add player acquisition data to the Baseball Reference player value data pt.2, include = TRUE, warning = FALSE, echo = TRUE, message = FALSE}
-df = vector()
-for(i in 1:11){
-  df = cleaned_br_pitcher_val_df_list[[i]][-which(cleaned_br_pitcher_val_df_list[[i]]$Tm == "2TM" |
-                                                    cleaned_br_pitcher_val_df_list[[i]]$Tm == "3TM" | 
-                                                    cleaned_br_pitcher_val_df_list[[i]]$Tm == "4TM" |
-                                                    cleaned_br_pitcher_val_df_list[[i]]$Tm == "5TM"),] %>%
-    group_by(Tm, Year) %>%
-    summarise(Sum_Num_Trades = sum(length(which(Acquired == "Traded"))),
-              Sum_Num_FAs = sum(length(which(Acquired == "Free Agency"))),
-              Sum_Num_Ams = sum(length(which(Acquired == "Amateur Draft" | Acquired == "Amateur Free Agent"))),
-              Sum_Sal = sum(Salary, na.rm = T)) %>%
-    arrange(Tm) %>%
-    as.data.frame()
-  assign(paste("PitcherAcqs_", i, sep = ""), df, .GlobalEnv)
-}
+```{r Add Team Abbrevs, include = T, message = F, warning = F, echo = F}
+
+## add a column to the TeamBat and TeamPIT dfs for joining by name
+TeamBatALL = TeamBatALL %>%
+  dplyr::mutate(Team = Tm, .before = 1) %>%
+  dplyr::mutate(Type = "Pit") %>%
+  dplyr::mutate(Tm = case_when(grepl(Team, pattern = "Ariz") ~ "ARI",
+                               grepl(Team, pattern = "Atl") ~ "ATL",
+                               grepl(Team, pattern = "Balt") ~ "BAL",
+                               grepl(Team, pattern = "Bos") ~ "BOS",
+                               grepl(Team, pattern = "Cubs") ~ "CHC",
+                               grepl(Team, pattern = "White") ~ "CHW",
+                               grepl(Team, pattern = "Reds") ~ "CIN",
+                               grepl(Team, pattern = "Cleve") ~ "CLE",
+                               grepl(Team, pattern = "Rock") ~ "COL",
+                               grepl(Team, pattern = "Tig") ~ "DET",
+                               grepl(Team, pattern = "Marlins") ~ "MIA",
+                               grepl(Team, pattern = "Hous") ~ "HOU",
+                               grepl(Team, pattern = "Kans") ~ "KCR",
+                               grepl(Team, pattern = "Angels") ~ "LAA",
+                               grepl(Team, pattern = "Dodg") ~ "LAD",
+                               grepl(Team, pattern = "Milw") ~ "MIL",
+                               grepl(Team, pattern = "Minn") ~ "MIN",
+                               grepl(Team, pattern = "Mets") ~ "NYM",
+                               grepl(Team, pattern = "Yank") ~ "NYY",
+                               grepl(Team, pattern = "Oak") ~ "OAK",
+                               grepl(Team, pattern = "Phil") ~ "PHI",
+                               grepl(Team, pattern = "Pitt") ~ "PIT",
+                               grepl(Team, pattern = "Diego") ~ "SDP",
+                               grepl(Team, pattern = "Seatt") ~ "SEA",
+                               grepl(Team, pattern = "Gian") ~ "SFG",
+                               grepl(Team, pattern = "Cardi") ~ "STL",
+                               grepl(Team, pattern = "Rays") ~ "TBR",
+                               grepl(Team, pattern = "Ranger") ~ "TEX",
+                               grepl(Team, pattern = "Toro") ~ "TOR",
+                               grepl(Team, pattern = "Wash") ~ "WSN")) %>%
+  dplyr::select(-G)
 ```
 
-Concatenate the acquisition dfs into a list of dfs; prep the data to be joined to the `TeamBatALL`, `TeamPitALL` dfs
+```{r Add Team Abbrevs, include = T, message = F, warning = F, echo = F}
+TeamPitALL = TeamPitALL %>%
+  dplyr::mutate(Team = Tm, .before = 1) %>%
+  dplyr::mutate(Type = "Pit") %>%
+  dplyr::mutate(Tm = case_when(grepl(Team, pattern = "Ariz") ~ "ARI",
+                               grepl(Team, pattern = "Atl") ~ "ATL",
+                               grepl(Team, pattern = "Balt") ~ "BAL",
+                               grepl(Team, pattern = "Bos") ~ "BOS",
+                               grepl(Team, pattern = "Cubs") ~ "CHC",
+                               grepl(Team, pattern = "White") ~ "CHW",
+                               grepl(Team, pattern = "Reds") ~ "CIN",
+                               grepl(Team, pattern = "Cleve") ~ "CLE",
+                               grepl(Team, pattern = "Rock") ~ "COL",
+                               grepl(Team, pattern = "Tig") ~ "DET",
+                               grepl(Team, pattern = "Marlins") ~ "MIA",
+                               grepl(Team, pattern = "Hous") ~ "HOU",
+                               grepl(Team, pattern = "Kans") ~ "KCR",
+                               grepl(Team, pattern = "Angels") ~ "LAA",
+                               grepl(Team, pattern = "Dodg") ~ "LAD",
+                               grepl(Team, pattern = "Milw") ~ "MIL",
+                               grepl(Team, pattern = "Minn") ~ "MIN",
+                               grepl(Team, pattern = "Mets") ~ "NYM",
+                               grepl(Team, pattern = "Yank") ~ "NYY",
+                               grepl(Team, pattern = "Oak") ~ "OAK",
+                               grepl(Team, pattern = "Phil") ~ "PHI",
+                               grepl(Team, pattern = "Pitt") ~ "PIT",
+                               grepl(Team, pattern = "Diego") ~ "SDP",
+                               grepl(Team, pattern = "Seatt") ~ "SEA",
+                               grepl(Team, pattern = "Gian") ~ "SFG",
+                               grepl(Team, pattern = "Cardi") ~ "STL",
+                               grepl(Team, pattern = "Rays") ~ "TBR",
+                               grepl(Team, pattern = "Ranger") ~ "TEX",
+                               grepl(Team, pattern = "Toro") ~ "TOR",
+                               grepl(Team, pattern = "Wash") ~ "WSN"))
+```
 
-```{r Prep Baseball Reference value data pt.1, include = TRUE, warning = FALSE, echo = TRUE, message = FALSE}
-  ## Concatenate into a list of dfs
-HitterAcqs = mget(
-  unlist(
-    ls()[
-      which(grepl(ls(), pattern = "HitterAcqs_") == TRUE)
-    ][c(1,4:11,2,3)]
-  )
-)
-PitcherAcqs = mget(
-  unlist(
-    ls()[
-      which(grepl(ls(), pattern = "PitcherAcqs_") == TRUE)
-    ][c(1,4:11,2,3)]
-  )
-)
-  ## Remove the individual dfs
-rm(list = 
-     ls()[grep(ls()[], pattern = "HitterAcqs_|PitcherAcqs_")]
-)
-  ## Re-name the Marlins
-PitcherAcqs[[1]]$Tm[which(PitcherAcqs[[1]]$Tm == "FLA")] = "MIA"
-HitterAcqs[[1]]$Tm[which(HitterAcqs[[1]]$Tm == "FLA")] = "MIA"
-  ## Re-order the list of dfs alphabetically
-PitcherAcqs[[1]] = PitcherAcqs[[1]][order(PitcherAcqs[[1]]$Tm),]
-HitterAcqs[[1]] = HitterAcqs[[1]][order(HitterAcqs[[1]]$Tm),]
-  ## Match names with full official names
-for(i in 1:11){
-  PitcherAcqs[[i]]$Tm = unique(sort(StandALL$Tm))
-  HitterAcqs[[i]]$Tm = unique(sort(StandALL$Tm))
-}
-  ## Re-arrange dfs into one df, housing the acq. data
-PitcherAcqs = bind_rows(PitcherAcqs, .id = "column_label")
-PitcherAcqs = PitcherAcqs %>%
-  select(Tm, Year, Sum_Num_Trades, Sum_Num_FAs, Sum_Num_Ams, Sum_Sal)
-
-HitterAcqs = bind_rows(HitterAcqs, .id = "column_label")
-HitterAcqs = HitterAcqs %>%
-  select(Tm, Year, Sum_Num_Trades, Sum_Num_FAs, Sum_Num_Ams, Sum_Sal)
-
+```{r Join Team Transaction Data to Team Value Data, include = T, message = F, warning = F, echo = T}
   ## Join with Team Value data and remove extra data
-TeamBatALL = HitterAcqs %>%
-  left_join(TeamBatALL) %>%
-  select(Tm, Year, Sum_Num_Trades, Sum_Num_FAs, Sum_Num_Ams, Sum_Sal, WAR, Salary)
-TeamPitALL = PitcherAcqs %>%
-  left_join(TeamPitALL) %>%
-  select(Tm, Year, Sum_Num_Trades, Sum_Num_FAs, Sum_Num_Ams, Sum_Sal, WAR, Salary)
+TeamBatALL = TeamBatALL %>%
+  left_join(Team_Transactions_Sum) %>%
+  dplyr::filter(Year != 2020) %>%
+  dplyr::select(Team, Tm, Type, Year, WAR, Salary, Sum_Sal_Change, Sum_Num_Trades, Sum_Num_FAs, Sum_Num_Claims, Sum_Acqs) %>%
+  dplyr::arrange(Sum_Sal_Change)
+TeamPitALL = TeamPitALL %>%
+  left_join(Team_Transactions_Sum) %>%
+  dplyr::filter(Year != 2020) %>%
+  dplyr::select(Team, Tm, Type, Year, WAR, Salary, Sum_Sal_Change, Sum_Num_Trades, Sum_Num_FAs, Sum_Num_Claims, Sum_Acqs) %>%
+  dplyr::arrange(Sum_Sal_Change)
+
+TeamValALL = TeamBatALL %>%
+  full_join(TeamPitALL) %>%
+  dplyr::mutate(WAR = as.double(WAR)) %>%
+  dplyr::group_by(Team, Tm, Year) %>%
+  dplyr::summarize(WAR = sum(WAR),
+                   Salary = sum(Salary),
+                   Sum_Sal_Change = mean(Sum_Sal_Change),
+                   Sum_Num_Trades = mean(Sum_Num_Trades),
+                   Sum_Num_FAs = mean(Sum_Num_FAs),
+                   Sum_Num_Claims = mean(Sum_Num_Claims),
+                   Sum_Acqs = mean(Sum_Acqs)) %>%
+  dplyr::mutate(Net_Salary = Salary + Sum_Sal_Change) %>%
+  dplyr::select(Team, Tm, Year, WAR, Net_Salary, Salary, Sum_Sal_Change, Sum_Num_Trades, Sum_Num_FAs, Sum_Num_Claims, Sum_Acqs)
 ```
 
-Combine into one `TeamValALL` df
++ Join the `TeamValALL` df to the `StandALL` df
 
-```{r Prep Baseball Reference value data pt.2, include = TRUE, warning = FALSE, echo = TRUE, message = FALSE}
-  ## Combine team pitching and team hitting WAR, salary
-TeamValALL = TeamBatALL
-TeamValALL[,c(3:8)] = TeamBatALL[,c(3:8)] + TeamPitALL[,c(3:8)]
-
+```{r Join Team Val Data to Standings Data, include = T, message = F, warning = F, echo = T}
 TeamValALL = StandALL %>%
-  inner_join(TeamValALL)
-colnames(TeamValALL)[4] = "W_L"
-
-  ## Remove temp dfs
-rm(Team_battingvalue_2011, Team_battingvalue_2012, Team_battingvalue_2013, Team_battingvalue_2014, Team_battingvalue_2015, Team_battingvalue_2016, Team_battingvalue_2017, Team_battingvalue_2018, Team_battingvalue_2019, Team_battingvalue_2020, Team_battingvalue_2021)
-rm(Team_pitchingvalue_2011, Team_pitchingvalue_2012, Team_pitchingvalue_2013, Team_pitchingvalue_2014, Team_pitchingvalue_2015, Team_pitchingvalue_2016, Team_pitchingvalue_2017, Team_pitchingvalue_2018, Team_pitchingvalue_2019, Team_pitchingvalue_2020, Team_pitchingvalue_2021)
-
-head(TeamValALL)
+  dplyr::mutate(Team = Tm, .before = 1) %>%
+  dplyr::select(-Tm) %>%
+  inner_join(TeamValALL) %>%
+  dplyr::arrange(`W-L%`)
 ```
 
+# Scrape MLB Free-Agent Data {.tabset .tabset-pills .tabset-fade}
 
-
-Small function to analyze college draft selections
-
-```{r Write a small function that analyzes draft selections, include = TRUE, warning = FALSE, echo = TRUE, message = FALSE}
-
-  ## Create a function that analyzes the number of college picks by position of a given team in a given year
-Draft_df_Analysis = function(df, Team){
-  
-  ## Loop through and determine how many of which position a given team drafted in a given draft; how many of all were college picks
-  for(i in levels(as.factor(df$POS[which(df$Tm == Team)]))){
-    print(
-      paste(
-        sum(str_count(df$POS[which(df$Tm == Team)], i)),
-        i,
-        ";",
-        length(which(grepl(df$`Drafted From`[ which(df$Tm == Team)],
-                           pattern = "University|College|UCLA|Cal Poly|Academy of Art|Institute of Technology|UNLV|State|Virginia Tech") == TRUE)),
-        "/",
-        length(which(df$Tm == Team) == TRUE),
-        "College Picks")
-    )
-  }
-}
-  ## Note that there may be duplicates in some dfs; better to perform analysis after duplicates are removed
-Draft_df_Analysis(df = BBA_DRAFT_ALL, Team = "New York Yankees")
-```
-
-
-Check the details on the Astros' and Cubs' First 5 Rd selections from 2011-2021
-
-```{r Scrape and clean amateur draft data from Baseball Almanac pt.2, include = TRUE, warning = FALSE, echo = TRUE, message = FALSE}
-print(BBA_DRAFT_ALL %>%
-        dplyr::filter(Tm == "Houston Astros") %>%
-        dplyr::filter(Rd <= 5), n = 59 )
-      
-      
-print(BBA_DRAFT_ALL %>%
-        dplyr::filter(Tm == "Chicago Cubs") %>%
-        dplyr::filter(Rd <= 5), n = 58)
-```
-
-
-
-
-
-
-
-## Scrape MLB Free-Agent Data from ESPN
+## MLers from ESPN
 
 ```{r Scrape and clean Free-Agent data from ESPN, include = TRUE, warning = FALSE, echo = TRUE, message = FALSE}
-## Create a function to scrape Free-Agent Data from ESPN
-ESPN_FA_import_fn = function(Year, selector){
-  df = read_html(
-    paste("https://www.espn.com/mlb/freeagents/_/year/20", Year, "/type/signed", sep = "")
-  ) %>%
-    html_element(css = selector) %>%
-    html_table()
-  df = as.data.frame(df)
-  df = df[ -c(1,nrow(df)), -c(4,5,8)]
-  df = df[ -which(df$X1 == "PLAYER"), ]
-    ## Duplicate the total value column
-  df$TotalValue = df$X9
-    ## Add a column of character values, describing whether the contract was a minors contract
-  df$Type = ""
-    ## Fill values of Minor Lg contracts with "MiLB" string
-  if ( length(
-    which(grepl(df$X9, pattern = "Minor Lg") == TRUE)
-  ) > 0){
-    df$Type[ which(grepl(df$X9, pattern = "Minor Lg") == TRUE) ] = "MiLB"
-  } 
-  if ( length(
-    which(grepl(df$X9, pattern = "--") == TRUE) 
-  ) > 0 ){
-    df$Type[ which(grepl(df$X9, pattern = "--") == TRUE) ] = "Undisclosed"
-  }
-  df$Type[ which(grepl(df$X9, pattern = "\\,") == TRUE) ] = "MLB"
-  
-    ## Change undisclosed contract values to 0
-  df$X9[ which(grepl(df$X9, pattern = "--") == TRUE) ] = 0
-    ## Change minor league deal values to 0
-  df$X9[ which(grepl(df$X9, pattern = "Minor Lg") == TRUE) ] = 0
-  
-    ## Change undisclosed contract values to 0
-  df$TotalValue[ which(grepl(df$TotalValue, pattern = "--") == TRUE) ] = 0
-    ## Change minor league deal values to 0
-  df$TotalValue[ which(grepl(df$TotalValue, pattern = "Minor Lg") == TRUE) ] = 0
-    ## Remove dollar signs and commas from value; replace ,s and divide by 1M to display values in terms of millions of dollars
-  df$X9 = gsub(df$X9, pattern = "\\$", replacement = "")
-  df$X9 = gsub(df$X9, pattern = "\\,", replacement = "")
-  df$TotalValue = gsub(df$TotalValue, pattern = "\\$", replacement = "")
-  df$TotalValue = gsub(df$TotalValue, pattern = "\\,", replacement = "")
-  df$TotalValue = as.numeric(df$TotalValue) / 1000000 ## Data is in Millions of USD
-  df$X9 = (as.numeric(df$X9) / as.numeric(df$X7)) / 1000000
-  df = add_column(df, Year = "", .before = 2)
-  df[,2] = as.numeric(paste("20", Year, sep = ""))
-  colnames(df)[c(1,3:7)] = c("Name", "Position", "Age", "Team", "Years", "AAV")
-  
-  df$Age = as.numeric(df$Age) - (2021 - as.numeric(df$Year) )
-  
-  for (i in 11:21){
-    if ( df$Year == as.numeric(
-      paste("20", i, sep = "") )
-    ) {
-      
-    }
-  }
-  
-  assign(paste("ESPN_FA_20", Year, sep = ""), df, envir = .GlobalEnv)
-  return(df)
-  
-}
   ## Create a variable for a selector
 ESPN_selector = "#my-players-table"
   ## Loop through and import the data for the relevant time-frame
@@ -1900,81 +1483,616 @@ for ( i in 11:21 ) {
   ESPN_FA_import_fn(Year = i, selector = ESPN_selector)
 }
   ## Combine the dfs into one df
-ESPN = bind_rows(ESPN_FA_2011, ESPN_FA_2012, ESPN_FA_2013, ESPN_FA_2014, ESPN_FA_2015,
-                 ESPN_FA_2016, ESPN_FA_2017, ESPN_FA_2018, ESPN_FA_2019, ESPN_FA_2020,
-                 ESPN_FA_2021)
+ESPN = purrr::reduce(mget(ls()[which(grepl(ls(), pattern = "ESPN_FA_2") == TRUE)]), full_join)
+
   ## Remove FA deals to Japanese baseball league and "undisclosed" deals
-ESPN = ESPN[ -which(ESPN$Team == "Japan"), ]
-ESPN = ESPN[ -which(ESPN$Type == "Undisclosed"), ]
-rm(ESPN_FA_2011, ESPN_FA_2012, ESPN_FA_2013, ESPN_FA_2014, ESPN_FA_2015, ESPN_FA_2016, ESPN_FA_2017, ESPN_FA_2018, ESPN_FA_2019, ESPN_FA_2020, ESPN_FA_2021)
+ESPN = ESPN %>%
+  dplyr::filter(Team != "Japan") %>%
+  dplyr::filter(Type != "Undisclosed")
+
+rm(list = ls()[which(grepl(ls(), pattern = "ESPN_FA_2") == T)])
 ```
 
 ## Scrape and Clean International Signing Data from Spotrac
 
 ```{r Scrape and clean Intl Signing Data from Spotrac, include = TRUE, warning = FALSE, echo = TRUE, message = FALSE}
-  ## Create a selector from the spotrac website
-spotrac_Intl_selector = "#main > div > div.teams > table"
-  ## Create a function that will scrape International Signing Data from Spotrac and clean the dataframe
-Spotrac_Intl_import_fn = function(Year, spotrac_selector){
-  df = read_html(
-    paste("https://www.spotrac.com/mlb/international/20", Year, "/", sep = "")
-  ) %>% 
-    html_element(css = spotrac_selector) %>%
-    html_table()
-  df = as.data.frame(df)
-  colnames(df) = c("Player", "Pos", "Country", "Team", "Bonus")
-  df$Bonus = as.numeric(gsub(df$Bonus, pattern = "\\$|\\,", replacement = ""))/1000000
-  df$Year = as.numeric(paste("20", Year, sep = ""))
-  assign(paste("Intl_Signings_20", Year, sep = ""), df, envir = .GlobalEnv)
-}
   ## Loop through the scraping function by the relevant years
 for ( i in 11:21 ) {
   Spotrac_Intl_import_fn(Year = i, spotrac_selector = spotrac_Intl_selector)
 }
   ## Put all the dfs into one df and remove the separate dfs
-IntlALL = rbind.data.frame(Intl_Signings_2011, Intl_Signings_2012, Intl_Signings_2013, Intl_Signings_2014, Intl_Signings_2015,
-                           Intl_Signings_2016, Intl_Signings_2017, Intl_Signings_2018, Intl_Signings_2019, Intl_Signings_2020,
-                           Intl_Signings_2021)
-rm(Intl_Signings_2011, Intl_Signings_2012, Intl_Signings_2013, Intl_Signings_2014, Intl_Signings_2015, Intl_Signings_2016, Intl_Signings_2017, Intl_Signings_2018, Intl_Signings_2019, Intl_Signings_2020, Intl_Signings_2021)
+IntlALL = purrr::reduce(mget(ls()[which(grepl(ls(), pattern = "Intl_Signings_2") == T)]), full_join)
+
+rm(list = ls()[which(grepl(ls(), pattern = "Intl_Signings_2") == T)])
 ```
+
+## Save Data
+
+```{r Save data, include = T, message = F, warning = F, echo = T}
+rm(
+  list = ls()[
+    which(grepl(ls(), pattern = "listy|Changing|Team_Changers") == T) ]
+    )
+save.image("~/GitHub/Baseball/Tanking/WranglingEnvironment.RData")
+```
+
+# Amateur Draft Data {.tabset .tabset-pills .tabset-fade}
+
+## Scrape and Clean Amateur Draft Data
+
+Scrape amateur draft data from `Baseball Almanac`
+
+Data is rife with errors, so clean it up
+
+```{r Scrape and Clean Amateur draft data, include = T, message = F, warning = F, echo = T}
+  ## set the selector
+almanac_selector = "#wrapper > div.container > div.ba-table > table"
+  ## Loop through and scrape the data starting from Epstein and Luhnow hires with Cubs/Astros (2011) to present
+for ( i in 11:21 ){
+  BBA_IMPORT_fn(Year = i, selector = almanac_selector)
+}
+  ## Merge the dataframes together
+BBA_DRAFT_ALL = purrr::reduce(mget(ls()[which(grepl(ls(), pattern = "BBA20") == TRUE)]), full_join)
+rm(list = ls()[which(grepl(ls(), pattern = "BBA([0-9])") == T)])
+
+Encoding(BBA_DRAFT_ALL$`Player Name`) = "UTF-8"
+BBA_DRAFT_ALL$`Player Name` = iconv(BBA_DRAFT_ALL$`Player Name`, "UTF-8", "UTF-8", sub = " ")
+
+
+  ## Fix team name mistakes
+    ## Change " `Drafted By` " to "Tm", and " `Player Name` " to "Name"
+BBA_DRAFT_ALL = BBA_DRAFT_ALL %>%
+  dplyr::mutate(`Drafted By` = case_when(`Drafted By` == "Chicago" ~ "Chicago Cubs",
+                                         `Drafted By` == "Florida Marlins" ~ "Miami Marlins",
+                                         grepl(`Drafted By`, pattern = "Miami") ~ "Miami Marlins",
+                                         grepl(`Drafted By`, pattern = "Phillies") ~ "Philadelphia Phillies",
+                                         grepl(`Drafted By`, pattern = "Pittsburg") ~ "Pittsburgh Pirates",
+                                         grepl(`Drafted By`, pattern = "Baltimore") ~ "Baltimore Orioles",
+                                         grepl(`Drafted By`, pattern = "Athletics") ~ "Oakland Athletics",
+                                         grepl(`Drafted By`, pattern = "Anaheim") ~ "Los Angeles Angels",
+                                         grepl(`Drafted By`, pattern = "Senators") ~ "Oakland Athletics",
+                                         TRUE ~ `Drafted By`),
+                Tm = `Drafted By`,
+                Name = `Player Name`) %>%
+  dplyr::select(-`Drafted By`, -`Player Name`)
+
+  ## Remove "Carlos Pena" from Chicago Cubs draft records
+    ## Remove duplicates
+      ## Correct Lance McCullers' name
+BBA_DRAFT_ALL = BBA_DRAFT_ALL %>%
+  dplyr::filter(Name != "Carlos Pena") %>%
+  dplyr::distinct_all() %>%
+  dplyr::mutate(Name = case_when(grepl(Name, pattern = "McCullers") ~ "Lance McCullers Jr.",
+                                 TRUE ~ Name))
+
+  ## Subset relevant draft data
+ASTROS_CUBS_DRAFT_SUB = BBA_DRAFT_ALL %>%
+  dplyr::filter(grepl(Tm, pattern = "Houston Astros|Chicago Cubs"))
+
+LEAGUE_DRAFT_SUB = BBA_DRAFT_ALL %>%
+  dplyr::filter(!grepl(Tm, pattern = "Houston Astros|Chicago Cubs"))
+```
+
+## Add playerids to Draft Data
+
+Add `Baseball Reference` `playerid`s to the data so it can be joined to player career WAR data
+
++ same process as with the `Baseball Reference` player value data and the `CHADWICK DB` above
+
+```{r Add bbrefids to Draft data, include = T, message = F, warning = F, echo = F}
+ASTROS_CUBS_DRAFT_SUB = ASTROS_CUBS_DRAFT_SUB %>%
+  left_join(CHAD_LU)
+
+missing_astros_cubs_identifiers = ASTROS_CUBS_DRAFT_SUB %>%
+  dplyr::filter(is.na(name_last)) %>%
+  dplyr::select(Name) %>%
+  unlist() %>%
+  as.vector()
+ASTROS_CUBS_DRAFT_SUB = ASTROS_CUBS_DRAFT_SUB %>%
+  dplyr::filter(!grepl(Name, pattern = "Kevin Brown")) %>%
+  dplyr::filter(!grepl(key_bbref, pattern = "jonesal03")) %>%
+  dplyr::filter(!grepl(Name, pattern = "Carlos Diaz")) %>%
+  dplyr::mutate(bbref_id = key_bbref, .before = 9) %>%
+  dplyr::mutate(bbref_id = case_when(grepl(Name, pattern = "Javier") &
+                                       grepl(Name, pattern = "Baez") ~ CHAD_LU %>%
+                                        dplyr::filter(grepl(Name, pattern = "Javier B")) %>%
+                                        dplyr::select(key_bbref) %>%
+                                        as.character(),
+                                     
+                                      grepl(Name, pattern = "Daniel") &
+                                       grepl(Name, pattern = "Vogelb") ~ CHAD_LU %>%
+                                       dplyr::filter(Name == "Dan Vogelbach") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     grepl(Name, pattern = "McCullers") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "McCullers") &
+                                                       name_suffix == "Jr.") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     grepl(Name, pattern = "Underwood") &
+                                       grepl(Name, pattern = "Duane") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Duane Underwood")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     grepl(Name, pattern = "Ramon") &
+                                       grepl(Name, pattern = "Laureano") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Laureano")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     grepl(Name, pattern = "Ralph") &
+                                       grepl(Name, pattern = "Garza") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Ralph Garza")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     grepl(Name, pattern = "Nelson") &
+                                       grepl(Name, pattern = "Velaz") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Nelson Vel")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     grepl(Name, pattern = "Jeremy") &
+                                       grepl(Name, pattern = "Pena") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Jeremy Pe")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     TRUE ~ bbref_id )
+                
+  )
+
+
+LEAGUE_DRAFT_SUB = LEAGUE_DRAFT_SUB %>%
+  left_join(CHAD_LU)
+  
+LEAGUE_DRAFT_SUB = LEAGUE_DRAFT_SUB %>%
+  dplyr::filter(!grepl(key_bbref, pattern = "youngma01")) %>%
+  dplyr::filter(!(grepl(key_bbref, pattern = "smithjo11") & grepl(Tm, pattern = "Brewers"))) %>%
+  dplyr::filter(!(grepl(key_bbref, pattern = "smithjo07") & grepl(Tm, pattern = "Brewers"))) %>%
+  dplyr::filter(!grepl(key_bbref, pattern = "perezju01")) %>%
+  dplyr::filter(!grepl(key_bbref, pattern = "milleju01")) %>%
+  dplyr::filter(!grepl(key_bbref, pattern = "davisau02")) %>%
+  dplyr::filter(!grepl(key_bbref, pattern = "smithja07")) %>%
+  dplyr::filter(!grepl(key_bbref, pattern = "smithja01")) %>%
+  dplyr::filter(!grepl(key_bbref, pattern = "johnsbr01")) %>%
+  dplyr::filter(!grepl(key_bbref, pattern = "reynoma02")) %>%
+  dplyr::filter(!grepl(key_bbref, pattern = "murphto02")) %>%
+  dplyr::filter(!grepl(key_bbref, pattern = "hudsojo02")) %>%
+  dplyr::filter(!grepl(key_bbref, pattern = "adamsau01")) %>%
+  dplyr::filter(!grepl(key_bbref, pattern = "gonzaal01")) %>%
+  dplyr::filter(!grepl(key_bbref, pattern = "ortij101")) %>%
+  dplyr::filter(!grepl(key_bbref, pattern = "duffyma02")) %>%
+  dplyr::filter(!grepl(key_bbref, pattern = "poweb101")) %>%
+  dplyr::filter(!grepl(key_bbref, pattern = "anderdr01")) %>%
+  dplyr::filter(!grepl(key_bbref, pattern = "brownan01")) %>%
+  dplyr::filter(!grepl(Phase, pattern = "Phase")) %>%
+  dplyr::filter(!(grepl(key_bbref, pattern = "smithjo11") & grepl(Tm, pattern = "Pirates"))) %>%
+  dplyr::filter(!(grepl(key_bbref, pattern = "smithjo07") & grepl(Tm, pattern = "Pirates"))) %>%
+  dplyr::filter(!(grepl(key_bbref, pattern = "davisau0") & grepl(Tm, pattern = "Boston"))) %>%
+  dplyr::filter(!(grepl(key_bbref, pattern = "murphjo01") & grepl(Tm, pattern = "Yankees"))) %>%
+  dplyr::filter(!grepl(key_bbref, pattern = "harribr01")) %>%
+  dplyr::filter(!grepl(key_bbref, pattern = "farrejo02")) %>%
+  dplyr::filter(!grepl(key_bbref, pattern = "davisjo07")) %>%
+  dplyr::filter(!(grepl(key_bbref, pattern = "youngma01") & grepl(Tm, pattern = "Miami"))) %>%
+  dplyr::filter(!grepl(key_bbref, pattern = "milleja01")) %>%
+  dplyr::filter(!grepl(key_bbref, pattern = "duncafr01")) %>%
+  dplyr::filter(!grepl(key_bbref, pattern = "duncafr02")) %>%
+  dplyr::filter(!grepl(key_bbref, pattern = "ortizlu01")) %>%
+  dplyr::filter(!(grepl(key_bbref, pattern = "ortizlu03") & grepl(Tm, pattern = "Rangers"))) %>%
+  dplyr::filter(!grepl(key_bbref, pattern = "anderbr02")) %>%
+  dplyr::filter(!grepl(key_bbref, pattern = "anderbr03")) %>%
+  dplyr::filter(!grepl(key_bbref, pattern = "huntebr02")) %>%
+  dplyr::filter(!grepl(key_bbref, pattern = "kellypa02")) %>%
+  dplyr::filter(!grepl(key_bbref, pattern = "kellypa03")) %>%
+  dplyr::filter(!(grepl(key_bbref, pattern = "davisau02") & grepl(Tm, pattern = "Phillies"))) %>%
+  dplyr::filter(!grepl(key_bbref, pattern = "fitzgmi03")) %>%
+  dplyr::filter(!(grepl(key_bbref, pattern = "smithch12") & grepl(Tm, pattern = "Rangers"))) %>%
+  dplyr::filter(!grepl(key_bbref, pattern = "mccarjo99")) %>%
+  dplyr::filter(!grepl(key_bbref, pattern = "mccarjo02")) %>%
+  dplyr::filter(!grepl(key_bbref, pattern = "taylobe01")) %>%
+  dplyr::filter(!grepl(key_bbref, pattern = "taylobe99")) %>%
+  dplyr::filter(!grepl(key_bbref, pattern = "taylobe02")) %>%
+  dplyr::filter(!(grepl(key_bbref, pattern = "allenlo01") & grepl(Tm, pattern = "Boston"))) %>%
+  dplyr::filter(!grepl(key_bbref, pattern = "youngda01")) %>%
+  dplyr::filter(!grepl(key_bbref, pattern = "brownke01")) %>%
+  dplyr::filter(!grepl(key_bbref, pattern = "brownke03")) %>%
+  dplyr::filter(!(grepl(key_bbref, pattern = "willsmith04") & grepl(Tm, pattern = "Dodgers"))) %>%
+  dplyr::filter(!grepl(key_bbref, pattern = "millj001")) %>%
+  dplyr::filter(!(grepl(key_bbref, pattern = "brownan01") & grepl(Tm, pattern = "Phillies"))) %>%
+  dplyr::filter(!(grepl(key_bbref, pattern = "wilsojo01") & grepl(Tm, pattern = "Reds"))) %>%
+  dplyr::filter(!(grepl(key_bbref, pattern = "smithjo0") & grepl(Tm, pattern = "Tigers"))) %>%
+  dplyr::filter(!grepl(key_bbref, pattern = "allenni01")) %>%
+  dplyr::filter(!grepl(key_bbref, pattern = "russejo01")) %>%
+  dplyr::filter(!grepl(key_bbref, pattern = "gonzaju02")) %>%
+  dplyr::filter(!grepl(key_bbref, pattern = "campbpa01")) %>%
+  dplyr::filter(!grepl(key_bbref, pattern = "smithda01")) %>%
+  dplyr::filter(!grepl(key_bbref, pattern = "smithda02")) %>%
+  dplyr::filter(!grepl(key_bbref, pattern = "sullibi01")) %>%
+  dplyr::filter(!grepl(key_bbref, pattern = "smithja02")) %>%
+  dplyr::filter(!grepl(key_bbref, pattern = "smithja04")) %>%
+  dplyr::filter(!grepl(key_bbref, pattern = "andrecl01")) %>%
+  dplyr::filter(!grepl(key_bbref, pattern = "gonzaed01")) %>%
+  dplyr::filter(!(grepl(key_bbref, pattern = "gonzalu01") & grepl(Tm, pattern = "Brewers"))) %>%
+  dplyr::filter(!(grepl(key_bbref, pattern = "bellge02") & grepl(Tm, pattern = "Giants"))) %>%
+  dplyr::filter(!(grepl(key_bbref, pattern = "smithja01") & grepl(Tm, pattern = "Phillies"))) %>%
+  dplyr::filter(!(grepl(key_bbref, pattern = "smithja07") & grepl(Tm, pattern = "Phillies"))) %>%
+  dplyr::filter(!(grepl(key_bbref, pattern = "smithjo08") & grepl(Tm, pattern = "Rangers"))) %>%
+  dplyr::filter(!(grepl(key_bbref, pattern = "smithjo07") & grepl(Tm, pattern = "Rangers"))) %>%
+  dplyr::filter(!grepl(key_bbref, pattern = "lopezlu01")) %>%
+  dplyr::filter(!grepl(key_bbref, pattern = "lopezlu02")) %>%
+  dplyr::filter(!(grepl(key_bbref, pattern = "smithjo08") & grepl(Tm, pattern = "Yankees"))) %>%
+  dplyr::filter(!(grepl(key_bbref, pattern = "smithjo07") & grepl(Tm, pattern = "Yankees"))) %>%
+  dplyr::filter(!(grepl(key_bbref, pattern = "allenlo02") & grepl(Tm, pattern = "Rays"))) %>%
+  dplyr::filter(!(grepl(key_bbref, pattern = "allenlo01") & grepl(Tm, pattern = "Cleveland"))) %>%
+  dplyr::filter(!(grepl(key_bbref, pattern = "smithja07") & grepl(Tm, pattern = "Angels"))) %>%
+  dplyr::filter(!(grepl(key_bbref, pattern = "smithja01") & grepl(Tm, pattern = "Angels"))) %>%
+  dplyr::filter(!(grepl(key_bbref, pattern = "harribe03") & grepl(Tm, pattern = "Dodgers"))) %>%
+  dplyr::filter(!(grepl(key_bbref, pattern = "rayjo02") & grepl(Tm, pattern = "White Sox"))) %>%
+  dplyr::filter(!(grepl(key_bbref, pattern = "milleja01") & grepl(Tm, pattern = "Cleveland"))) %>%
+  dplyr::mutate(bbref_id = key_bbref, .before = 9)
+
+LEAGUE_DRAFT_SUB = LEAGUE_DRAFT_SUB %>%
+  dplyr::mutate(bbref_id = case_when(grepl(Name, pattern = "Michael") &
+                                       grepl(Name, pattern = "Clevinger") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Mike Clevinger")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     grepl(Name, pattern = "Noe") &
+                                       grepl(Name, pattern = "Ramirez") ~ CHAD_LU %>%
+                                       dplyr::filter(key_bbref == "ramirno01") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     grepl(Name, pattern = "Nicky") &
+                                       grepl(Name, pattern = "Delmonico") ~ CHAD_LU %>%
+                                       dplyr::filter(Name == "Nick Delmonico") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     grepl(Name, pattern = "Dereck") &
+                                       grepl(Name, pattern = "Rodriguez") ~ CHAD_LU %>%
+                                       dplyr::filter(name_first == "Dereck") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     grepl(Name, pattern = "Faria") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Faria")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     grepl(Name, pattern = "Carlos") &
+                                       grepl(Name, pattern = "Rodon") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Carlos Rod") &
+                                                       name_given == "Carlos Antonio") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     grepl(Name, pattern = "Juan") &
+                                       grepl(Name, pattern = "Perez") ~ NA,
+                                     
+                                     grepl(Name, pattern = "Joseph") &
+                                       grepl(Name, pattern = "Biagini") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Biagini")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     grepl(Name, pattern = "Chasen") &
+                                       grepl(Name, pattern = "Bradford") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Chase Bradford")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     grepl(Name, pattern = "Austin") &
+                                       grepl(Name, pattern = "Davis") ~ NA,
+                                     
+                                     grepl(Name, pattern = "Tomas") &
+                                       grepl(Name, pattern = "Nido") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Tom") &
+                                                       grepl(Name, pattern = "Nido")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     grepl(Name, pattern = "Mantiply") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Mantiply")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     grepl(Name, pattern = "Minter") &
+                                       grepl(Name, pattern = "Alex") ~ CHAD_LU %>%
+                                       dplyr::filter(name_given == "Alex Jordan") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     grepl(Name, pattern = "Chi") &
+                                       grepl(Name, pattern = "Gonzalez") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Chi Gon")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     grepl(Name, pattern = "Jacoby") &
+                                       grepl(Name, pattern = "Jones") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Jacoby Jones")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     grepl(Name, pattern = "Kiner") &
+                                       grepl(Name, pattern = "Falefa") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Kiner-Falefa")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     grepl(Name, pattern = "Murphy") &
+                                       grepl(Name, pattern = "John") &
+                                       grepl(Tm, pattern = "Yankees") ~ NA,
+                                     
+                                     grepl(Name, pattern = "Emilio Pagan") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Emilio Pag")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     grepl(Name, pattern = "Sherfy") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Sherfy")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     grepl(Name, pattern = "Shed Long") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Shed Long")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     grepl(Name, pattern = "Riddle") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "JT Riddle")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     grepl(Name, pattern = "Locastro") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Locastro")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     grepl(Name, pattern = "Granite") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Granite")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     grepl(Name, pattern = "Edwin Diaz") &
+                                       grepl(Tm, pattern = "Oak") ~ NA,
+                                     
+                                     grepl(Name, pattern = "Greg Harris") ~ NA,
+                                     
+                                     grepl(Name, pattern = "John Farrell") ~ NA,
+                                     
+                                     grepl(Name, pattern = "Mark Leiter") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Mark Leiter")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     grepl(Name, pattern = "Mauricio Dubon") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Mauricio Dub")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     grepl(Name, pattern = "Matt Young") &
+                                       grepl(Tm, pattern = "Miami") ~ NA,
+                                     
+                                     grepl(Name, pattern = "Jake Miller") &
+                                       grepl(Tm, pattern = "Arizona") ~ NA,
+                                     
+                                     grepl(Name, pattern = "Torii Hunter") ~ NA,
+                                     
+                                     grepl(Name, pattern = "Frank Duncan") ~ NA,
+                                     
+                                     grepl(Name, pattern = "Brent Honeywell") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Honeywell")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     grepl(Name, pattern = "Troy Stokes") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Troy Stokes")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     grepl(Name, pattern = "Brian Hunter") ~ NA,
+                                     
+                                     grepl(key_bbref, pattern = "kellypa01") ~ NA,
+                                     
+                                     grepl(Name, pattern = "Mike Fitzgerald") ~ NA,
+                                     
+                                     grepl(Name, pattern = "Mariano Rivera") ~ NA,
+                                     
+                                     grepl(Name, pattern = "Benito Santiago") ~ NA,
+                                     
+                                     grepl(Name, pattern = "Soroka") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Soroka")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     grepl(Name, pattern = "Chad Smith") &
+                                       grepl(Tm, pattern = "Rangers") ~ NA,
+                                     
+                                     grepl(Name, pattern = "Pete Fairbanks") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Pete Fairbanks")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     grepl(key_bbref, pattern = "brownke04") &
+                                       grepl(Tm, pattern = "Dodgers") &
+                                       Year == 2015 ~ NA,
+                                     
+                                     grepl(Name, pattern = "Jeremey Pena") ~ CHAD_LU %>%
+                                       dplyr::filter(key_bbref == "penaje02") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     grepl(Name, pattern = "Michael King") ~ CHAD_LU %>%
+                                       dplyr::filter(key_bbref == "kingmi01") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     grepl(Name, pattern = "Andrew Brown") &
+                                       grepl(Tm, pattern = "Phillies") ~ NA,
+                                     
+                                     grepl(Name, pattern = "Nate Lowe") ~ CHAD_LU %>%
+                                       dplyr::filter(key_bbref == "lowena01") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     grepl(Name, pattern = "Blake Smith") ~ NA,
+                                     
+                                     grepl(bbref_id, pattern = "wilsojo02") ~ NA,
+                                     
+                                     grepl(Name, pattern = "Josh Smith") &
+                                       grepl(Tm, pattern = "Tigers") ~ CHAD_LU %>%
+                                       dplyr::filter(key_bbref == "smithjo11") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     grepl(Name, pattern = "Bleday") &
+                                       name_last == "Bleday" ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Bleday")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     grepl(Name, pattern = "John Russell") ~ NA,
+                                     
+                                     grepl(Name, pattern = "Logan Allen") &
+                                       Year == 2017 ~ CHAD_LU %>%
+                                       dplyr::filter(key_bbref == "allenlo02") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     grepl(Name, pattern = "Julio Gonzalez") ~ NA,
+                                     
+                                     grepl(Name, pattern = "Andrew Miller") ~ NA,
+                                     
+                                     grepl(Name, pattern = "Dave Smith") ~ NA,
+                                     
+                                     grepl(Name, pattern = "Bill Sullivan") ~ NA,
+                                     
+                                     grepl(Name, pattern = "Eduoard Julien") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Edouard Julien")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     grepl(key_bbref, pattern = "smithja03") ~ NA,
+                                     
+                                     grepl(key_bbref, pattern = "gonzaed02") ~ NA,
+                                     
+                                     grepl(Name, pattern = "Luis Gonzalez") &
+                                       grepl(Tm, pattern = "Brewers") ~ NA,
+                                     
+                                     grepl(Name, pattern = "George Bell") ~ NA,
+                                     
+                                     grepl(Name, pattern = "Jake Smith") &
+                                       Year == 2018 ~ NA,
+                                     
+                                     grepl(Name, pattern = "Josh Smith") &
+                                       grepl(Tm, pattern = "Texas Rangers") &
+                                       Year == 2018 ~ NA,
+                                     
+                                     grepl(Name, pattern = "Luis Lopez") ~ NA,
+                                     
+                                     grepl(Name, pattern = "Benito Santiago") &
+                                       Year == 2018 ~ NA,
+                                     
+                                     grepl(Name, pattern = "Andrew Miller") &
+                                       Year == 2018 ~ NA,
+                                     
+                                     grepl(Name, pattern = "Bobby Witt") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Bobby Witt") &
+                                                       name_suffix == "Jr.") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     grepl(Name, pattern = "C.J. Abrams") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "CJ Abrams")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     grepl(Name, pattern = "Josh Smith") &
+                                       grepl(Tm, pattern = "Yankees") ~ NA,
+                                     
+                                     grepl(Name, pattern = "Logan Allen") &
+                                       grepl(Tm, pattern = "Rays") ~ NA,
+                                     
+                                     grepl(Name, pattern = "Edouard Julien") &
+                                       grepl(Tm, pattern = "Twins") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Eduoard Julien")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     grepl(Name, pattern = "Logan Allen") &
+                                       grepl(Tm, pattern = "Cleveland") ~ CHAD_LU %>%
+                                       dplyr::filter(key_bbref == "allenlo02") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     grepl(Name, pattern = "Max Muncy") &
+                                       Year == 2021 ~ NA,
+                                     
+                                     grepl(Name, pattern = "Jake Smith") &
+                                       grepl(Tm, pattern = "Angels") ~ NA,
+                                     
+                                     grepl(Name, pattern = "Ben Harris") &
+                                       grepl(Tm, pattern = "Dodgers") ~ NA,
+                                     
+                                     grepl(Name, pattern = "Johnny Ray") &
+                                       grepl(Tm, pattern = "White Sox") ~ NA,
+                                     
+                                     grepl(Name, pattern = "Juan Gonzalez") &
+                                       Year == 2021 ~ NA,
+                                     
+                                     grepl(Name, pattern = "Jake Miller") &
+                                       grepl(Tm, pattern = "Cleveland") ~ NA,
+                                     
+                                     
+                                     
+                                     TRUE ~ bbref_id))
+                
+```
+
+# Plotting {.tabset .tabset-pills .tabset-fade}
 
 ## Create and Populate DFs for Plotting
 
 Create dfs
 
-```{r Subsetting Astros and Cubs dfs for plotting, include = TRUE, warning = FALSE, echo = TRUE, message = FALSE}
-  ## Remove "Carlos Pena" from Chicago Cubs draft records
-BBA_DRAFT_ALL = BBA_DRAFT_ALL[ -which(BBA_DRAFT_ALL$Name == "Carlos Pena"), ]
+```{r Subsetting Astros and Cubs dfs for plotting, include = T, message = F, warning = F, echo = T}
 
-  ## Remove duplicates
-BBA_DRAFT_ALL_no_dup = BBA_DRAFT_ALL[ -which(duplicated(BBA_DRAFT_ALL$Name) == TRUE), ]
-
-  ## Correct Lance McCullers' name
-BBA_DRAFT_ALL$Name[ grep(BBA_DRAFT_ALL$Name, pattern = "McCullers") ] = "Lance McCullers Jr."
-BBA_DRAFT_ALL_no_dup$Name[ grep(BBA_DRAFT_ALL_no_dup$Name, pattern = "McCullers") ] = "Lance McCullers Jr."
-
-  ## Subset the relevant draft data
-ASTROS_CUBS_DRAFT_SUB =
-  BBA_DRAFT_ALL_no_dup[ which(BBA_DRAFT_ALL_no_dup$Tm == "Houston Astros" |
-                                BBA_DRAFT_ALL_no_dup$Tm == "Chicago Cubs") , ]
-
-LEAGUE_DRAFT_SUB = BBA_DRAFT_ALL_no_dup[ which(BBA_DRAFT_ALL_no_dup$Tm != "Houston Astros" &
-                                                 BBA_DRAFT_ALL_no_dup$Tm != "Chicago Cubs"), ]
 
   ## Join draft subset dfs with career WAR data -> How good drafting was
 ASTROS_CUBS_DRAFT_SUB = ASTROS_CUBS_DRAFT_SUB %>%
-  left_join(PLAYER_CAREER_WAR)
-ASTROS_CUBS_DRAFT_SUB[ -which(ASTROS_CUBS_DRAFT_SUB$Year == 2011), ] %>%
-  group_by(Tm) %>%
-  summarize(Career_WAR = sum(`Career WAR`, na.rm = T)) %>%
-  arrange(desc(Career_WAR))
+  dplyr::select(-key_bbref) %>%
+  left_join(CAREER_WAR_df, by = "bbref_id") %>%
+  dplyr::select(-name_last, -name_first, -name_first, -name_given, -name_suffix, -name_matrilineal, -name_nick, -contains("key"), -contains("played")) %>%
+  dplyr::mutate(Name = Name.x, .after = 7) %>%
+  dplyr::select(-Name.x, -Name.y)
+
+ASTROS_CUBS_DRAFT_SUB %>%
+  dplyr::filter(Year != "2011") %>%
+  dplyr::group_by(Tm) %>%
+  dplyr::summarize(Career_bWAR = sum(Career_bWAR, na.rm = T)) %>%
+  dplyr::arrange(desc(Career_bWAR))
 
 LEAGUE_DRAFT_SUB = LEAGUE_DRAFT_SUB %>%
-  left_join(PLAYER_CAREER_WAR)
+  dplyr::select(-key_bbref) %>%
+  left_join(CAREER_WAR_df, by = "bbref_id") %>%
+  dplyr::select(-name_last, -name_first, -name_first, -name_given, -name_suffix, -name_matrilineal, -name_nick, -contains("key"), -contains("played")) %>%
+  dplyr::mutate(Name = Name.x, .after = 7) %>%
+  dplyr::select(-Name.x, -Name.y)
+
+options(scipen = 999)
+
 Draft_Results = LEAGUE_DRAFT_SUB %>%
-  group_by(Tm, Year) %>%
-  summarize(Career_WAR = sum(`Career WAR`, na.rm = T)) %>%
-  arrange(desc(Career_WAR))
+  dplyr::filter(Year > 2011) %>%
+  dplyr::group_by(Tm, Year) %>%
+  summarize(Career_bWAR = round(sum(Career_bWAR, na.rm = T),1)) %>%
+  dplyr::arrange(desc(Career_bWAR))
 
   ## Create subset dfs of standings, value, international signing and free-agent data for the rest of the league
 LEAGUE_STAND_SUB = StandALL[ which(StandALL$Tm != "Houston Astros" & StandALL$Tm != "Chicago Cubs"), ]
@@ -1985,7 +2103,7 @@ LEAGUE_ESPN_SUB = ESPN[ which(ESPN$Team != "Astros" & ESPN$Team != "Cubs"), ]
 
 Populate Astros, Cubs, and League "Tanking" dfs
 
-```{r TANK DF filling pt.1, include = TRUE, warning = FALSE, echo = TRUE, message = FALSE}
+```{r TANK DF filling pt.1, include = T, message = F, warning = F, echo = T}
   ## Create separate dfs for the Cubs and Astros
 ASTROS_TANK_DF = matrix(ncol = 18, nrow = length(seq(2011,2021)))
 CUBS_TANK_DF = matrix(ncol = 18, nrow = length(seq(2011,2021)))
@@ -2014,252 +2132,312 @@ for(i in 1:nrow(ASTROS_TANK_DF)){
 }
 
   ## Fill Win %
-ASTROS_TANK_DF[,2] = StandALL$`W-L%`[ which(StandALL$Tm == "Houston Astros") ]
-CUBS_TANK_DF[,2] = StandALL$`W-L%`[ which(StandALL$Tm == "Chicago Cubs") ]
+ASTROS_TANK_DF[-c(which(ASTROS_TANK_DF$Year == 2020)),2] = StandALL$`W-L%`[ which(StandALL$Tm == "Houston Astros") ]
+CUBS_TANK_DF[-c(which(CUBS_TANK_DF$Year == 2020)),2] = StandALL$`W-L%`[ which(StandALL$Tm == "Chicago Cubs") ]
 LG_TANK_DF$`Win%` = 0.500
 ```
 
-Fill # of picks in First 5 rds
+Fill various columns (not shown), including `# Top 5 picks` (shown)
 
-```{r TANK DF filling draft picks 1, include = TRUE, warning = FALSE, echo = TRUE, message = FALSE}
-  ## Fill # of Picks in First 5 rds
-ASTROS_TANK_DF[1,3] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros" &
-                                       ASTROS_CUBS_DRAFT_SUB$Year == 2011 &
-                                       ASTROS_CUBS_DRAFT_SUB$Rd <= 5 ) )
+```{r TANK DF filling draft picks 2, include = T, message = F, warning = F, echo = T}
+
+for (i in 11:21) {
+  
+  ASTROS_TANK_DF[i-10,3] = nrow(ASTROS_CUBS_DRAFT_SUB %>%
+                               dplyr::filter(Tm == "Houston Astros" &
+                                               Year == paste(20,i,sep = "") &
+                                               Rd <= 5))
+  CUBS_TANK_DF[i-10,3] = nrow(ASTROS_CUBS_DRAFT_SUB %>%
+                                dplyr::filter(Tm == "Chicago Cubs" &
+                                                Year == paste(20,i,sep = "") &
+                                                Rd <= 5))
+  
+  LG_TANK_DF[i-10,3] = round(nrow(LEAGUE_DRAFT_SUB %>%
+                                    dplyr::filter(Year == paste(20,i,sep = "") &
+                                                    Rd <= 5)) / 28, digits = 2)
+  
+}
 ```
 
-Repeat for rest, for `CUBS_TANK_DF` and `LG_TANK_DF` (not shown)
-
-```{r TANK DF filling draft picks 2, include = TRUE, warning = FALSE, echo = FALSE, message = FALSE}
-ASTROS_TANK_DF[2,3] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros" & ASTROS_CUBS_DRAFT_SUB$Year == 2012 & ASTROS_CUBS_DRAFT_SUB$Rd <= 5 ) )
-ASTROS_TANK_DF[3,3] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros" & ASTROS_CUBS_DRAFT_SUB$Year == 2013 & ASTROS_CUBS_DRAFT_SUB$Rd <= 5 ) )
-ASTROS_TANK_DF[4,3] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros" & ASTROS_CUBS_DRAFT_SUB$Year == 2014 & ASTROS_CUBS_DRAFT_SUB$Rd <= 5 ) )
-ASTROS_TANK_DF[5,3] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros" & ASTROS_CUBS_DRAFT_SUB$Year == 2015 & ASTROS_CUBS_DRAFT_SUB$Rd <= 5 ) )
-ASTROS_TANK_DF[6,3] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros" & ASTROS_CUBS_DRAFT_SUB$Year == 2016 & ASTROS_CUBS_DRAFT_SUB$Rd <= 5 ) )
-ASTROS_TANK_DF[7,3] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros" & ASTROS_CUBS_DRAFT_SUB$Year == 2017 & ASTROS_CUBS_DRAFT_SUB$Rd <= 5 ) )
-ASTROS_TANK_DF[8,3] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros" & ASTROS_CUBS_DRAFT_SUB$Year == 2018 & ASTROS_CUBS_DRAFT_SUB$Rd <= 5 ) )
-ASTROS_TANK_DF[9,3] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros" & ASTROS_CUBS_DRAFT_SUB$Year == 2019 & ASTROS_CUBS_DRAFT_SUB$Rd <= 5 ) )
-ASTROS_TANK_DF[10,3] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros" & ASTROS_CUBS_DRAFT_SUB$Year == 2020 & ASTROS_CUBS_DRAFT_SUB$Rd <= 5 ) )
-ASTROS_TANK_DF[11,3] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros" & ASTROS_CUBS_DRAFT_SUB$Year == 2021 & ASTROS_CUBS_DRAFT_SUB$Rd <= 5 ) )
-
-CUBS_TANK_DF[1,3] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs" & ASTROS_CUBS_DRAFT_SUB$Year == 2011 & ASTROS_CUBS_DRAFT_SUB$Rd <= 5 ) )
-CUBS_TANK_DF[2,3] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs" & ASTROS_CUBS_DRAFT_SUB$Year == 2012 & ASTROS_CUBS_DRAFT_SUB$Rd <= 5 ) )
-CUBS_TANK_DF[3,3] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs" & ASTROS_CUBS_DRAFT_SUB$Year == 2013 & ASTROS_CUBS_DRAFT_SUB$Rd <= 5 ) )
-CUBS_TANK_DF[4,3] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs" & ASTROS_CUBS_DRAFT_SUB$Year == 2014 & ASTROS_CUBS_DRAFT_SUB$Rd <= 5 ) )
-CUBS_TANK_DF[5,3] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs" & ASTROS_CUBS_DRAFT_SUB$Year == 2015 & ASTROS_CUBS_DRAFT_SUB$Rd <= 5 ) )
-CUBS_TANK_DF[6,3] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs" & ASTROS_CUBS_DRAFT_SUB$Year == 2016 & ASTROS_CUBS_DRAFT_SUB$Rd <= 5 ) )
-CUBS_TANK_DF[7,3] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs" & ASTROS_CUBS_DRAFT_SUB$Year == 2017 & ASTROS_CUBS_DRAFT_SUB$Rd <= 5 ) )
-CUBS_TANK_DF[8,3] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs" & ASTROS_CUBS_DRAFT_SUB$Year == 2018 & ASTROS_CUBS_DRAFT_SUB$Rd <= 5 ) )
-CUBS_TANK_DF[9,3] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs" & ASTROS_CUBS_DRAFT_SUB$Year == 2019 & ASTROS_CUBS_DRAFT_SUB$Rd <= 5 ) )
-CUBS_TANK_DF[10,3] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs" & ASTROS_CUBS_DRAFT_SUB$Year == 2020 & ASTROS_CUBS_DRAFT_SUB$Rd <= 5 ) )
-CUBS_TANK_DF[11,3] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs" & ASTROS_CUBS_DRAFT_SUB$Year == 2021 & ASTROS_CUBS_DRAFT_SUB$Rd <= 5 ) )
-
-LG_TANK_DF[1,3] = round(length( which( LEAGUE_DRAFT_SUB$Year == 2011 & LEAGUE_DRAFT_SUB$Rd <= 5 ) ) / 28, digits = 2)
-LG_TANK_DF[2,3] = round(length( which( LEAGUE_DRAFT_SUB$Year == 2012 & LEAGUE_DRAFT_SUB$Rd <= 5 ) ) / 28, digits = 2)
-LG_TANK_DF[3,3] = round(length( which( LEAGUE_DRAFT_SUB$Year == 2013 & LEAGUE_DRAFT_SUB$Rd <= 5 ) ) / 28, digits = 2)
-LG_TANK_DF[4,3] = round(length( which( LEAGUE_DRAFT_SUB$Year == 2014 & LEAGUE_DRAFT_SUB$Rd <= 5 ) ) / 28, digits = 2)
-LG_TANK_DF[5,3] = round(length( which( LEAGUE_DRAFT_SUB$Year == 2015 & LEAGUE_DRAFT_SUB$Rd <= 5 ) ) / 28, digits = 2)
-LG_TANK_DF[6,3] = round(length( which( LEAGUE_DRAFT_SUB$Year == 2016 & LEAGUE_DRAFT_SUB$Rd <= 5 ) ) / 28, digits = 2)
-LG_TANK_DF[7,3] = round(length( which( LEAGUE_DRAFT_SUB$Year == 2017 & LEAGUE_DRAFT_SUB$Rd <= 5 ) ) / 28, digits = 2)
-LG_TANK_DF[8,3] = round(length( which( LEAGUE_DRAFT_SUB$Year == 2018 & LEAGUE_DRAFT_SUB$Rd <= 5 ) ) / 28, digits = 2)
-LG_TANK_DF[9,3] = round(length( which( LEAGUE_DRAFT_SUB$Year == 2019 & LEAGUE_DRAFT_SUB$Rd <= 5 ) ) / 28, digits = 2)
-LG_TANK_DF[10,3] = round(length( which( LEAGUE_DRAFT_SUB$Year == 2020 & LEAGUE_DRAFT_SUB$Rd <= 5 ) ) / 28, digits = 2)
-LG_TANK_DF[11,3] = round(length( which( LEAGUE_DRAFT_SUB$Year == 2021 & LEAGUE_DRAFT_SUB$Rd <= 5 ) ) / 28, digits = 2)
-```
-Fill # SSs drafted
-
-```{r TANK DF filling SSs 1, include = TRUE, warning = FALSE, echo = TRUE, message = FALSE}
-## Fill # of SSs drafted
-ASTROS_TANK_DF[1,4] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros" &
-                                       ASTROS_CUBS_DRAFT_SUB$Year == 2011 &
-                                       ASTROS_CUBS_DRAFT_SUB$POS == "SS" ) )
+```{r TANK DF filling SSs 1, include = T, message = F, warning = F, echo = F}
+for (i in 11:21) {
+  
+  ASTROS_TANK_DF[i-10,4] = nrow(ASTROS_CUBS_DRAFT_SUB %>%
+                               dplyr::filter(Tm == "Houston Astros" &
+                                               Year == paste(20,i,sep = "") &
+                                               POS == "SS"))
+  CUBS_TANK_DF[i-10,4] = nrow(ASTROS_CUBS_DRAFT_SUB %>%
+                                dplyr::filter(Tm == "Chicago Cubs" &
+                                                Year == paste(20,i,sep = "") &
+                                                POS == "SS"))
+  
+  LG_TANK_DF[i-10,4] = round(nrow(LEAGUE_DRAFT_SUB %>%
+                                    dplyr::filter(Year == paste(20,i,sep = "") &
+                                                    POS == "SS")) / 28, digits = 2)
+  
+}
 ```
 
-Repeat for rest, for `CUBS_TANK_DF` and `LG_TANK_DF` (not shown)
+```{r TANK DF filling Ps, include = T, message = F, warning = F, echo = F}
 
-```{r TANK DF filling SSs 2, include = TRUE, warning = FALSE, echo = FALSE, message = FALSE}
-ASTROS_TANK_DF[2,4] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros" & ASTROS_CUBS_DRAFT_SUB$Year == 2012 & ASTROS_CUBS_DRAFT_SUB$POS == "SS" ) )
-ASTROS_TANK_DF[3,4] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros" & ASTROS_CUBS_DRAFT_SUB$Year == 2013 & ASTROS_CUBS_DRAFT_SUB$POS == "SS" ) )
-ASTROS_TANK_DF[4,4] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros" & ASTROS_CUBS_DRAFT_SUB$Year == 2014 & ASTROS_CUBS_DRAFT_SUB$POS == "SS" ) )
-ASTROS_TANK_DF[5,4] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros" & ASTROS_CUBS_DRAFT_SUB$Year == 2015 & ASTROS_CUBS_DRAFT_SUB$POS == "SS" ) )
-ASTROS_TANK_DF[6,4] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros" & ASTROS_CUBS_DRAFT_SUB$Year == 2016 & ASTROS_CUBS_DRAFT_SUB$POS == "SS" ) )
-ASTROS_TANK_DF[7,4] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros" & ASTROS_CUBS_DRAFT_SUB$Year == 2017 & ASTROS_CUBS_DRAFT_SUB$POS == "SS" ) )
-ASTROS_TANK_DF[8,4] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros" & ASTROS_CUBS_DRAFT_SUB$Year == 2018 & ASTROS_CUBS_DRAFT_SUB$POS == "SS" ) )
-ASTROS_TANK_DF[9,4] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros" & ASTROS_CUBS_DRAFT_SUB$Year == 2019 & ASTROS_CUBS_DRAFT_SUB$POS == "SS" ) )
-ASTROS_TANK_DF[10,4] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros" & ASTROS_CUBS_DRAFT_SUB$Year == 2020 & ASTROS_CUBS_DRAFT_SUB$POS == "SS" ) )
-ASTROS_TANK_DF[11,4] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros" & ASTROS_CUBS_DRAFT_SUB$Year == 2021 & ASTROS_CUBS_DRAFT_SUB$POS == "SS" ) )
 
-CUBS_TANK_DF[1,4] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs" & ASTROS_CUBS_DRAFT_SUB$Year == 2011 & ASTROS_CUBS_DRAFT_SUB$POS == "SS" ) )
-CUBS_TANK_DF[2,4] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs" & ASTROS_CUBS_DRAFT_SUB$Year == 2012 & ASTROS_CUBS_DRAFT_SUB$POS == "SS" ) )
-CUBS_TANK_DF[3,4] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs" & ASTROS_CUBS_DRAFT_SUB$Year == 2013 & ASTROS_CUBS_DRAFT_SUB$POS == "SS" ) )
-CUBS_TANK_DF[4,4] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs" & ASTROS_CUBS_DRAFT_SUB$Year == 2014 & ASTROS_CUBS_DRAFT_SUB$POS == "SS" ) )
-CUBS_TANK_DF[5,4] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs" & ASTROS_CUBS_DRAFT_SUB$Year == 2015 & ASTROS_CUBS_DRAFT_SUB$POS == "SS" ) )
-CUBS_TANK_DF[6,4] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs" & ASTROS_CUBS_DRAFT_SUB$Year == 2016 & ASTROS_CUBS_DRAFT_SUB$POS == "SS" ) )
-CUBS_TANK_DF[7,4] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs" & ASTROS_CUBS_DRAFT_SUB$Year == 2017 & ASTROS_CUBS_DRAFT_SUB$POS == "SS" ) )
-CUBS_TANK_DF[8,4] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs" & ASTROS_CUBS_DRAFT_SUB$Year == 2018 & ASTROS_CUBS_DRAFT_SUB$POS == "SS" ) )
-CUBS_TANK_DF[9,4] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs" & ASTROS_CUBS_DRAFT_SUB$Year == 2019 & ASTROS_CUBS_DRAFT_SUB$POS == "SS" ) )
-CUBS_TANK_DF[10,4] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs" & ASTROS_CUBS_DRAFT_SUB$Year == 2020 & ASTROS_CUBS_DRAFT_SUB$POS == "SS" ) )
-CUBS_TANK_DF[11,4] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs" & ASTROS_CUBS_DRAFT_SUB$Year == 2021 & ASTROS_CUBS_DRAFT_SUB$POS == "SS" ) )
 
-LG_TANK_DF[1,4] = round(length( which( LEAGUE_DRAFT_SUB$Year == 2011 & LEAGUE_DRAFT_SUB$POS == "SS" ) ) / 28, digits = 2)
-LG_TANK_DF[2,4] = round(length( which( LEAGUE_DRAFT_SUB$Year == 2012 & LEAGUE_DRAFT_SUB$POS == "SS" ) ) / 28, digits = 2)
-LG_TANK_DF[3,4] = round(length( which( LEAGUE_DRAFT_SUB$Year == 2013 & LEAGUE_DRAFT_SUB$POS == "SS" ) ) / 28, digits = 2)
-LG_TANK_DF[4,4] = round(length( which( LEAGUE_DRAFT_SUB$Year == 2014 & LEAGUE_DRAFT_SUB$POS == "SS" ) ) / 28, digits = 2)
-LG_TANK_DF[5,4] = round(length( which( LEAGUE_DRAFT_SUB$Year == 2015 & LEAGUE_DRAFT_SUB$POS == "SS" ) ) / 28, digits = 2)
-LG_TANK_DF[6,4] = round(length( which( LEAGUE_DRAFT_SUB$Year == 2016 & LEAGUE_DRAFT_SUB$POS == "SS" ) ) / 28, digits = 2)
-LG_TANK_DF[7,4] = round(length( which( LEAGUE_DRAFT_SUB$Year == 2017 & LEAGUE_DRAFT_SUB$POS == "SS" ) ) / 28, digits = 2)
-LG_TANK_DF[8,4] = round(length( which( LEAGUE_DRAFT_SUB$Year == 2018 & LEAGUE_DRAFT_SUB$POS == "SS" ) ) / 28, digits = 2)
-LG_TANK_DF[9,4] = round(length( which( LEAGUE_DRAFT_SUB$Year == 2019 & LEAGUE_DRAFT_SUB$POS == "SS" ) ) / 28, digits = 2)
-LG_TANK_DF[10,4] = round(length( which( LEAGUE_DRAFT_SUB$Year == 2020 & LEAGUE_DRAFT_SUB$POS == "SS" ) ) / 28, digits = 2)
-LG_TANK_DF[11,4] = round(length( which( LEAGUE_DRAFT_SUB$Year == 2021 & LEAGUE_DRAFT_SUB$POS == "SS" ) ) / 28, digits = 2)
-```
+for (i in 11:21) {
+  
+  if (i <= 17) {
+    
+    ## # Pitchers
+    ASTROS_TANK_DF[i-10,5] = nrow(ASTROS_CUBS_DRAFT_SUB %>%
+                               dplyr::filter(Tm == "Houston Astros" &
+                                               Year == as.numeric(paste(20,i,sep = "")) &
+                                               POS == "P"))
+    
+    CUBS_TANK_DF[i-10,5] = nrow(ASTROS_CUBS_DRAFT_SUB %>%
+                                  dplyr::filter(Tm == "Chicago Cubs" &
+                                                  Year == as.numeric(paste(20,i,sep = "")) &
+                                                  POS == "P"))
+    
+    LG_TANK_DF[i-10,5] = round(nrow(LEAGUE_DRAFT_SUB %>%
+                                      dplyr::filter(Year == as.numeric(paste(20,i,sep = "")) &
+                                                      POS == "P")) / 28, digits = 2)
+    
+  } else {
+    
+    ASTROS_TANK_DF[i-10,5] = nrow(ASTROS_CUBS_DRAFT_SUB %>%
+                               dplyr::filter(Tm == "Houston Astros" &
+                                               Year == as.numeric(paste(20,i,sep = "")) &
+                                               grepl(POS, pattern = "RHP|LHP")))
+                               
+    CUBS_TANK_DF[i-10,5] = nrow(ASTROS_CUBS_DRAFT_SUB %>%
+                                  dplyr::filter(Tm == "Chicago Cubs" &
+                                                  Year == as.numeric(paste(20,i,sep = "")) &
+                                                  grepl(POS, pattern = "RHP|LHP")))
+    
+    LG_TANK_DF[i-10,5] = round(nrow(LEAGUE_DRAFT_SUB %>%
+                                      dplyr::filter(Year == as.numeric(paste(20,i,sep = "")) &
+                                                      grepl(POS, pattern = "RHP|LHP"))) / 28, digits = 2)
+  }
+}
 
-Populate the rest of the dfs (not shown)
+for (i in 11:21) {
+  
+    ## # College picks
+    ASTROS_TANK_DF[i-10,6] = nrow(ASTROS_CUBS_DRAFT_SUB %>%
+                                    dplyr::filter(Tm == "Houston Astros" &
+                                                    Year == as.numeric(paste(20,i,sep = "")) &
+                                                    grepl(`Drafted From`, pattern = "University|College|UCLA|Cal Poly|Academy of Art|Institute of Technology|UNLV|State|Virginia Tech|Lipscomb|Santa Clara|Tusculum|JC")))
+    
+    CUBS_TANK_DF[i-10,6] = nrow(ASTROS_CUBS_DRAFT_SUB %>%
+                                  dplyr::filter(Tm == "Chicago Cubs" &
+                                                  Year == as.numeric(paste(20,i,sep = "")) &
+                                                  grepl(`Drafted From`, pattern = "University|College|UCLA|Cal Poly|Academy of Art|Institute of Technology|UNLV|State|Virginia Tech|Lipscomb|Santa Clara|Tusculum|JC")))
+    
+    LG_TANK_DF[i-10,6] = round(nrow(LEAGUE_DRAFT_SUB %>%
+                                      dplyr::filter(Year == as.numeric(paste(20,i,sep = "")) &
+                                                      grepl(`Drafted From`, pattern = "University|College|UCLA|Cal Poly|Academy of Art|Institute of Technology|UNLV|State|Virginia Tech|Lipscomb|Santa Clara|Tusculum|JC"))) / 28, digits = 2)
+}
 
-```{r TANK DF filling, include = TRUE, warning = FALSE, echo = FALSE, message = FALSE}
-## Fill # of Ps drafted
-ASTROS_TANK_DF[1,5] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros" & ASTROS_CUBS_DRAFT_SUB$Year == 2011 & ASTROS_CUBS_DRAFT_SUB$POS == "P" ) )
-ASTROS_TANK_DF[2,5] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros" & ASTROS_CUBS_DRAFT_SUB$Year == 2012 & ASTROS_CUBS_DRAFT_SUB$POS == "P" ) )
-ASTROS_TANK_DF[3,5] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros" & ASTROS_CUBS_DRAFT_SUB$Year == 2013 & ASTROS_CUBS_DRAFT_SUB$POS == "P" ) )
-ASTROS_TANK_DF[4,5] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros" & ASTROS_CUBS_DRAFT_SUB$Year == 2014 & ASTROS_CUBS_DRAFT_SUB$POS == "P" ) )
-ASTROS_TANK_DF[5,5] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros" & ASTROS_CUBS_DRAFT_SUB$Year == 2015 & ASTROS_CUBS_DRAFT_SUB$POS == "P" ) )
-ASTROS_TANK_DF[6,5] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros" & ASTROS_CUBS_DRAFT_SUB$Year == 2016 & ASTROS_CUBS_DRAFT_SUB$POS == "P" ) )
-ASTROS_TANK_DF[7,5] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros" & ASTROS_CUBS_DRAFT_SUB$Year == 2017)[grep(ASTROS_CUBS_DRAFT_SUB$POS[which( ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros" & ASTROS_CUBS_DRAFT_SUB$Year == 2017)], pattern = "RHP|LHP")] )
-ASTROS_TANK_DF[8,5] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros" & ASTROS_CUBS_DRAFT_SUB$Year == 2018)[grep(ASTROS_CUBS_DRAFT_SUB$POS[which( ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros" & ASTROS_CUBS_DRAFT_SUB$Year == 2018)], pattern = "RHP|LHP")] )
-ASTROS_TANK_DF[9,5] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros" & ASTROS_CUBS_DRAFT_SUB$Year == 2019)[grep(ASTROS_CUBS_DRAFT_SUB$POS[which( ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros" & ASTROS_CUBS_DRAFT_SUB$Year == 2019)], pattern = "RHP|LHP")] )
-ASTROS_TANK_DF[10,5] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros" & ASTROS_CUBS_DRAFT_SUB$Year == 2020)[grep(ASTROS_CUBS_DRAFT_SUB$POS[which( ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros" & ASTROS_CUBS_DRAFT_SUB$Year == 2020)], pattern = "RHP|LHP")] )
-ASTROS_TANK_DF[11,5] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros" & ASTROS_CUBS_DRAFT_SUB$Year == 2021)[grep(ASTROS_CUBS_DRAFT_SUB$POS[which( ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros" & ASTROS_CUBS_DRAFT_SUB$Year == 2021)], pattern = "RHP|LHP")] )
 
-CUBS_TANK_DF[1,5] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs" & ASTROS_CUBS_DRAFT_SUB$Year == 2011 & ASTROS_CUBS_DRAFT_SUB$POS == "P" ) )
-CUBS_TANK_DF[2,5] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs" & ASTROS_CUBS_DRAFT_SUB$Year == 2012 & ASTROS_CUBS_DRAFT_SUB$POS == "P" ) )
-CUBS_TANK_DF[3,5] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs" & ASTROS_CUBS_DRAFT_SUB$Year == 2013 & ASTROS_CUBS_DRAFT_SUB$POS == "P" ) )
-CUBS_TANK_DF[4,5] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs" & ASTROS_CUBS_DRAFT_SUB$Year == 2014 & ASTROS_CUBS_DRAFT_SUB$POS == "P" ) )
-CUBS_TANK_DF[5,5] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs" & ASTROS_CUBS_DRAFT_SUB$Year == 2015 & ASTROS_CUBS_DRAFT_SUB$POS == "P" ) )
-CUBS_TANK_DF[6,5] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs" & ASTROS_CUBS_DRAFT_SUB$Year == 2016 & ASTROS_CUBS_DRAFT_SUB$POS == "P" ) )
-CUBS_TANK_DF[7,5] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs" & ASTROS_CUBS_DRAFT_SUB$Year == 2017)[grep(ASTROS_CUBS_DRAFT_SUB$POS[which( ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs" & ASTROS_CUBS_DRAFT_SUB$Year == 2017)], pattern = "RHP|LHP")] )
-CUBS_TANK_DF[8,5] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs" & ASTROS_CUBS_DRAFT_SUB$Year == 2018)[grep(ASTROS_CUBS_DRAFT_SUB$POS[which( ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs" & ASTROS_CUBS_DRAFT_SUB$Year == 2018)], pattern = "RHP|LHP")] )
-CUBS_TANK_DF[9,5] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs" & ASTROS_CUBS_DRAFT_SUB$Year == 2019)[grep(ASTROS_CUBS_DRAFT_SUB$POS[which( ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs" & ASTROS_CUBS_DRAFT_SUB$Year == 2019)], pattern = "RHP|LHP")] )
-CUBS_TANK_DF[10,5] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs" & ASTROS_CUBS_DRAFT_SUB$Year == 2020)[grep(ASTROS_CUBS_DRAFT_SUB$POS[which( ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs" & ASTROS_CUBS_DRAFT_SUB$Year == 2020)], pattern = "RHP|LHP")] )
-CUBS_TANK_DF[11,5] = length( which( ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs" & ASTROS_CUBS_DRAFT_SUB$Year == 2021)[grep(ASTROS_CUBS_DRAFT_SUB$POS[which( ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs" & ASTROS_CUBS_DRAFT_SUB$Year == 2021)], pattern = "RHP|LHP")] )
 
-LG_TANK_DF[1,5] = round(length( which( LEAGUE_DRAFT_SUB$Year == 2011 & LEAGUE_DRAFT_SUB$POS == "P") ) / 28, digits = 2)
-LG_TANK_DF[2,5] = round(length( which( LEAGUE_DRAFT_SUB$Year == 2012 & LEAGUE_DRAFT_SUB$POS == "P") ) / 28, digits = 2)
-LG_TANK_DF[3,5] = round(length( which( LEAGUE_DRAFT_SUB$Year == 2013 & LEAGUE_DRAFT_SUB$POS == "P") ) / 28, digits = 2)
-LG_TANK_DF[4,5] = round(length( which( LEAGUE_DRAFT_SUB$Year == 2014 & LEAGUE_DRAFT_SUB$POS == "P") ) / 28, digits = 2)
-LG_TANK_DF[5,5] = round(length( which( LEAGUE_DRAFT_SUB$Year == 2015 & LEAGUE_DRAFT_SUB$POS == "P") ) / 28, digits = 2)
-LG_TANK_DF[6,5] = round(length( which( LEAGUE_DRAFT_SUB$Year == 2016 & LEAGUE_DRAFT_SUB$POS == "P") ) / 28, digits = 2)
-LG_TANK_DF[7,5] = round(length( which( LEAGUE_DRAFT_SUB$Year == 2017 & LEAGUE_DRAFT_SUB$POS == "P")[grep(LEAGUE_DRAFT_SUB$POS[which( LEAGUE_DRAFT_SUB$Year== 2017)], pattern = "RHP|LHP")] ) / 28, digits = 2)
-LG_TANK_DF[8,5] = round(length( which( LEAGUE_DRAFT_SUB$Year == 2018 & LEAGUE_DRAFT_SUB$POS == "P")[grep(LEAGUE_DRAFT_SUB$POS[which( LEAGUE_DRAFT_SUB$Year== 2018)], pattern = "RHP|LHP")] ) / 28, digits = 2)
-LG_TANK_DF[9,5] = round(length( which( LEAGUE_DRAFT_SUB$Year == 2019 & LEAGUE_DRAFT_SUB$POS == "P")[grep(LEAGUE_DRAFT_SUB$POS[which( LEAGUE_DRAFT_SUB$Year== 2019)], pattern = "RHP|LHP")] ) / 28, digits = 2)
-LG_TANK_DF[10,5] = round(length( which( LEAGUE_DRAFT_SUB$Year == 2020 & LEAGUE_DRAFT_SUB$POS == "P")[grep(LEAGUE_DRAFT_SUB$POS[which( LEAGUE_DRAFT_SUB$Year== 2020)], pattern = "RHP|LHP")] ) / 28, digits = 2)
-LG_TANK_DF[11,5] = round(length( which( LEAGUE_DRAFT_SUB$Year == 2021 & LEAGUE_DRAFT_SUB$POS == "P")[grep(LEAGUE_DRAFT_SUB$POS[which( LEAGUE_DRAFT_SUB$Year== 2021)], pattern = "RHP|LHP")] ) / 28, digits = 2)
+for (i in 11:21){   
+    ## Total # Picks
+    ASTROS_TANK_DF[i-10,7] = nrow(ASTROS_CUBS_DRAFT_SUB %>%
+                               dplyr::filter(Tm == "Houston Astros" &
+                                               Year == as.numeric(paste(20,i,sep = ""))))
+                               
+    CUBS_TANK_DF[i-10,7] = nrow(ASTROS_CUBS_DRAFT_SUB %>%
+                                  dplyr::filter(Tm == "Chicago Cubs" &
+                                                  Year == as.numeric(paste(20,i,sep = ""))))
+    
+    LG_TANK_DF[i-10,7] = round(nrow(LEAGUE_DRAFT_SUB %>%
+                                      dplyr::filter(Year == as.numeric(paste(20,i,sep = "")))) / 28, digits = 2)
+}
 
-## Fill # of College Picks
-ASTROS_TANK_DF[1,6] = length(which(
-  grepl(ASTROS_CUBS_DRAFT_SUB$`Drafted From`[ which( ASTROS_CUBS_DRAFT_SUB$Year == 2011 &  ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros")], pattern = "University|College|UCLA|Cal Poly|Academy of Art|Institute of Technology|UNLV|State|Virginia Tech|Lipscomb|Santa Clara|Tusculum|JC") == TRUE))
-ASTROS_TANK_DF[2,6] = length(which(
-  grepl(ASTROS_CUBS_DRAFT_SUB$`Drafted From`[ which( ASTROS_CUBS_DRAFT_SUB$Year == 2012 &  ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros")], pattern = "University|College|UCLA|Cal Poly|Academy of Art|Institute of Technology|UNLV|State|Virginia Tech|Lipscomb|Santa Clara|Tusculum|JC") == TRUE))
-ASTROS_TANK_DF[3,6] = length(which(
-  grepl(ASTROS_CUBS_DRAFT_SUB$`Drafted From`[ which( ASTROS_CUBS_DRAFT_SUB$Year == 2013 &  ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros")], pattern = "University|College|UCLA|Cal Poly|Academy of Art|Institute of Technology|UNLV|State|Virginia Tech|Lipscomb|Santa Clara|Tusculum|JC") == TRUE))
-ASTROS_TANK_DF[4,6] = length(which(
-  grepl(ASTROS_CUBS_DRAFT_SUB$`Drafted From`[ which( ASTROS_CUBS_DRAFT_SUB$Year == 2014 &  ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros")], pattern = "University|College|UCLA|Cal Poly|Academy of Art|Institute of Technology|UNLV|State|Virginia Tech|Lipscomb|Santa Clara|Tusculum|JC") == TRUE))
-ASTROS_TANK_DF[5,6] = length(which(
-  grepl(ASTROS_CUBS_DRAFT_SUB$`Drafted From`[ which( ASTROS_CUBS_DRAFT_SUB$Year == 2015 &  ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros")], pattern = "University|College|UCLA|Cal Poly|Academy of Art|Institute of Technology|UNLV|State|Virginia Tech|Lipscomb|Santa Clara|Tusculum|JC") == TRUE))
-ASTROS_TANK_DF[6,6] = length(which(
-  grepl(ASTROS_CUBS_DRAFT_SUB$`Drafted From`[ which( ASTROS_CUBS_DRAFT_SUB$Year == 2016 &  ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros")], pattern = "University|College|UCLA|Cal Poly|Academy of Art|Institute of Technology|UNLV|State|Virginia Tech|Lipscomb|Santa Clara|Tusculum|JC") == TRUE))
-ASTROS_TANK_DF[7,6] = length(which(
-  grepl(ASTROS_CUBS_DRAFT_SUB$`Drafted From`[ which( ASTROS_CUBS_DRAFT_SUB$Year == 2017 &  ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros")], pattern = "University|College|UCLA|Cal Poly|Academy of Art|Institute of Technology|UNLV|State|Virginia Tech|Lipscomb|Santa Clara|Tusculum|JC") == TRUE))
-ASTROS_TANK_DF[8,6] = length(which(
-  grepl(ASTROS_CUBS_DRAFT_SUB$`Drafted From`[ which( ASTROS_CUBS_DRAFT_SUB$Year == 2018 &  ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros")], pattern = "University|College|UCLA|Cal Poly|Academy of Art|Institute of Technology|UNLV|State|Virginia Tech|Lipscomb|Santa Clara|Tusculum|JC") == TRUE))
-ASTROS_TANK_DF[9,6] = length(which(
-  grepl(ASTROS_CUBS_DRAFT_SUB$`Drafted From`[ which( ASTROS_CUBS_DRAFT_SUB$Year == 2019 &  ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros")], pattern = "University|College|UCLA|Cal Poly|Academy of Art|Institute of Technology|UNLV|State|Virginia Tech|Lipscomb|Santa Clara|Tusculum|JC") == TRUE))
-ASTROS_TANK_DF[10,6] = length(which(
-  grepl(ASTROS_CUBS_DRAFT_SUB$`Drafted From`[ which( ASTROS_CUBS_DRAFT_SUB$Year == 2020 &  ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros")], pattern = "University|College|UCLA|Cal Poly|Academy of Art|Institute of Technology|UNLV|State|Virginia Tech|Lipscomb|Santa Clara|Tusculum|JC") == TRUE))
-ASTROS_TANK_DF[11,6] = length(which(
-  grepl(ASTROS_CUBS_DRAFT_SUB$`Drafted From`[ which( ASTROS_CUBS_DRAFT_SUB$Year == 2021 &  ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros")], pattern = "University|College|UCLA|Cal Poly|Academy of Art|Institute of Technology|UNLV|State|Virginia Tech|Lipscomb|Santa Clara|Tusculum|JC") == TRUE))
+for (i in 11:21){
+    ## # Intl Picks
+    ASTROS_TANK_DF[i-10,11] = nrow(IntlALL %>%
+                               dplyr::filter(Team == "HOU" &
+                                               Year == as.numeric(paste(20,i,sep = ""))))
+                               
+    CUBS_TANK_DF[i-10,11] = nrow(IntlALL %>%
+                                  dplyr::filter(Team == "CHC" &
+                                                  Year == as.numeric(paste(20,i,sep = ""))))
+    
+    LG_TANK_DF[i-10,11] = round(nrow(IntlALL %>%
+                                      dplyr::filter(Year == as.numeric(paste(20,i,sep = "")) &
+                                                      !grepl(Team, pattern = "(Astros)|(Cubs)"))) / 28, digits = 2)
+}
+    
+for(i in 11:21){
+    ## # FA signings
+    ASTROS_TANK_DF[i-10,13] = nrow(ESPN %>% ungroup() %>%
+                                     dplyr::filter(Team == "Astros" &
+                                                     Type == "MLB" &
+                                                     Year == as.numeric(paste(20,i,sep = ""))))
+    
+    CUBS_TANK_DF[i-10,13] = nrow(ESPN %>% ungroup() %>%
+                                   dplyr::filter(Team == "Cubs" &
+                                                   Type == "MLB" &
+                                                   Year == as.numeric(paste(20,i,sep = ""))))
+    
+    LG_TANK_DF[i-10,13] = round(nrow(ESPN %>% ungroup() %>%
+                                       dplyr::filter(Type == "MLB" &
+                                                       !grepl(Team, pattern = "(Astros)|(Cubs)") &
+                                                       Year == as.numeric(paste(20,i,sep = ""))))/ 28, digits = 2)
+}
 
-CUBS_TANK_DF[1,6] = length(which(
-  grepl(ASTROS_CUBS_DRAFT_SUB$`Drafted From`[ which( ASTROS_CUBS_DRAFT_SUB$Year == 2011 &  ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs")], pattern = "University|College|UCLA|Cal Poly|Academy of Art|Institute of Technology|UNLV|State|Virginia Tech|Lipscomb|Santa Clara|Tusculum|JC") == TRUE))
-CUBS_TANK_DF[2,6] = length(which(
-  grepl(ASTROS_CUBS_DRAFT_SUB$`Drafted From`[ which( ASTROS_CUBS_DRAFT_SUB$Year == 2012 &  ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs")], pattern = "University|College|UCLA|Cal Poly|Academy of Art|Institute of Technology|UNLV|State|Virginia Tech|Lipscomb|Santa Clara|Tusculum|JC") == TRUE))
-CUBS_TANK_DF[3,6] = length(which(
-  grepl(ASTROS_CUBS_DRAFT_SUB$`Drafted From`[ which( ASTROS_CUBS_DRAFT_SUB$Year == 2013 &  ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs")], pattern = "University|College|UCLA|Cal Poly|Academy of Art|Institute of Technology|UNLV|State|Virginia Tech|Lipscomb|Santa Clara|Tusculum|JC") == TRUE))
-CUBS_TANK_DF[4,6] = length(which(
-  grepl(ASTROS_CUBS_DRAFT_SUB$`Drafted From`[ which( ASTROS_CUBS_DRAFT_SUB$Year == 2014 &  ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs")], pattern = "University|College|UCLA|Cal Poly|Academy of Art|Institute of Technology|UNLV|State|Virginia Tech|Lipscomb|Santa Clara|Tusculum|JC") == TRUE))
-CUBS_TANK_DF[5,6] = length(which(
-  grepl(ASTROS_CUBS_DRAFT_SUB$`Drafted From`[ which( ASTROS_CUBS_DRAFT_SUB$Year == 2015 &  ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs")], pattern = "University|College|UCLA|Cal Poly|Academy of Art|Institute of Technology|UNLV|State|Virginia Tech|Lipscomb|Santa Clara|Tusculum|JC") == TRUE))
-CUBS_TANK_DF[6,6] = length(which(
-  grepl(ASTROS_CUBS_DRAFT_SUB$`Drafted From`[ which( ASTROS_CUBS_DRAFT_SUB$Year == 2016 &  ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs")], pattern = "University|College|UCLA|Cal Poly|Academy of Art|Institute of Technology|UNLV|State|Virginia Tech|Lipscomb|Santa Clara|Tusculum|JC") == TRUE))
-CUBS_TANK_DF[7,6] = length(which(
-  grepl(ASTROS_CUBS_DRAFT_SUB$`Drafted From`[ which( ASTROS_CUBS_DRAFT_SUB$Year == 2017 &  ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs")], pattern = "University|College|UCLA|Cal Poly|Academy of Art|Institute of Technology|UNLV|State|Virginia Tech|Lipscomb|Santa Clara|Tusculum|JC") == TRUE))
-CUBS_TANK_DF[8,6] = length(which(
-  grepl(ASTROS_CUBS_DRAFT_SUB$`Drafted From`[ which( ASTROS_CUBS_DRAFT_SUB$Year == 2018 &  ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs")], pattern = "University|College|UCLA|Cal Poly|Academy of Art|Institute of Technology|UNLV|State|Virginia Tech|Lipscomb|Santa Clara|Tusculum|JC") == TRUE))
-CUBS_TANK_DF[9,6] = length(which(
-  grepl(ASTROS_CUBS_DRAFT_SUB$`Drafted From`[ which( ASTROS_CUBS_DRAFT_SUB$Year == 2019 &  ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs")], pattern = "University|College|UCLA|Cal Poly|Academy of Art|Institute of Technology|UNLV|State|Virginia Tech|Lipscomb|Santa Clara|Tusculum|JC") == TRUE))
-CUBS_TANK_DF[10,6] = length(which(
-  grepl(ASTROS_CUBS_DRAFT_SUB$`Drafted From`[ which( ASTROS_CUBS_DRAFT_SUB$Year == 2020 &  ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs")], pattern = "University|College|UCLA|Cal Poly|Academy of Art|Institute of Technology|UNLV|State|Virginia Tech|Lipscomb|Santa Clara|Tusculum|JC") == TRUE))
-CUBS_TANK_DF[11,6] = length(which(
-  grepl(ASTROS_CUBS_DRAFT_SUB$`Drafted From`[ which( ASTROS_CUBS_DRAFT_SUB$Year == 2021 &  ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs")], pattern = "University|College|UCLA|Cal Poly|Academy of Art|Institute of Technology|UNLV|State|Virginia Tech|Lipscomb|Santa Clara|Tusculum|JC") == TRUE))
+for(i in 11:21){
+    ## FA avg AAV
+    ASTROS_TANK_DF[i-10,14] = round(mean(ESPN %>% ungroup() %>%
+                                           dplyr::filter(Team == "Astros" &
+                                                           Type == "MLB" &
+                                                           Year == as.numeric(paste(20,i,sep = ""))) %>%
+                                           dplyr::select(AAV) %>% unlist() %>% as.numeric(), na.rm = T), digits = 3)
+    
+    CUBS_TANK_DF[i-10,14] = round(mean(ESPN %>% ungroup() %>%
+                                         dplyr::filter(Team == "Cubs" &
+                                                         Type == "MLB" &
+                                                         Year == as.numeric(paste(20,i,sep = ""))) %>%
+                                         dplyr::select(AAV) %>% unlist() %>% as.numeric(), na.rm = T), digits = 3)
+    
+    LG_TANK_DF[i-10,14] = round(mean(ESPN %>% ungroup() %>%
+                                       dplyr::filter(Type == "MLB" &
+                                                       !grepl(Team, pattern = "(Astros)|(Cubs)") &
+                                                       Year == as.numeric(paste(20,i,sep = ""))) %>%
+                                       dplyr::select(AAV) %>% unlist() %>% as.numeric(), na.rm = T), digits = 3)
+}
 
-LG_TANK_DF[1,6] = round(length(which(
-  grepl(LEAGUE_DRAFT_SUB$`Drafted From`[ which( LEAGUE_DRAFT_SUB$Year == 2011 )], pattern = "University|College|UCLA|Cal Poly|Academy of Art|Institute of Technology|UNLV|State|Virginia Tech|Lipscomb|Santa Clara|Tusculum|JC") == TRUE)) / 28, digits = 2)
-LG_TANK_DF[2,6] = round(length(which(
-  grepl(LEAGUE_DRAFT_SUB$`Drafted From`[ which( LEAGUE_DRAFT_SUB$Year == 2012 )], pattern = "University|College|UCLA|Cal Poly|Academy of Art|Institute of Technology|UNLV|State|Virginia Tech|Lipscomb|Santa Clara|Tusculum|JC") == TRUE)) / 28, digits = 2)
-LG_TANK_DF[3,6] = round(length(which(
-  grepl(LEAGUE_DRAFT_SUB$`Drafted From`[ which( LEAGUE_DRAFT_SUB$Year == 2013 )], pattern = "University|College|UCLA|Cal Poly|Academy of Art|Institute of Technology|UNLV|State|Virginia Tech|Lipscomb|Santa Clara|Tusculum|JC") == TRUE)) / 28, digits = 2)
-LG_TANK_DF[4,6] = round(length(which(
-  grepl(LEAGUE_DRAFT_SUB$`Drafted From`[ which( LEAGUE_DRAFT_SUB$Year == 2014 )], pattern = "University|College|UCLA|Cal Poly|Academy of Art|Institute of Technology|UNLV|State|Virginia Tech|Lipscomb|Santa Clara|Tusculum|JC") == TRUE)) / 28, digits = 2)
-LG_TANK_DF[5,6] = round(length(which(
-  grepl(LEAGUE_DRAFT_SUB$`Drafted From`[ which( LEAGUE_DRAFT_SUB$Year == 2015 )], pattern = "University|College|UCLA|Cal Poly|Academy of Art|Institute of Technology|UNLV|State|Virginia Tech|Lipscomb|Santa Clara|Tusculum|JC") == TRUE)) / 28, digits = 2)
-LG_TANK_DF[6,6] = round(length(which(
-  grepl(LEAGUE_DRAFT_SUB$`Drafted From`[ which( LEAGUE_DRAFT_SUB$Year == 2016 )], pattern = "University|College|UCLA|Cal Poly|Academy of Art|Institute of Technology|UNLV|State|Virginia Tech|Lipscomb|Santa Clara|Tusculum|JC") == TRUE)) / 28, digits = 2)
-LG_TANK_DF[7,6] = round(length(which(
-  grepl(LEAGUE_DRAFT_SUB$`Drafted From`[ which( LEAGUE_DRAFT_SUB$Year == 2017 )], pattern = "University|College|UCLA|Cal Poly|Academy of Art|Institute of Technology|UNLV|State|Virginia Tech|Lipscomb|Santa Clara|Tusculum|JC") == TRUE)) / 28, digits = 2)
-LG_TANK_DF[8,6] = round(length(which(
-  grepl(LEAGUE_DRAFT_SUB$`Drafted From`[ which( LEAGUE_DRAFT_SUB$Year == 2018 )], pattern = "University|College|UCLA|Cal Poly|Academy of Art|Institute of Technology|UNLV|State|Virginia Tech|Lipscomb|Santa Clara|Tusculum|JC") == TRUE)) / 28, digits = 2)
-LG_TANK_DF[9,6] = round(length(which(
-  grepl(LEAGUE_DRAFT_SUB$`Drafted From`[ which( LEAGUE_DRAFT_SUB$Year == 2019 )], pattern = "University|College|UCLA|Cal Poly|Academy of Art|Institute of Technology|UNLV|State|Virginia Tech|Lipscomb|Santa Clara|Tusculum|JC") == TRUE)) / 28, digits = 2)
-LG_TANK_DF[10,6] = round(length(which(
-  grepl(LEAGUE_DRAFT_SUB$`Drafted From`[ which( LEAGUE_DRAFT_SUB$Year == 2020 )], pattern = "University|College|UCLA|Cal Poly|Academy of Art|Institute of Technology|UNLV|State|Virginia Tech|Lipscomb|Santa Clara|Tusculum|JC") == TRUE)) / 28, digits = 2)
-LG_TANK_DF[11,6] = round(length(which(
-  grepl(LEAGUE_DRAFT_SUB$`Drafted From`[ which( LEAGUE_DRAFT_SUB$Year == 2021 )], pattern = "University|College|UCLA|Cal Poly|Academy of Art|Institute of Technology|UNLV|State|Virginia Tech|Lipscomb|Santa Clara|Tusculum|JC") == TRUE)) / 28, digits = 2)
+for(i in 11:21){
+    ## Contract Length Total
+    ASTROS_TANK_DF[i-10,15] = round(mean(ESPN %>% ungroup() %>%
+                                           dplyr::filter(Team == "Astros" &
+                                                           Yrs != "" &
+                                                           Year == as.numeric(paste(20,i,sep = ""))) %>%
+                                           dplyr::select(Yrs) %>% unlist() %>% as.numeric(), na.rm = T ), digits = 2)
+    
+    CUBS_TANK_DF[i-10,15] = round(mean(ESPN %>% ungroup() %>%
+                                         dplyr::filter(Team == "Cubs" &
+                                                         Yrs != "" &
+                                                         Year == as.numeric(paste(20,i,sep = ""))) %>%
+                                         dplyr::select(Yrs) %>% unlist() %>% as.numeric(), na.rm = T), digits = 2)
+    
+    LG_TANK_DF[i-10,15] = round(mean(ESPN %>% ungroup() %>%
+                                       dplyr::filter(Yrs != "" &
+                                                       !grepl(Team, pattern = "(Astros)|(Cubs)") &
+                                                       Year == as.numeric(paste(20,i,sep = ""))) %>%
+                                       dplyr::select(Yrs) %>% unlist() %>% as.numeric(), na.rm = T), digits = 2)
+}
 
-## Fill Total # Picks
-ASTROS_TANK_DF[1,7] = length(which(ASTROS_CUBS_DRAFT_SUB$Year == 2011 & ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros"))
-ASTROS_TANK_DF[2,7] = length(which(ASTROS_CUBS_DRAFT_SUB$Year == 2012 & ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros"))
-ASTROS_TANK_DF[3,7] = length(which(ASTROS_CUBS_DRAFT_SUB$Year == 2013 & ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros"))
-ASTROS_TANK_DF[4,7] = length(which(ASTROS_CUBS_DRAFT_SUB$Year == 2014 & ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros"))
-ASTROS_TANK_DF[5,7] = length(which(ASTROS_CUBS_DRAFT_SUB$Year == 2015 & ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros"))
-ASTROS_TANK_DF[6,7] = length(which(ASTROS_CUBS_DRAFT_SUB$Year == 2016 & ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros"))
-ASTROS_TANK_DF[7,7] = length(which(ASTROS_CUBS_DRAFT_SUB$Year == 2017 & ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros"))
-ASTROS_TANK_DF[8,7] = length(which(ASTROS_CUBS_DRAFT_SUB$Year == 2018 & ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros"))
-ASTROS_TANK_DF[9,7] = length(which(ASTROS_CUBS_DRAFT_SUB$Year == 2019 & ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros"))
-ASTROS_TANK_DF[10,7] = length(which(ASTROS_CUBS_DRAFT_SUB$Year == 2020 & ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros"))
-ASTROS_TANK_DF[11,7] = length(which(ASTROS_CUBS_DRAFT_SUB$Year == 2021 & ASTROS_CUBS_DRAFT_SUB$Tm == "Houston Astros"))
+for(i in 11:21){    
+    ## Contract Total Length
+    ASTROS_TANK_DF[i-10,16] = round(mean(ESPN %>% ungroup() %>%
+                                          dplyr::filter(Team == "Astros" &
+                                                          Yrs != "" &
+                                                          Year == as.numeric(paste(20,i,sep = ""))) %>%
+                                          dplyr::select(TotalValue) %>% unlist() %>% as.numeric(), na.rm = T), digits = 3)
+    
+    CUBS_TANK_DF[i-10,16] = round(mean(ESPN %>% ungroup() %>%
+                                         dplyr::filter(Team == "Cubs" &
+                                                         Yrs != "" &
+                                                         Year == as.numeric(paste(20,i,sep = ""))) %>%
+                                         dplyr::select(TotalValue) %>% unlist() %>% as.numeric(), na.rm = T), digits = 3)
+    
+    LG_TANK_DF[i-10,16] = round(mean(ESPN %>% ungroup() %>%
+                                       dplyr::filter(Yrs != "" &
+                                                       Year == as.numeric(paste(20,i,sep = "")) &
+                                                       !grepl(Team, pattern = "(Astros)|(Cubs)")) %>%
+                                       dplyr::select(TotalValue) %>% unlist() %>% as.numeric(), na.rm = T), digits = 3)
+}
+ 
+for (i in 11:21){   
+    ## Team WAR
+  if(i == 20) {
+    
+    ASTROS_TANK_DF[i-10,17] = NA
+    CUBS_TANK_DF[i-10,17] = NA
+    LG_TANK_DF[i-10,17] = NA
+    
+  } else {
+    ASTROS_TANK_DF[i-10,17] = round(TeamValALL %>% ungroup() %>%
+                                      dplyr::filter(Team == "Houston Astros" &
+                                                      Year == as.numeric(paste(20,i,sep = ""))) %>%
+                                      dplyr::select(WAR) %>% unlist() %>% as.numeric(), digits = 1)
+    
+    CUBS_TANK_DF[i-10,17] = round(TeamValALL %>% ungroup() %>%
+                                    dplyr::filter(Team == "Chicago Cubs" &
+                                                    Year == as.numeric(paste(20,i,sep = ""))) %>%
+                                    dplyr::select(WAR) %>% unlist() %>% as.numeric(), digits = 1)
+    
+    LG_TANK_DF[i-10,17] = round(median(TeamValALL %>% ungroup() %>%
+                                          dplyr::filter(!grepl(Team, pattern = "(Houston Astros)|(Chicago Cubs)") &
+                                                          Year == as.numeric(paste(20,i,sep = ""))) %>%
+                                          dplyr::select(WAR) %>% unlist() %>% as.numeric() ), digits = 1)
+  }
+}
+ 
+for(i in 11:21){   
+  
+  if(i == 20){
+    
+    ASTROS_TANK_DF[i-10,18] = NA
+    CUBS_TANK_DF[i-10,18] = NA
+    LG_TANK_DF[i-10,18] = NA
+    
+  } else {
+    ## Team Salary
+    ASTROS_TANK_DF[i-10,18] = round(TeamValALL %>% ungroup() %>%
+                                      dplyr::filter(Team == "Houston Astros" &
+                                                      Year == as.numeric(paste(20,i,sep = ""))) %>%
+                                      dplyr::select(Salary) %>% unlist() %>% as.numeric(), digits = 3)
+    
+    CUBS_TANK_DF[i-10,18] = round(TeamValALL %>% ungroup() %>%
+                                    dplyr::filter(Team == "Chicago Cubs" &
+                                                    Year == as.numeric(paste(20,i,sep = ""))) %>%
+                                    dplyr::select(Salary) %>% unlist() %>% as.numeric(), digits = 3)
+    
+    LG_TANK_DF[i-10,18] = round(median(TeamValALL %>% ungroup() %>%
+                                          dplyr::filter(!grepl(Team, pattern = "(Houston Astros)|(Chicago Cubs)") &
+                                                          Year == as.numeric(paste(20,i,sep = ""))) %>%
+                                          dplyr::select(Salary) %>% unlist() %>% as.numeric() ), digits = 3)
+  }
+}
 
-CUBS_TANK_DF[1,7] = length(which(ASTROS_CUBS_DRAFT_SUB$Year == 2011 & ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs"))
-CUBS_TANK_DF[2,7] = length(which(ASTROS_CUBS_DRAFT_SUB$Year == 2012 & ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs"))
-CUBS_TANK_DF[3,7] = length(which(ASTROS_CUBS_DRAFT_SUB$Year == 2013 & ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs"))
-CUBS_TANK_DF[4,7] = length(which(ASTROS_CUBS_DRAFT_SUB$Year == 2014 & ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs"))
-CUBS_TANK_DF[5,7] = length(which(ASTROS_CUBS_DRAFT_SUB$Year == 2015 & ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs"))
-CUBS_TANK_DF[6,7] = length(which(ASTROS_CUBS_DRAFT_SUB$Year == 2016 & ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs"))
-CUBS_TANK_DF[7,7] = length(which(ASTROS_CUBS_DRAFT_SUB$Year == 2017 & ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs"))
-CUBS_TANK_DF[8,7] = length(which(ASTROS_CUBS_DRAFT_SUB$Year == 2018 & ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs"))
-CUBS_TANK_DF[9,7] = length(which(ASTROS_CUBS_DRAFT_SUB$Year == 2019 & ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs"))
-CUBS_TANK_DF[10,7] = length(which(ASTROS_CUBS_DRAFT_SUB$Year == 2020 & ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs"))
-CUBS_TANK_DF[11,7] = length(which(ASTROS_CUBS_DRAFT_SUB$Year == 2021 & ASTROS_CUBS_DRAFT_SUB$Tm == "Chicago Cubs"))
+    ## # Total Spent on Int'l FAs
+for (i in 11:21) {
+  if (i == 11) {
+    
+    ASTROS_TANK_DF[i-10,12] = 0
+    
+    CUBS_TANK_DF[i-10,12] = sum(IntlALL %>%
+                                  dplyr::filter(Team == "CHC" &
+                                                  Year == as.numeric(paste(20,i,sep = ""))) %>%
+                                  dplyr::select(Bonus) %>% unlist() %>% as.numeric(), na.rm = T)
+    
+    LG_TANK_DF[i-10,12] = sum(IntlALL %>%
+                                dplyr::filter(!grepl(Team, pattern = "(HOU)|(CHC)") &
+                                                Year == paste(20,i,sep = "")) %>%
+                                dplyr::select(Bonus) %>% unlist() %>% as.numeric(), na.rm = T)
+    
+  } else {
+    
+    ASTROS_TANK_DF[i-10,12] = sum(IntlALL %>%
+                                      dplyr::filter(Team == "HOU" &
+                                                      Year == as.numeric(paste(20,i,sep = ""))) %>%
+                                      dplyr::select(Bonus) %>% unlist() %>% as.numeric(), na.rm = T)
+    
+    CUBS_TANK_DF[i-10,12] = sum(IntlALL %>%
+                                  dplyr::filter(Team == "CHC" &
+                                                  Year == as.numeric(paste(20,i,sep = ""))) %>%
+                                  dplyr::select(Bonus) %>% unlist() %>% as.numeric(), na.rm = T)
+    
+    LG_TANK_DF[i-10,12] = sum(IntlALL %>%
+                                dplyr::filter(!grepl(Team, pattern = "(HOU)|(CHC)") &
+                                                Year == as.numeric(paste(20,i,sep = ""))) %>%
+                                dplyr::select(Bonus) %>% unlist() %>% as.numeric(), na.rm = T)
+    
+  }
+}
 
-LG_TANK_DF[1,7] = round(length(which(LEAGUE_DRAFT_SUB$Year == 2011)) / 28, digits = 2)
-LG_TANK_DF[2,7] = round(length(which(LEAGUE_DRAFT_SUB$Year == 2012)) / 28, digits = 2)
-LG_TANK_DF[3,7] = round(length(which(LEAGUE_DRAFT_SUB$Year == 2013)) / 28, digits = 2)
-LG_TANK_DF[4,7] = round(length(which(LEAGUE_DRAFT_SUB$Year == 2014)) / 28, digits = 2)
-LG_TANK_DF[5,7] = round(length(which(LEAGUE_DRAFT_SUB$Year == 2015)) / 28, digits = 2)
-LG_TANK_DF[6,7] = round(length(which(LEAGUE_DRAFT_SUB$Year == 2016)) / 28, digits = 2)
-LG_TANK_DF[7,7] = round(length(which(LEAGUE_DRAFT_SUB$Year == 2017)) / 28, digits = 2)
-LG_TANK_DF[8,7] = round(length(which(LEAGUE_DRAFT_SUB$Year == 2018)) / 28, digits = 2)
-LG_TANK_DF[9,7] = round(length(which(LEAGUE_DRAFT_SUB$Year == 2019)) / 28, digits = 2)
-LG_TANK_DF[10,7] = round(length(which(LEAGUE_DRAFT_SUB$Year == 2020)) / 28, digits = 2)
-LG_TANK_DF[11,7] = round(length(which(LEAGUE_DRAFT_SUB$Year == 2021)) / 28, digits = 2)
 
 ## Fill % of picks on SSs
 ASTROS_TANK_DF[,8] = round((ASTROS_TANK_DF[,4] / ASTROS_TANK_DF[,7])*100, digits = 2)
@@ -2274,304 +2452,6 @@ ASTROS_TANK_DF[,10] = round((ASTROS_TANK_DF[,6] / ASTROS_TANK_DF[,7])*100, digit
 CUBS_TANK_DF[,10] = round((CUBS_TANK_DF[,6] / CUBS_TANK_DF[,7])*100, digits = 2)
 LG_TANK_DF[,10] = round((LG_TANK_DF[,6] / LG_TANK_DF[,7])*100, digits = 2)
 
-## How many Int'l FAs
-ASTROS_TANK_DF[1,11] = length(which(IntlALL$Team == "HOU" & IntlALL$Year == 2011))
-ASTROS_TANK_DF[2,11] = length(which(IntlALL$Team == "HOU" & IntlALL$Year == 2012))
-ASTROS_TANK_DF[3,11] = length(which(IntlALL$Team == "HOU" & IntlALL$Year == 2013))
-ASTROS_TANK_DF[4,11] = length(which(IntlALL$Team == "HOU" & IntlALL$Year == 2014))
-ASTROS_TANK_DF[5,11] = length(which(IntlALL$Team == "HOU" & IntlALL$Year == 2015))
-ASTROS_TANK_DF[6,11] = length(which(IntlALL$Team == "HOU" & IntlALL$Year == 2016))
-ASTROS_TANK_DF[7,11] = length(which(IntlALL$Team == "HOU" & IntlALL$Year == 2017))
-ASTROS_TANK_DF[8,11] = length(which(IntlALL$Team == "HOU" & IntlALL$Year == 2018))
-ASTROS_TANK_DF[9,11] = length(which(IntlALL$Team == "HOU" & IntlALL$Year == 2019))
-ASTROS_TANK_DF[10,11] = length(which(IntlALL$Team == "HOU" & IntlALL$Year == 2020))
-ASTROS_TANK_DF[11,11] = length(which(IntlALL$Team == "HOU" & IntlALL$Year == 2021))
-
-CUBS_TANK_DF[1,11] = length(which(IntlALL$Team == "CHC" & IntlALL$Year == 2011))
-CUBS_TANK_DF[2,11] = length(which(IntlALL$Team == "CHC" & IntlALL$Year == 2012))
-CUBS_TANK_DF[3,11] = length(which(IntlALL$Team == "CHC" & IntlALL$Year == 2013))
-CUBS_TANK_DF[4,11] = length(which(IntlALL$Team == "CHC" & IntlALL$Year == 2014))
-CUBS_TANK_DF[5,11] = length(which(IntlALL$Team == "CHC" & IntlALL$Year == 2015))
-CUBS_TANK_DF[6,11] = length(which(IntlALL$Team == "CHC" & IntlALL$Year == 2016))
-CUBS_TANK_DF[7,11] = length(which(IntlALL$Team == "CHC" & IntlALL$Year == 2017))
-CUBS_TANK_DF[8,11] = length(which(IntlALL$Team == "CHC" & IntlALL$Year == 2018))
-CUBS_TANK_DF[9,11] = length(which(IntlALL$Team == "CHC" & IntlALL$Year == 2019))
-CUBS_TANK_DF[10,11] = length(which(IntlALL$Team == "CHC" & IntlALL$Year == 2020))
-CUBS_TANK_DF[11,11] = length(which(IntlALL$Team == "CHC" & IntlALL$Year == 2021))
-
-LG_TANK_DF[1,11] = round(length(which(LEAGUE_INTL_SUB$Year == 2011))/ 28, digits = 2)
-LG_TANK_DF[2,11] = round(length(which(LEAGUE_INTL_SUB$Year == 2012))/ 28, digits = 2)
-LG_TANK_DF[3,11] = round(length(which(LEAGUE_INTL_SUB$Year == 2013))/ 28, digits = 2)
-LG_TANK_DF[4,11] = round(length(which(LEAGUE_INTL_SUB$Year == 2014))/ 28, digits = 2)
-LG_TANK_DF[5,11] = round(length(which(LEAGUE_INTL_SUB$Year == 2015))/ 28, digits = 2)
-LG_TANK_DF[6,11] = round(length(which(LEAGUE_INTL_SUB$Year == 2016))/ 28, digits = 2)
-LG_TANK_DF[7,11] = round(length(which(LEAGUE_INTL_SUB$Year == 2017))/ 28, digits = 2)
-LG_TANK_DF[8,11] = round(length(which(LEAGUE_INTL_SUB$Year == 2018))/ 28, digits = 2)
-LG_TANK_DF[9,11] = round(length(which(LEAGUE_INTL_SUB$Year == 2019))/ 28, digits = 2)
-LG_TANK_DF[10,11] = round(length(which(LEAGUE_INTL_SUB$Year == 2020))/ 28, digits = 2)
-LG_TANK_DF[11,11] = round(length(which(LEAGUE_INTL_SUB$Year == 2021))/ 28, digits = 2)
-
-## Total Spent on Int'l FAs
-ASTROS_TANK_DF[1,12] = 0#sum(IntlALL$Bonus[which(IntlALL$Team == "HOU" & IntlALL$Year == 2011)])
-ASTROS_TANK_DF[2,12] = sum(IntlALL$Bonus[which(IntlALL$Team == "HOU" & IntlALL$Year == 2012)], na.rm = T)
-ASTROS_TANK_DF[3,12] = sum(IntlALL$Bonus[which(IntlALL$Team == "HOU" & IntlALL$Year == 2013)], na.rm = T)
-ASTROS_TANK_DF[4,12] = sum(IntlALL$Bonus[which(IntlALL$Team == "HOU" & IntlALL$Year == 2014)], na.rm = T)
-ASTROS_TANK_DF[5,12] = sum(IntlALL$Bonus[which(IntlALL$Team == "HOU" & IntlALL$Year == 2015)], na.rm = T)
-ASTROS_TANK_DF[6,12] = sum(IntlALL$Bonus[which(IntlALL$Team == "HOU" & IntlALL$Year == 2016)], na.rm = T)
-ASTROS_TANK_DF[7,12] = sum(IntlALL$Bonus[which(IntlALL$Team == "HOU" & IntlALL$Year == 2017)], na.rm = T)
-ASTROS_TANK_DF[8,12] = sum(IntlALL$Bonus[which(IntlALL$Team == "HOU" & IntlALL$Year == 2018)], na.rm = T)
-ASTROS_TANK_DF[9,12] = sum(IntlALL$Bonus[which(IntlALL$Team == "HOU" & IntlALL$Year == 2019)], na.rm = T)
-ASTROS_TANK_DF[10,12] = sum(IntlALL$Bonus[which(IntlALL$Team == "HOU" & IntlALL$Year == 2020)], na.rm = T)
-ASTROS_TANK_DF[11,12] = sum(IntlALL$Bonus[which(IntlALL$Team == "HOU" & IntlALL$Year == 2021)], na.rm = T)
-
-CUBS_TANK_DF[1,12] = sum(IntlALL$Bonus[which(IntlALL$Team == "CHC" & IntlALL$Year == 2011)], na.rm = T)
-CUBS_TANK_DF[2,12] = sum(IntlALL$Bonus[which(IntlALL$Team == "CHC" & IntlALL$Year == 2012)], na.rm = T)
-CUBS_TANK_DF[3,12] = sum(IntlALL$Bonus[which(IntlALL$Team == "CHC" & IntlALL$Year == 2013)], na.rm = T)
-CUBS_TANK_DF[4,12] = sum(IntlALL$Bonus[which(IntlALL$Team == "CHC" & IntlALL$Year == 2014)], na.rm = T)
-CUBS_TANK_DF[5,12] = sum(IntlALL$Bonus[which(IntlALL$Team == "CHC" & IntlALL$Year == 2015)], na.rm = T)
-CUBS_TANK_DF[6,12] = sum(IntlALL$Bonus[which(IntlALL$Team == "CHC" & IntlALL$Year == 2016)], na.rm = T)
-CUBS_TANK_DF[7,12] = sum(IntlALL$Bonus[which(IntlALL$Team == "CHC" & IntlALL$Year == 2017)], na.rm = T)
-CUBS_TANK_DF[8,12] = sum(IntlALL$Bonus[which(IntlALL$Team == "CHC" & IntlALL$Year == 2018)], na.rm = T)
-CUBS_TANK_DF[9,12] = sum(IntlALL$Bonus[which(IntlALL$Team == "CHC" & IntlALL$Year == 2019)], na.rm = T)
-CUBS_TANK_DF[10,12] = sum(IntlALL$Bonus[which(IntlALL$Team == "CHC" & IntlALL$Year == 2020)], na.rm = T)
-CUBS_TANK_DF[11,12] = sum(IntlALL$Bonus[which(IntlALL$Team == "CHC" & IntlALL$Year == 2021)], na.rm = T)
-
-LG_TANK_DF[1,12] = round(sum(LEAGUE_INTL_SUB$Bonus[ which(LEAGUE_INTL_SUB$Year == 2011)], na.rm = T) / 28, digits = 3)
-LG_TANK_DF[2,12] = round(sum(LEAGUE_INTL_SUB$Bonus[ which(LEAGUE_INTL_SUB$Year == 2012)], na.rm = T) / 28, digits = 3)
-LG_TANK_DF[3,12] = round(sum(LEAGUE_INTL_SUB$Bonus[ which(LEAGUE_INTL_SUB$Year == 2013)], na.rm = T) / 28, digits = 3)
-LG_TANK_DF[4,12] = round(sum(LEAGUE_INTL_SUB$Bonus[ which(LEAGUE_INTL_SUB$Year == 2014)], na.rm = T) / 28, digits = 3)
-LG_TANK_DF[5,12] = round(sum(LEAGUE_INTL_SUB$Bonus[ which(LEAGUE_INTL_SUB$Year == 2015)], na.rm = T) / 28, digits = 3)
-LG_TANK_DF[6,12] = round(sum(LEAGUE_INTL_SUB$Bonus[ which(LEAGUE_INTL_SUB$Year == 2016)], na.rm = T) / 28, digits = 3)
-LG_TANK_DF[7,12] = round(sum(LEAGUE_INTL_SUB$Bonus[ which(LEAGUE_INTL_SUB$Year == 2017)], na.rm = T) / 28, digits = 3)
-LG_TANK_DF[8,12] = round(sum(LEAGUE_INTL_SUB$Bonus[ which(LEAGUE_INTL_SUB$Year == 2018)], na.rm = T) / 28, digits = 3)
-LG_TANK_DF[9,12] = round(sum(LEAGUE_INTL_SUB$Bonus[ which(LEAGUE_INTL_SUB$Year == 2019)], na.rm = T) / 28, digits = 3)
-LG_TANK_DF[10,12] = round(sum(LEAGUE_INTL_SUB$Bonus[ which(LEAGUE_INTL_SUB$Year == 2020)], na.rm = T) / 28, digits = 3)
-LG_TANK_DF[11,12] = round(sum(LEAGUE_INTL_SUB$Bonus[ which(LEAGUE_INTL_SUB$Year == 2021)], na.rm = T) / 28, digits = 3)
-
-## Fill FA signing data
-## Number of contracts
-ASTROS_TANK_DF[1,13] = length(which(ESPN$Year == 2011 & ESPN$Team == "Astros" & ESPN$Type == "MLB"))
-ASTROS_TANK_DF[2,13] = length(which(ESPN$Year == 2012 & ESPN$Team == "Astros" & ESPN$Type == "MLB"))
-ASTROS_TANK_DF[3,13] = length(which(ESPN$Year == 2013 & ESPN$Team == "Astros" & ESPN$Type == "MLB"))
-ASTROS_TANK_DF[4,13] = length(which(ESPN$Year == 2014 & ESPN$Team == "Astros" & ESPN$Type == "MLB"))
-ASTROS_TANK_DF[5,13] = length(which(ESPN$Year == 2015 & ESPN$Team == "Astros" & ESPN$Type == "MLB"))
-ASTROS_TANK_DF[6,13] = length(which(ESPN$Year == 2016 & ESPN$Team == "Astros" & ESPN$Type == "MLB"))
-ASTROS_TANK_DF[7,13] = length(which(ESPN$Year == 2017 & ESPN$Team == "Astros" & ESPN$Type == "MLB"))
-ASTROS_TANK_DF[8,13] = length(which(ESPN$Year == 2018 & ESPN$Team == "Astros" & ESPN$Type == "MLB"))
-ASTROS_TANK_DF[9,13] = length(which(ESPN$Year == 2019 & ESPN$Team == "Astros" & ESPN$Type == "MLB"))
-ASTROS_TANK_DF[10,13] = length(which(ESPN$Year == 2020 & ESPN$Team == "Astros" & ESPN$Type == "MLB"))
-ASTROS_TANK_DF[11,13] = length(which(ESPN$Year == 2021 & ESPN$Team == "Astros" & ESPN$Type == "MLB"))
-
-CUBS_TANK_DF[1,13] = length(which(ESPN$Year == 2011 & ESPN$Team == "Cubs" & ESPN$Type == "MLB"))
-CUBS_TANK_DF[2,13] = length(which(ESPN$Year == 2012 & ESPN$Team == "Cubs" & ESPN$Type == "MLB"))
-CUBS_TANK_DF[3,13] = length(which(ESPN$Year == 2013 & ESPN$Team == "Cubs" & ESPN$Type == "MLB"))
-CUBS_TANK_DF[4,13] = length(which(ESPN$Year == 2014 & ESPN$Team == "Cubs" & ESPN$Type == "MLB"))
-CUBS_TANK_DF[5,13] = length(which(ESPN$Year == 2015 & ESPN$Team == "Cubs" & ESPN$Type == "MLB"))
-CUBS_TANK_DF[6,13] = length(which(ESPN$Year == 2016 & ESPN$Team == "Cubs" & ESPN$Type == "MLB"))
-CUBS_TANK_DF[7,13] = length(which(ESPN$Year == 2017 & ESPN$Team == "Cubs" & ESPN$Type == "MLB"))
-CUBS_TANK_DF[8,13] = length(which(ESPN$Year == 2018 & ESPN$Team == "Cubs" & ESPN$Type == "MLB"))
-CUBS_TANK_DF[9,13] = length(which(ESPN$Year == 2019 & ESPN$Team == "Cubs" & ESPN$Type == "MLB"))
-CUBS_TANK_DF[10,13] = length(which(ESPN$Year == 2020 & ESPN$Team == "Cubs" & ESPN$Type == "MLB"))
-CUBS_TANK_DF[11,13] = length(which(ESPN$Year == 2021 & ESPN$Team == "Cubs" & ESPN$Type == "MLB"))
-
-LG_TANK_DF[1,13] = round(length(which(LEAGUE_ESPN_SUB$Year == 2011 & LEAGUE_ESPN_SUB$Type == "MLB"))/28, digits = 2)
-LG_TANK_DF[2,13] = round(length(which(LEAGUE_ESPN_SUB$Year == 2012 & LEAGUE_ESPN_SUB$Type == "MLB"))/28, digits = 2)
-LG_TANK_DF[3,13] = round(length(which(LEAGUE_ESPN_SUB$Year == 2013 & LEAGUE_ESPN_SUB$Type == "MLB"))/28, digits = 2)
-LG_TANK_DF[4,13] = round(length(which(LEAGUE_ESPN_SUB$Year == 2014 & LEAGUE_ESPN_SUB$Type == "MLB"))/28, digits = 2)
-LG_TANK_DF[5,13] = round(length(which(LEAGUE_ESPN_SUB$Year == 2015 & LEAGUE_ESPN_SUB$Type == "MLB"))/28, digits = 2)
-LG_TANK_DF[6,13] = round(length(which(LEAGUE_ESPN_SUB$Year == 2016 & LEAGUE_ESPN_SUB$Type == "MLB"))/28, digits = 2)
-LG_TANK_DF[7,13] = round(length(which(LEAGUE_ESPN_SUB$Year == 2017 & LEAGUE_ESPN_SUB$Type == "MLB"))/28, digits = 2)
-LG_TANK_DF[8,13] = round(length(which(LEAGUE_ESPN_SUB$Year == 2018 & LEAGUE_ESPN_SUB$Type == "MLB"))/28, digits = 2)
-LG_TANK_DF[9,13] = round(length(which(LEAGUE_ESPN_SUB$Year == 2019 & LEAGUE_ESPN_SUB$Type == "MLB"))/28, digits = 2)
-LG_TANK_DF[10,13] = round(length(which(LEAGUE_ESPN_SUB$Year == 2020 & LEAGUE_ESPN_SUB$Type == "MLB"))/28, digits = 2)
-LG_TANK_DF[11,13] = round(length(which(LEAGUE_ESPN_SUB$Year == 2021 & LEAGUE_ESPN_SUB$Type == "MLB"))/28, digits = 2)
-
-## Mean AAV of FA contracts
-ASTROS_TANK_DF[1,14] = round(mean(ESPN$AAV[ which(ESPN$Year == 2011 & ESPN$Team == "Astros") ], na.rm = TRUE), digits = 3)
-ASTROS_TANK_DF[2,14] = round(mean(ESPN$AAV[ which(ESPN$Year == 2012 & ESPN$Team == "Astros") ], na.rm = TRUE), digits = 3)
-ASTROS_TANK_DF[3,14] = round(mean(ESPN$AAV[ which(ESPN$Year == 2013 & ESPN$Team == "Astros") ], na.rm = TRUE), digits = 3)
-ASTROS_TANK_DF[4,14] = round(mean(ESPN$AAV[ which(ESPN$Year == 2014 & ESPN$Team == "Astros") ], na.rm = TRUE), digits = 3)
-ASTROS_TANK_DF[5,14] = round(mean(ESPN$AAV[ which(ESPN$Year == 2015 & ESPN$Team == "Astros") ], na.rm = TRUE), digits = 3)
-ASTROS_TANK_DF[6,14] = round(mean(ESPN$AAV[ which(ESPN$Year == 2016 & ESPN$Team == "Astros") ], na.rm = TRUE), digits = 3)
-ASTROS_TANK_DF[7,14] = round(mean(ESPN$AAV[ which(ESPN$Year == 2017 & ESPN$Team == "Astros") ], na.rm = TRUE), digits = 3)
-ASTROS_TANK_DF[8,14] = round(mean(ESPN$AAV[ which(ESPN$Year == 2018 & ESPN$Team == "Astros") ], na.rm = TRUE), digits = 3)
-ASTROS_TANK_DF[9,14] = round(mean(ESPN$AAV[ which(ESPN$Year == 2019 & ESPN$Team == "Astros") ], na.rm = TRUE), digits = 3)
-ASTROS_TANK_DF[10,14] = round(mean(ESPN$AAV[ which(ESPN$Year == 2020 & ESPN$Team == "Astros") ], na.rm = TRUE), digits = 3)
-ASTROS_TANK_DF[11,14] = round(mean(ESPN$AAV[ which(ESPN$Year == 2021 & ESPN$Team == "Astros") ], na.rm = TRUE), digits = 3)
-
-CUBS_TANK_DF[1,14] = round(mean(ESPN$AAV[ which(ESPN$Year == 2011 & ESPN$Team == "Cubs") ], na.rm = TRUE), digits = 3)
-CUBS_TANK_DF[2,14] = round(mean(ESPN$AAV[ which(ESPN$Year == 2012 & ESPN$Team == "Cubs") ], na.rm = TRUE), digits = 3)
-CUBS_TANK_DF[3,14] = round(mean(ESPN$AAV[ which(ESPN$Year == 2013 & ESPN$Team == "Cubs") ], na.rm = TRUE), digits = 3)
-CUBS_TANK_DF[4,14] = round(mean(ESPN$AAV[ which(ESPN$Year == 2014 & ESPN$Team == "Cubs") ], na.rm = TRUE), digits = 3)
-CUBS_TANK_DF[5,14] = round(mean(ESPN$AAV[ which(ESPN$Year == 2015 & ESPN$Team == "Cubs") ], na.rm = TRUE), digits = 3)
-CUBS_TANK_DF[6,14] = round(mean(ESPN$AAV[ which(ESPN$Year == 2016 & ESPN$Team == "Cubs") ], na.rm = TRUE), digits = 3)
-CUBS_TANK_DF[7,14] = round(mean(ESPN$AAV[ which(ESPN$Year == 2017 & ESPN$Team == "Cubs") ], na.rm = TRUE), digits = 3)
-CUBS_TANK_DF[8,14] = round(mean(ESPN$AAV[ which(ESPN$Year == 2018 & ESPN$Team == "Cubs") ], na.rm = TRUE), digits = 3)
-CUBS_TANK_DF[9,14] = round(mean(ESPN$AAV[ which(ESPN$Year == 2019 & ESPN$Team == "Cubs") ], na.rm = TRUE), digits = 3)
-CUBS_TANK_DF[10,14] = round(mean(ESPN$AAV[ which(ESPN$Year == 2020 & ESPN$Team == "Cubs") ], na.rm = TRUE), digits = 3)
-CUBS_TANK_DF[11,14] = round(mean(ESPN$AAV[ which(ESPN$Year == 2021 & ESPN$Team == "Cubs") ], na.rm = TRUE), digits = 3)
-
-LG_TANK_DF[1,14] = round(mean(LEAGUE_ESPN_SUB$AAV[ which(LEAGUE_ESPN_SUB$Year == 2011) ], na.rm = TRUE), digits = 3)
-LG_TANK_DF[2,14] = round(mean(LEAGUE_ESPN_SUB$AAV[ which(LEAGUE_ESPN_SUB$Year == 2012) ], na.rm = TRUE), digits = 3)
-LG_TANK_DF[3,14] = round(mean(LEAGUE_ESPN_SUB$AAV[ which(LEAGUE_ESPN_SUB$Year == 2013) ], na.rm = TRUE), digits = 3)
-LG_TANK_DF[4,14] = round(mean(LEAGUE_ESPN_SUB$AAV[ which(LEAGUE_ESPN_SUB$Year == 2014) ], na.rm = TRUE), digits = 3)
-LG_TANK_DF[5,14] = round(mean(LEAGUE_ESPN_SUB$AAV[ which(LEAGUE_ESPN_SUB$Year == 2015) ], na.rm = TRUE), digits = 3)
-LG_TANK_DF[6,14] = round(mean(LEAGUE_ESPN_SUB$AAV[ which(LEAGUE_ESPN_SUB$Year == 2016) ], na.rm = TRUE), digits = 3)
-LG_TANK_DF[7,14] = round(mean(LEAGUE_ESPN_SUB$AAV[ which(LEAGUE_ESPN_SUB$Year == 2017) ], na.rm = TRUE), digits = 3)
-LG_TANK_DF[8,14] = round(mean(LEAGUE_ESPN_SUB$AAV[ which(LEAGUE_ESPN_SUB$Year == 2018) ], na.rm = TRUE), digits = 3)
-LG_TANK_DF[9,14] = round(mean(LEAGUE_ESPN_SUB$AAV[ which(LEAGUE_ESPN_SUB$Year == 2019) ], na.rm = TRUE), digits = 3)
-LG_TANK_DF[10,14] = round(mean(LEAGUE_ESPN_SUB$AAV[ which(LEAGUE_ESPN_SUB$Year == 2020) ], na.rm = TRUE), digits = 3)
-LG_TANK_DF[11,14] = round(mean(LEAGUE_ESPN_SUB$AAV[ which(LEAGUE_ESPN_SUB$Year == 2021) ], na.rm = TRUE), digits = 3)
-
-## Mean Length of FA contracts
-ASTROS_TANK_DF[1,15] = round(mean(as.numeric(ESPN$Years[ which(ESPN$Year == 2011 & ESPN$Team == "Astros" & ESPN$Years != "") ]), na.rm = TRUE), digits = 2)
-ASTROS_TANK_DF[2,15] = round(mean(as.numeric(ESPN$Years[ which(ESPN$Year == 2012 & ESPN$Team == "Astros" & ESPN$Years != "") ]), na.rm = TRUE), digits = 2)
-ASTROS_TANK_DF[3,15] = round(mean(as.numeric(ESPN$Years[ which(ESPN$Year == 2013 & ESPN$Team == "Astros" & ESPN$Years != "") ]), na.rm = TRUE), digits = 2)
-ASTROS_TANK_DF[4,15] = round(mean(as.numeric(ESPN$Years[ which(ESPN$Year == 2014 & ESPN$Team == "Astros" & ESPN$Years != "") ]), na.rm = TRUE), digits = 2)
-ASTROS_TANK_DF[5,15] = round(mean(as.numeric(ESPN$Years[ which(ESPN$Year == 2015 & ESPN$Team == "Astros" & ESPN$Years != "") ]), na.rm = TRUE), digits = 2)
-ASTROS_TANK_DF[6,15] = round(mean(as.numeric(ESPN$Years[ which(ESPN$Year == 2016 & ESPN$Team == "Astros" & ESPN$Years != "") ]), na.rm = TRUE), digits = 2)
-ASTROS_TANK_DF[7,15] = round(mean(as.numeric(ESPN$Years[ which(ESPN$Year == 2017 & ESPN$Team == "Astros" & ESPN$Years != "") ]), na.rm = TRUE), digits = 2)
-ASTROS_TANK_DF[8,15] = round(mean(as.numeric(ESPN$Years[ which(ESPN$Year == 2018 & ESPN$Team == "Astros" & ESPN$Years != "") ]), na.rm = TRUE), digits = 2)
-ASTROS_TANK_DF[9,15] = round(mean(as.numeric(ESPN$Years[ which(ESPN$Year == 2019 & ESPN$Team == "Astros" & ESPN$Years != "") ]), na.rm = TRUE), digits = 2)
-ASTROS_TANK_DF[10,15] = round(mean(as.numeric(ESPN$Years[ which(ESPN$Year == 2020 & ESPN$Team == "Astros" & ESPN$Years != "") ]), na.rm = TRUE), digits = 2)
-ASTROS_TANK_DF[11,15] = round(mean(as.numeric(ESPN$Years[ which(ESPN$Year == 2021 & ESPN$Team == "Astros" & ESPN$Years != "") ]), na.rm = TRUE), digits = 2)
-
-CUBS_TANK_DF[1,15] = round(mean(as.numeric(ESPN$Years[ which(ESPN$Year == 2011 & ESPN$Team == "Cubs" & ESPN$Years != "") ]), na.rm = TRUE), digits = 2)
-CUBS_TANK_DF[2,15] = round(mean(as.numeric(ESPN$Years[ which(ESPN$Year == 2012 & ESPN$Team == "Cubs" & ESPN$Years != "") ]), na.rm = TRUE), digits = 2)
-CUBS_TANK_DF[3,15] = round(mean(as.numeric(ESPN$Years[ which(ESPN$Year == 2013 & ESPN$Team == "Cubs" & ESPN$Years != "") ]), na.rm = TRUE), digits = 2)
-CUBS_TANK_DF[4,15] = round(mean(as.numeric(ESPN$Years[ which(ESPN$Year == 2014 & ESPN$Team == "Cubs" & ESPN$Years != "") ]), na.rm = TRUE), digits = 2)
-CUBS_TANK_DF[5,15] = round(mean(as.numeric(ESPN$Years[ which(ESPN$Year == 2015 & ESPN$Team == "Cubs" & ESPN$Years != "") ]), na.rm = TRUE), digits = 2)
-CUBS_TANK_DF[6,15] = round(mean(as.numeric(ESPN$Years[ which(ESPN$Year == 2016 & ESPN$Team == "Cubs" & ESPN$Years != "") ]), na.rm = TRUE), digits = 2)
-CUBS_TANK_DF[7,15] = round(mean(as.numeric(ESPN$Years[ which(ESPN$Year == 2017 & ESPN$Team == "Cubs" & ESPN$Years != "") ]), na.rm = TRUE), digits = 2)
-CUBS_TANK_DF[8,15] = round(mean(as.numeric(ESPN$Years[ which(ESPN$Year == 2018 & ESPN$Team == "Cubs" & ESPN$Years != "") ]), na.rm = TRUE), digits = 2)
-CUBS_TANK_DF[9,15] = round(mean(as.numeric(ESPN$Years[ which(ESPN$Year == 2019 & ESPN$Team == "Cubs" & ESPN$Years != "") ]), na.rm = TRUE), digits = 2)
-CUBS_TANK_DF[10,15] = round(mean(as.numeric(ESPN$Years[ which(ESPN$Year == 2020 & ESPN$Team == "Cubs" & ESPN$Years != "") ]), na.rm = TRUE), digits = 2)
-CUBS_TANK_DF[11,15] = round(mean(as.numeric(ESPN$Years[ which(ESPN$Year == 2021 & ESPN$Team == "Cubs" & ESPN$Years != "") ]), na.rm = TRUE), digits = 2)
-
-LG_TANK_DF[1,15] = round(mean(as.numeric(LEAGUE_ESPN_SUB$Years[ which(LEAGUE_ESPN_SUB$Year == 2011 & LEAGUE_ESPN_SUB$Years != "") ]), na.rm = TRUE), digits = 2)
-LG_TANK_DF[2,15] = round(mean(as.numeric(LEAGUE_ESPN_SUB$Years[ which(LEAGUE_ESPN_SUB$Year == 2012 & LEAGUE_ESPN_SUB$Years != "") ]), na.rm = TRUE), digits = 2)
-LG_TANK_DF[3,15] = round(mean(as.numeric(LEAGUE_ESPN_SUB$Years[ which(LEAGUE_ESPN_SUB$Year == 2013 & LEAGUE_ESPN_SUB$Years != "") ]), na.rm = TRUE), digits = 2)
-LG_TANK_DF[4,15] = round(mean(as.numeric(LEAGUE_ESPN_SUB$Years[ which(LEAGUE_ESPN_SUB$Year == 2014 & LEAGUE_ESPN_SUB$Years != "") ]), na.rm = TRUE), digits = 2)
-LG_TANK_DF[5,15] = round(mean(as.numeric(LEAGUE_ESPN_SUB$Years[ which(LEAGUE_ESPN_SUB$Year == 2015 & LEAGUE_ESPN_SUB$Years != "") ]), na.rm = TRUE), digits = 2)
-LG_TANK_DF[6,15] = round(mean(as.numeric(LEAGUE_ESPN_SUB$Years[ which(LEAGUE_ESPN_SUB$Year == 2016 & LEAGUE_ESPN_SUB$Years != "") ]), na.rm = TRUE), digits = 2)
-LG_TANK_DF[7,15] = round(mean(as.numeric(LEAGUE_ESPN_SUB$Years[ which(LEAGUE_ESPN_SUB$Year == 2017 & LEAGUE_ESPN_SUB$Years != "") ]), na.rm = TRUE), digits = 2)
-LG_TANK_DF[8,15] = round(mean(as.numeric(LEAGUE_ESPN_SUB$Years[ which(LEAGUE_ESPN_SUB$Year == 2018 & LEAGUE_ESPN_SUB$Years != "") ]), na.rm = TRUE), digits = 2)
-LG_TANK_DF[9,15] = round(mean(as.numeric(LEAGUE_ESPN_SUB$Years[ which(LEAGUE_ESPN_SUB$Year == 2019 & LEAGUE_ESPN_SUB$Years != "") ]), na.rm = TRUE), digits = 2)
-LG_TANK_DF[10,15] = round(mean(as.numeric(LEAGUE_ESPN_SUB$Years[ which(LEAGUE_ESPN_SUB$Year == 2020 & LEAGUE_ESPN_SUB$Years != "") ]), na.rm = TRUE), digits = 2)
-LG_TANK_DF[11,15] = round(mean(as.numeric(LEAGUE_ESPN_SUB$Years[ which(LEAGUE_ESPN_SUB$Year == 2021 & LEAGUE_ESPN_SUB$Years != "") ]), na.rm = TRUE), digits = 2)
-
-## Mean Total Value of FA contracts
-ASTROS_TANK_DF[1,16] = round(mean(ESPN$TotalValue[ which(ESPN$Year == 2011 & ESPN$Team == "Astros" & ESPN$Years != "") ], na.rm = TRUE), digits = 3)
-ASTROS_TANK_DF[2,16] = round(mean(ESPN$TotalValue[ which(ESPN$Year == 2012 & ESPN$Team == "Astros" & ESPN$Years != "") ], na.rm = TRUE), digits = 3)
-ASTROS_TANK_DF[3,16] = round(mean(ESPN$TotalValue[ which(ESPN$Year == 2013 & ESPN$Team == "Astros" & ESPN$Years != "") ], na.rm = TRUE), digits = 3)
-ASTROS_TANK_DF[4,16] = round(mean(ESPN$TotalValue[ which(ESPN$Year == 2014 & ESPN$Team == "Astros" & ESPN$Years != "") ], na.rm = TRUE), digits = 3)
-ASTROS_TANK_DF[5,16] = round(mean(ESPN$TotalValue[ which(ESPN$Year == 2015 & ESPN$Team == "Astros" & ESPN$Years != "") ], na.rm = TRUE), digits = 3)
-ASTROS_TANK_DF[6,16] = round(mean(ESPN$TotalValue[ which(ESPN$Year == 2016 & ESPN$Team == "Astros" & ESPN$Years != "") ], na.rm = TRUE), digits = 3)
-ASTROS_TANK_DF[7,16] = round(mean(ESPN$TotalValue[ which(ESPN$Year == 2017 & ESPN$Team == "Astros" & ESPN$Years != "") ], na.rm = TRUE), digits = 3)
-ASTROS_TANK_DF[8,16] = round(mean(ESPN$TotalValue[ which(ESPN$Year == 2018 & ESPN$Team == "Astros" & ESPN$Years != "") ], na.rm = TRUE), digits = 3)
-ASTROS_TANK_DF[9,16] = round(mean(ESPN$TotalValue[ which(ESPN$Year == 2019 & ESPN$Team == "Astros" & ESPN$Years != "") ], na.rm = TRUE), digits = 3)
-ASTROS_TANK_DF[10,16] = round(mean(ESPN$TotalValue[ which(ESPN$Year == 2020 & ESPN$Team == "Astros" & ESPN$Years != "") ], na.rm = TRUE), digits = 3)
-ASTROS_TANK_DF[11,16] = round(mean(ESPN$TotalValue[ which(ESPN$Year == 2021 & ESPN$Team == "Astros" & ESPN$Years != "") ], na.rm = TRUE), digits = 3)
-
-CUBS_TANK_DF[1,16] = round(mean(ESPN$TotalValue[ which(ESPN$Year == 2011 & ESPN$Team == "Cubs" & ESPN$Years != "") ], na.rm = TRUE), digits = 3)
-CUBS_TANK_DF[2,16] = round(mean(ESPN$TotalValue[ which(ESPN$Year == 2012 & ESPN$Team == "Cubs" & ESPN$Years != "") ], na.rm = TRUE), digits = 3)
-CUBS_TANK_DF[3,16] = round(mean(ESPN$TotalValue[ which(ESPN$Year == 2013 & ESPN$Team == "Cubs" & ESPN$Years != "") ], na.rm = TRUE), digits = 3)
-CUBS_TANK_DF[4,16] = round(mean(ESPN$TotalValue[ which(ESPN$Year == 2014 & ESPN$Team == "Cubs" & ESPN$Years != "") ], na.rm = TRUE), digits = 3)
-CUBS_TANK_DF[5,16] = round(mean(ESPN$TotalValue[ which(ESPN$Year == 2015 & ESPN$Team == "Cubs" & ESPN$Years != "") ], na.rm = TRUE), digits = 3)
-CUBS_TANK_DF[6,16] = round(mean(ESPN$TotalValue[ which(ESPN$Year == 2016 & ESPN$Team == "Cubs" & ESPN$Years != "") ], na.rm = TRUE), digits = 3)
-CUBS_TANK_DF[7,16] = round(mean(ESPN$TotalValue[ which(ESPN$Year == 2017 & ESPN$Team == "Cubs" & ESPN$Years != "") ], na.rm = TRUE), digits = 3)
-CUBS_TANK_DF[8,16] = round(mean(ESPN$TotalValue[ which(ESPN$Year == 2018 & ESPN$Team == "Cubs" & ESPN$Years != "") ], na.rm = TRUE), digits = 3)
-CUBS_TANK_DF[9,16] = round(mean(ESPN$TotalValue[ which(ESPN$Year == 2019 & ESPN$Team == "Cubs" & ESPN$Years != "") ], na.rm = TRUE), digits = 3)
-CUBS_TANK_DF[10,16] = round(mean(ESPN$TotalValue[ which(ESPN$Year == 2020 & ESPN$Team == "Cubs" & ESPN$Years != "") ], na.rm = TRUE), digits = 3)
-CUBS_TANK_DF[11,16] = round(mean(ESPN$TotalValue[ which(ESPN$Year == 2021 & ESPN$Team == "Cubs" & ESPN$Years != "") ], na.rm = TRUE), digits = 3)
-
-LG_TANK_DF[1,16] = round(mean(LEAGUE_ESPN_SUB$TotalValue[ which(LEAGUE_ESPN_SUB$Year == 2011 & LEAGUE_ESPN_SUB$Years != "") ], na.rm = TRUE), digits = 3)
-LG_TANK_DF[2,16] = round(mean(LEAGUE_ESPN_SUB$TotalValue[ which(LEAGUE_ESPN_SUB$Year == 2012 & LEAGUE_ESPN_SUB$Years != "") ], na.rm = TRUE), digits = 3)
-LG_TANK_DF[3,16] = round(mean(LEAGUE_ESPN_SUB$TotalValue[ which(LEAGUE_ESPN_SUB$Year == 2013 & LEAGUE_ESPN_SUB$Years != "") ], na.rm = TRUE), digits = 3)
-LG_TANK_DF[4,16] = round(mean(LEAGUE_ESPN_SUB$TotalValue[ which(LEAGUE_ESPN_SUB$Year == 2014 & LEAGUE_ESPN_SUB$Years != "") ], na.rm = TRUE), digits = 3)
-LG_TANK_DF[5,16] = round(mean(LEAGUE_ESPN_SUB$TotalValue[ which(LEAGUE_ESPN_SUB$Year == 2015 & LEAGUE_ESPN_SUB$Years != "") ], na.rm = TRUE), digits = 3)
-LG_TANK_DF[6,16] = round(mean(LEAGUE_ESPN_SUB$TotalValue[ which(LEAGUE_ESPN_SUB$Year == 2016 & LEAGUE_ESPN_SUB$Years != "") ], na.rm = TRUE), digits = 3)
-LG_TANK_DF[7,16] = round(mean(LEAGUE_ESPN_SUB$TotalValue[ which(LEAGUE_ESPN_SUB$Year == 2017 & LEAGUE_ESPN_SUB$Years != "") ], na.rm = TRUE), digits = 3)
-LG_TANK_DF[8,16] = round(median(LEAGUE_ESPN_SUB$TotalValue[ which(LEAGUE_ESPN_SUB$Year == 2018 & LEAGUE_ESPN_SUB$Years != "") ], na.rm = TRUE), digits = 3)
-LG_TANK_DF[9,16] = round(mean(LEAGUE_ESPN_SUB$TotalValue[ which(LEAGUE_ESPN_SUB$Year == 2019 & LEAGUE_ESPN_SUB$Years != "") ], na.rm = TRUE), digits = 3)
-LG_TANK_DF[10,16] = round(mean(LEAGUE_ESPN_SUB$TotalValue[ which(LEAGUE_ESPN_SUB$Year == 2020 & LEAGUE_ESPN_SUB$Years != "") ], na.rm = TRUE), digits = 3)
-LG_TANK_DF[11,16] = round(mean(LEAGUE_ESPN_SUB$TotalValue[ which(LEAGUE_ESPN_SUB$Year == 2021 & LEAGUE_ESPN_SUB$Years != "") ], na.rm = TRUE), digits = 3)
-
-
-## Team bWAR
-ASTROS_TANK_DF[1,17] = round(TeamValALL$WAR[ which(TeamValALL$Tm == "Houston Astros" & TeamValALL$Year == 2011)], digits = 1)
-ASTROS_TANK_DF[2,17] = round(TeamValALL$WAR[ which(TeamValALL$Tm == "Houston Astros" & TeamValALL$Year == 2012)], digits = 1)
-ASTROS_TANK_DF[3,17] = round(TeamValALL$WAR[ which(TeamValALL$Tm == "Houston Astros" & TeamValALL$Year == 2013)], digits = 1)
-ASTROS_TANK_DF[4,17] = round(TeamValALL$WAR[ which(TeamValALL$Tm == "Houston Astros" & TeamValALL$Year == 2014)], digits = 1)
-ASTROS_TANK_DF[5,17] = round(TeamValALL$WAR[ which(TeamValALL$Tm == "Houston Astros" & TeamValALL$Year == 2015)], digits = 1)
-ASTROS_TANK_DF[6,17] = round(TeamValALL$WAR[ which(TeamValALL$Tm == "Houston Astros" & TeamValALL$Year == 2016)], digits = 1)
-ASTROS_TANK_DF[7,17] = round(TeamValALL$WAR[ which(TeamValALL$Tm == "Houston Astros" & TeamValALL$Year == 2017)], digits = 1)
-ASTROS_TANK_DF[8,17] = round(TeamValALL$WAR[ which(TeamValALL$Tm == "Houston Astros" & TeamValALL$Year == 2018)], digits = 1)
-ASTROS_TANK_DF[9,17] = round(TeamValALL$WAR[ which(TeamValALL$Tm == "Houston Astros" & TeamValALL$Year == 2019)], digits = 1)
-ASTROS_TANK_DF[10,17] = round(TeamValALL$WAR[ which(TeamValALL$Tm == "Houston Astros" & TeamValALL$Year == 2020)], digits = 1)
-ASTROS_TANK_DF[11,17] = round(TeamValALL$WAR[ which(TeamValALL$Tm == "Houston Astros" & TeamValALL$Year == 2021)], digits = 1)
-
-CUBS_TANK_DF[1,17] = round(TeamValALL$WAR[ which(TeamValALL$Tm == "Chicago Cubs" & TeamValALL$Year == 2011)], digits = 1)
-CUBS_TANK_DF[2,17] = round(TeamValALL$WAR[ which(TeamValALL$Tm == "Chicago Cubs" & TeamValALL$Year == 2012)], digits = 1)
-CUBS_TANK_DF[3,17] = round(TeamValALL$WAR[ which(TeamValALL$Tm == "Chicago Cubs" & TeamValALL$Year == 2013)], digits = 1)
-CUBS_TANK_DF[4,17] = round(TeamValALL$WAR[ which(TeamValALL$Tm == "Chicago Cubs" & TeamValALL$Year == 2014)], digits = 1)
-CUBS_TANK_DF[5,17] = round(TeamValALL$WAR[ which(TeamValALL$Tm == "Chicago Cubs" & TeamValALL$Year == 2015)], digits = 1)
-CUBS_TANK_DF[6,17] = round(TeamValALL$WAR[ which(TeamValALL$Tm == "Chicago Cubs" & TeamValALL$Year == 2016)], digits = 1)
-CUBS_TANK_DF[7,17] = round(TeamValALL$WAR[ which(TeamValALL$Tm == "Chicago Cubs" & TeamValALL$Year == 2017)], digits = 1)
-CUBS_TANK_DF[8,17] = round(TeamValALL$WAR[ which(TeamValALL$Tm == "Chicago Cubs" & TeamValALL$Year == 2018)], digits = 1)
-CUBS_TANK_DF[9,17] = round(TeamValALL$WAR[ which(TeamValALL$Tm == "Chicago Cubs" & TeamValALL$Year == 2019)], digits = 1)
-CUBS_TANK_DF[10,17] = round(TeamValALL$WAR[ which(TeamValALL$Tm == "Chicago Cubs" & TeamValALL$Year == 2020)], digits = 1)
-CUBS_TANK_DF[11,17] = round(TeamValALL$WAR[ which(TeamValALL$Tm == "Chicago Cubs" & TeamValALL$Year == 2021)], digits = 1)
-
-LG_TANK_DF[1,17] = round(median(LEAGUE_VAL_SUB$WAR[ which(LEAGUE_VAL_SUB$Year == 2011) ]), digits = 1)
-LG_TANK_DF[2,17] = round(median(LEAGUE_VAL_SUB$WAR[ which(LEAGUE_VAL_SUB$Year == 2012) ]), digits = 1)
-LG_TANK_DF[3,17] = round(median(LEAGUE_VAL_SUB$WAR[ which(LEAGUE_VAL_SUB$Year == 2013) ]), digits = 1)
-LG_TANK_DF[4,17] = round(median(LEAGUE_VAL_SUB$WAR[ which(LEAGUE_VAL_SUB$Year == 2014) ]), digits = 1)
-LG_TANK_DF[5,17] = round(median(LEAGUE_VAL_SUB$WAR[ which(LEAGUE_VAL_SUB$Year == 2015) ]), digits = 1)
-LG_TANK_DF[6,17] = round(median(LEAGUE_VAL_SUB$WAR[ which(LEAGUE_VAL_SUB$Year == 2016) ]), digits = 1)
-LG_TANK_DF[7,17] = round(median(LEAGUE_VAL_SUB$WAR[ which(LEAGUE_VAL_SUB$Year == 2017) ]), digits = 1)
-LG_TANK_DF[8,17] = round(median(LEAGUE_VAL_SUB$WAR[ which(LEAGUE_VAL_SUB$Year == 2018) ]), digits = 1)
-LG_TANK_DF[9,17] = round(median(LEAGUE_VAL_SUB$WAR[ which(LEAGUE_VAL_SUB$Year == 2019) ]), digits = 1)
-LG_TANK_DF[10,17] = round(median(LEAGUE_VAL_SUB$WAR[ which(LEAGUE_VAL_SUB$Year == 2020) ]), digits = 1)
-LG_TANK_DF[11,17] = round(median(LEAGUE_VAL_SUB$WAR[ which(LEAGUE_VAL_SUB$Year == 2021) ]), digits = 1)
-
-## Team Sal (payroll)
-ASTROS_TANK_DF[1,18] = round(TeamValALL$Salary[ which(TeamValALL$Tm == "Houston Astros" & TeamValALL$Year == 2011)], digits = 3)
-ASTROS_TANK_DF[2,18] = round(TeamValALL$Salary[ which(TeamValALL$Tm == "Houston Astros" & TeamValALL$Year == 2012)], digits = 3)
-ASTROS_TANK_DF[3,18] = round(TeamValALL$Salary[ which(TeamValALL$Tm == "Houston Astros" & TeamValALL$Year == 2013)], digits = 3)
-ASTROS_TANK_DF[4,18] = round(TeamValALL$Salary[ which(TeamValALL$Tm == "Houston Astros" & TeamValALL$Year == 2014)], digits = 3)
-ASTROS_TANK_DF[5,18] = round(TeamValALL$Salary[ which(TeamValALL$Tm == "Houston Astros" & TeamValALL$Year == 2015)], digits = 3)
-ASTROS_TANK_DF[6,18] = round(TeamValALL$Salary[ which(TeamValALL$Tm == "Houston Astros" & TeamValALL$Year == 2016)], digits = 3)
-ASTROS_TANK_DF[7,18] = round(TeamValALL$Salary[ which(TeamValALL$Tm == "Houston Astros" & TeamValALL$Year == 2017)], digits = 3)
-ASTROS_TANK_DF[8,18] = round(TeamValALL$Salary[ which(TeamValALL$Tm == "Houston Astros" & TeamValALL$Year == 2018)], digits = 3)
-ASTROS_TANK_DF[9,18] = round(TeamValALL$Salary[ which(TeamValALL$Tm == "Houston Astros" & TeamValALL$Year == 2019)], digits = 3)
-ASTROS_TANK_DF[10,18] = round(TeamValALL$Salary[ which(TeamValALL$Tm == "Houston Astros" & TeamValALL$Year == 2020)], digits = 3)
-ASTROS_TANK_DF[11,18] = round(TeamValALL$Salary[ which(TeamValALL$Tm == "Houston Astros" & TeamValALL$Year == 2021)], digits = 3)
-
-CUBS_TANK_DF[1,18] = round(TeamValALL$Salary[ which(TeamValALL$Tm == "Chicago Cubs" & TeamValALL$Year == 2011)], digits = 3)
-CUBS_TANK_DF[2,18] = round(TeamValALL$Salary[ which(TeamValALL$Tm == "Chicago Cubs" & TeamValALL$Year == 2012)], digits = 3)
-CUBS_TANK_DF[3,18] = round(TeamValALL$Salary[ which(TeamValALL$Tm == "Chicago Cubs" & TeamValALL$Year == 2013)], digits = 3)
-CUBS_TANK_DF[4,18] = round(TeamValALL$Salary[ which(TeamValALL$Tm == "Chicago Cubs" & TeamValALL$Year == 2014)], digits = 3)
-CUBS_TANK_DF[5,18] = round(TeamValALL$Salary[ which(TeamValALL$Tm == "Chicago Cubs" & TeamValALL$Year == 2015)], digits = 3)
-CUBS_TANK_DF[6,18] = round(TeamValALL$Salary[ which(TeamValALL$Tm == "Chicago Cubs" & TeamValALL$Year == 2016)], digits = 3)
-CUBS_TANK_DF[7,18] = round(TeamValALL$Salary[ which(TeamValALL$Tm == "Chicago Cubs" & TeamValALL$Year == 2017)], digits = 3)
-CUBS_TANK_DF[8,18] = round(TeamValALL$Salary[ which(TeamValALL$Tm == "Chicago Cubs" & TeamValALL$Year == 2018)], digits = 3)
-CUBS_TANK_DF[9,18] = round(TeamValALL$Salary[ which(TeamValALL$Tm == "Chicago Cubs" & TeamValALL$Year == 2019)], digits = 3)
-CUBS_TANK_DF[10,18] = round(TeamValALL$Salary[ which(TeamValALL$Tm == "Chicago Cubs" & TeamValALL$Year == 2020)], digits = 3)
-CUBS_TANK_DF[11,18] = round(TeamValALL$Salary[ which(TeamValALL$Tm == "Chicago Cubs" & TeamValALL$Year == 2021)], digits = 3)
-
-LG_TANK_DF[1,18] = round(median(LEAGUE_VAL_SUB$Salary[ which(LEAGUE_VAL_SUB$Year == 2011)]), digits = 3)
-LG_TANK_DF[2,18] = round(median(LEAGUE_VAL_SUB$Salary[ which(LEAGUE_VAL_SUB$Year == 2012)]), digits = 3)
-LG_TANK_DF[3,18] = round(median(LEAGUE_VAL_SUB$Salary[ which(LEAGUE_VAL_SUB$Year == 2013)]), digits = 3)
-LG_TANK_DF[4,18] = round(median(LEAGUE_VAL_SUB$Salary[ which(LEAGUE_VAL_SUB$Year == 2014)]), digits = 3)
-LG_TANK_DF[5,18] = round(median(LEAGUE_VAL_SUB$Salary[ which(LEAGUE_VAL_SUB$Year == 2015)]), digits = 3)
-LG_TANK_DF[6,18] = round(median(LEAGUE_VAL_SUB$Salary[ which(LEAGUE_VAL_SUB$Year == 2016)]), digits = 3)
-LG_TANK_DF[7,18] = round(median(LEAGUE_VAL_SUB$Salary[ which(LEAGUE_VAL_SUB$Year == 2017)]), digits = 3)
-LG_TANK_DF[8,18] = round(median(LEAGUE_VAL_SUB$Salary[ which(LEAGUE_VAL_SUB$Year == 2018)]), digits = 3)
-LG_TANK_DF[9,18] = round(median(LEAGUE_VAL_SUB$Salary[ which(LEAGUE_VAL_SUB$Year == 2019)]), digits = 3)
-LG_TANK_DF[10,18] = round(median(LEAGUE_VAL_SUB$Salary[ which(LEAGUE_VAL_SUB$Year == 2020)]), digits = 3)
-LG_TANK_DF[11,18] = round(median(LEAGUE_VAL_SUB$Salary[ which(LEAGUE_VAL_SUB$Year == 2021)]), digits = 3)
-
 ```
 
 Add career bWAR of draftees to the dfs
@@ -2581,7 +2461,7 @@ Add career bWAR of draftees to the dfs
 ASTROS_TANK_DF = ASTROS_CUBS_DRAFT_SUB %>%
   group_by(Year) %>%
   filter(Tm == "Houston Astros") %>%
-  summarize(Draft_Class_Career_WAR = sum(`Career WAR`, na.rm = T)) %>%
+  summarize(Draft_Class_Career_WAR = sum(Career_bWAR, na.rm = T)) %>%
   select(Draft_Class_Career_WAR) %>%
   bind_cols(ASTROS_TANK_DF)
 ASTROS_TANK_DF = ASTROS_TANK_DF %>%
@@ -2590,7 +2470,7 @@ ASTROS_TANK_DF = ASTROS_TANK_DF %>%
 CUBS_TANK_DF = ASTROS_CUBS_DRAFT_SUB %>%
   group_by(Year) %>%
   filter(Tm == "Chicago Cubs") %>%
-  summarize(Draft_Class_Career_WAR = sum(`Career WAR`, na.rm = T)) %>%
+  summarize(Draft_Class_Career_WAR = sum(Career_bWAR, na.rm = T)) %>%
   select(Draft_Class_Career_WAR) %>%
   bind_cols(CUBS_TANK_DF)
 CUBS_TANK_DF = CUBS_TANK_DF %>%
@@ -2598,7 +2478,7 @@ CUBS_TANK_DF = CUBS_TANK_DF %>%
 
 LG_TANK_DF = LEAGUE_DRAFT_SUB %>%
   group_by(Year) %>%
-  summarize(Draft_Class_Career_WAR = sum(`Career WAR`, na.rm = T)/28) %>%
+  summarize(Draft_Class_Career_WAR = sum(Career_bWAR, na.rm = T)/28) %>%
   select(Draft_Class_Career_WAR) %>%
   bind_cols(LG_TANK_DF)
 LG_TANK_DF = LG_TANK_DF %>%
