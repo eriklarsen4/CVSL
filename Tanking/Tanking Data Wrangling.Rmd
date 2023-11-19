@@ -4,22 +4,32 @@ author: "Erik Larsen"
 date: "4/23/2022"
 output:
   html_document:
-    toc: true
+    toc: yes
     toc_float:
-      collapsed: true
-    numbered_sections: true
+      collapsed: yes
+    numbered_sections: yes
     code_folding: hide
 ---
 
 # Overview
 
-This snippet was used in my article (currently under review) on [TheLeftyCatcher](https://www.theleftycatcher.com), where I compared and contrasted how `Jeff Luhnow` and `Theo Epstein` tanked to rebuild the `Chicago Cubs` and `Houston Astros`, beginning in ~2011 into World Series winners.
+This snippet was used in [my article](https://www.theleftycatcher.com/post/diving-deep-into-tanking) on [TheLeftyCatcher](https://www.theleftycatcher.com), where I compared and contrasted how `Jeff Luhnow` and `Theo Epstein` tanked to rebuild the `Chicago Cubs` and `Houston Astros` into World Series winners.
 
-I acquired `MLB Free Agent` data, `MLB Amateur Draft` data, `International Signing` data, `MLB Standings` data, `MLB Payroll` data, and "`MLB Value`" data. I scraped or downloaded this data from multiple sites, including `Baseball Reference`, `ESPN`, and `Baseball Almanac`. It required some processing to compile and analyze with or without graphs.
 
-Subsequent pieces and snippets will revolve around this data.
+I scraped:
 
-The functions used are sourced from (this)[] file.
+  + `MLB Free Agent` data (ESPN)
+  + `MLB Amateur Draft` data (Baseball Almanac)
+  + `International Signing` data (Spotrac)
+  + `MLB Standings` data (Baseball Reference)
+  + `MLB Payroll` data (Baseball Referencee)
+  + "`MLB Value`" data (Baseball Reference)
+  
+It required some processing to compile and analyze with or without graphs
+
+The functions used are sourced from [this](https://github.com/eriklarsen4/Baseball/blob/main/Tanking/Tanking%20Functions.R) file
+
+I created a [separate markdown file for the graphs](https://github.com/eriklarsen4/Baseball/blob/main/Tanking/Tanking-Graphs.md)
 
 # Environment Prep {.tabset .tabset-pills .tabset-fade}
 
@@ -30,10 +40,10 @@ Load packages and functions
 ```{r Load packages, include = T, warning = F, message = F, echo = T}
   ## Data wrangling; df re-arrangement, string manipulations
 library(readr)
-library(reshape2)
+# library(reshape2)
 library(tidyverse)
 library(stringr)
-library(stringi)
+# library(stringi)
 
   ## Web scraping
 library(rvest)
@@ -42,7 +52,7 @@ library(XML)
   ## Plotting
 library(ggplot2)
 library(ggrepel)
-library(GGally)
+# library(GGally)
 library(ggpubr)
 library(plotly)
 
@@ -50,21 +60,29 @@ library(plotly)
 library(mgcv)
 library(splines)
 
+## showing tables
+library(DT)
+
 source("~/GitHub/Baseball/Tanking/Tanking Functions.R")
+```
+
+```{r Import Environment, eval = T, include = T, message = F, warning = F, echo = F}
+load("~/GitHub/Baseball/Tanking/WranglingEnvironment.RData")
 ```
 
 # Baseball Reference Standings Data {.tabset .tabset-pills .tabset-fade}
 
-Import `Baseball Reference`'s `Standings` data over relevant years
+Import `Baseball Reference`'s `Standings` data over relevant years (`2011`-`2021`)
 
 ## Scrape and Clean Baseball Reference Standings Data
 
-```{r Scrape standings data from Baseball Reference, include = T, message = F, warning = F, echo = T}
+```{r Scrape standings data from Baseball Reference, eval = F, include = T, message = F, warning = F, echo = T}
   ## Loop through and import the standings from 2011-2021
 for ( i in 11:21 ) {
   if (i %% 17 == 0 ) {
     
     Sys.sleep(60)
+    BR_STAND_IMPORT_fn(Year = i)
     
   } else {
     
@@ -86,13 +104,11 @@ rm(list = ls()[which(grepl(ls(), pattern = "Standings") == T)])
 
 # Baseball Reference Player Value Data {.tabset .tabset-pills .tabset-fade}
 
-Import `BBRef`'s `player value` data, originally scraped from `BBRef`
+Scrape `BBRef`'s `player value` data
 
-## Import "player value" Data from `Baseball Reference`
+## Scrape "player value" Data from `Baseball Reference`
 
-Import the data from Git repo
-
-```{r Import Player Value Data from BBRef, include = T, warning = F, message = F, echo = T}
+```{r Import Player Value Data from BBRef, eval = F, include = T, warning = F, message = F, echo = T}
 
 # rm(list = ls()[which(grepl(ls(), pattern = "Player_Value") == T)])
 
@@ -132,18 +148,22 @@ Clean the data:
 
 + names in these tables scraped from `Baseball Reference` are encoded differently from the `CHADWICK DB` and cannot be coerced for joining
 
-+ scraped data in these tables do not contain `Baseball Reference` playerids
++ scraped data in these tables do not contain `Baseball Reference` `playerid`s
 
-  + add playerids from the `CHADWICK DB` in order to scrape individual player pages
+  + add `playerid`s from the `CHADWICK DB` in order to scrape individual player pages
     to account for players that changed teams within a given season
 
-```{r Join BBRef data and correct columns, include = T, warning = F, message = F, echo = T}
+```{r Join BBRef data and correct columns, eval = F, include = T, warning = F, message = F, echo = T}
   ## Combine the each data "type" into one df
-Player_Value_Batting_ALL = purrr::reduce(mget(ls()[which(grepl(ls(), pattern = "Value_batting") == T)]), full_join)
+Player_Value_Batting_ALL = purrr::reduce(mget(ls()[which(grepl(ls(),
+                                                               pattern = "Value_batting") == T)]),
+                                         full_join)
 
 # Player_Value_pitching_2021 = Player_Value_pitching_2021 %>%
 #   dplyr::select(-RA9extras)
-Player_Value_Pitching_ALL = purrr::reduce(mget(ls()[which(grepl(ls(), pattern = "Value_pitching") == T)]), full_join)
+Player_Value_Pitching_ALL = purrr::reduce(mget(ls()[which(grepl(ls(),
+                                                                pattern = "Value_pitching") == T)]),
+                                          full_join)
   ## remove individual (yearly) dfs
 rm(list = ls()[which(grepl(ls(), pattern = "batting_2|pitching_2") == T)])
 
@@ -181,18 +201,24 @@ CHAD_LU = CHAD_LU %>%
                 key_retro,
                 contains("mlb_played"))
 
-## because of encoding discrepancies, will need to loop through and assign bbref ids and last initials for each player in the dataset
+## because of encoding discrepancies
+  ## will need to loop through and assign bbref ids and last initials for each player in the dataset
+  
   ## function created for this
     ## used to enable scraping individual bbref pages (for when players changed teams in this project)
-Player_Value_Batting_ALL = ID_ADD_fn(df = Player_Value_Batting_ALL, player_type = "hitters", site_abbrev = "bbref")
+Player_Value_Batting_ALL = ID_ADD_fn(df = Player_Value_Batting_ALL,
+                                     player_type = "hitters",
+                                     site_abbrev = "bbref")
 
-Player_Value_Pitching_ALL = ID_ADD_fn(df = Player_Value_Pitching_ALL, player_type = "pitchers", site_abbrev = "bbref")
+Player_Value_Pitching_ALL = ID_ADD_fn(df = Player_Value_Pitching_ALL,
+                                      player_type = "pitchers",
+                                      site_abbrev = "bbref")
 
 ```
 
 Correct hitter name spellings and IDs (not shown)
 
-```{r Correct hitter name spellings and ids, eval = T, include = T, warning = F, message = F, echo = F}
+```{r Correct hitter name spellings and ids, eval = F, include = T, warning = F, message = F, echo = F}
 
 ## correct names that impacted ids and last name initials
   ## -> all juniors, players with accents, or different first names between CHAD and bbref
@@ -438,7 +464,7 @@ Player_Value_Batting_ALL = Player_Value_Batting_ALL %>%
 
 Repeat for pitchers and remove hitters from the data frame (not shown)
 
-```{r Correct pitcher name spellings and ids 2, eval = T, include = T, message = F, warning = F, echo = F}
+```{r Correct pitcher name spellings and ids 2, eval = F, include = T, message = F, warning = F, echo = F}
 
 Player_Value_Pitching_ALL = Player_Value_Pitching_ALL %>%
   
@@ -1010,7 +1036,7 @@ Player_Value_Batting_ALL = Player_Value_Batting_ALL %>%
 
 + Aggregate the player value data to obtain `Player-Year-level` `bWAR` and `Salaries`
 
-```{r Summarize the data, include = T, warning = F, echo = T, message = F}
+```{r Summarize Player Career data, eval = F, include = T, warning = F, echo = T, message = F}
 
 CAREER_hitter_WAR_df = Player_Value_Batting_ALL %>%
   dplyr::group_by(Name, bbref_id) %>%
@@ -1060,7 +1086,7 @@ Acquire team salary data
 
 ## Scrape and Clean Team Salary/Payroll data 
 
-```{r Scrape team bWAR and salary/payroll data from Baseball Reference, include = T, warning = F, echo = T, message = F}
+```{r Scrape team bWAR and salary/payroll data from Baseball Reference, eval = F, include = T, warning = F, echo = T, message = F}
   ## Loop through the relevant years and import the tables as dataframes
 for ( i in 11:21 ){
   if (i %% 17 == 0 ) {
@@ -1184,7 +1210,7 @@ Player_Value_Batting_ALL = Player_Value_Batting_ALL %>%
   dplyr::mutate(Positions = batPositions)
 ```
 
-```{r Identify players who changed teams, include = T, warning = F, echo = T, message = F}
+```{r Identify players who changed teams, eval = F, include = T, warning = F, echo = T, message = F}
 
 Team_Changers_hitters = Player_Value_Batting_ALL %>%
   dplyr::filter(grepl(Tm, pattern = "TM")) %>%
@@ -1206,7 +1232,7 @@ Team_Changers_pitchers = Player_Value_Pitching_ALL %>%
   
   + aggregate the data
 
-```{r Scrape Individual hitters pages, include = T, message = F, warning = F, echo = T}
+```{r Scrape Individual hitters pages, eval = F, include = F, message = F, warning = F, echo = T}
 
 for (i in 1:nrow(Team_Changers_hitters)){
   if (i %% 17 == 0) {
@@ -1263,7 +1289,7 @@ Team_Changers_hitters = Team_Changers_hitters %>%
 
   + repeat for pitchers
   
-```{r Scrape Individual pitchers pages, include = T, message = F, warning = F, echo = T}
+```{r Scrape Individual pitchers pages, eval = F, include = F, message = F, warning = F, echo = T}
 
 for (i in 1:nrow(Team_Changers_pitchers)){
   if (i %% 17 == 0) {
@@ -1322,7 +1348,7 @@ Team_Changers_pitchers = Team_Changers_pitchers %>%
 
 + **positive salary change = adding payroll**
 
-```{r Combine the changers data, include = T, message = F, warning = F, echo = T}
+```{r Combine the changers data, eval = F, include = F, message = F, warning = F, echo = T}
   ## join all hitters and pitchers who changed teams
 Team_Transactions_ALL = Team_Changers_hitters %>%
   full_join(Team_Changers_pitchers)
@@ -1358,7 +1384,7 @@ Team_Transactions_Sum %>%
 
 + Join the `Team_Transactions_Sum` df to the `TeamBatALL`, `TeamPitALL` dfs and summarize
 
-```{r Add Team Abbrevs, include = T, message = F, warning = F, echo = F}
+```{r Add Team Abbrevs to Team Hitting Data, eval = T, include = T, message = F, warning = F, echo = F}
 
 ## add a column to the TeamBat and TeamPIT dfs for joining by name
 TeamBatALL = TeamBatALL %>%
@@ -1397,7 +1423,7 @@ TeamBatALL = TeamBatALL %>%
   dplyr::select(-G)
 ```
 
-```{r Add Team Abbrevs, include = T, message = F, warning = F, echo = F}
+```{r Add Team Abbrevs to Team Pitching Data, eval = T, include = T, message = F, warning = F, echo = F}
 TeamPitALL = TeamPitALL %>%
   dplyr::mutate(Team = Tm, .before = 1) %>%
   dplyr::mutate(Type = "Pit") %>%
@@ -1433,17 +1459,22 @@ TeamPitALL = TeamPitALL %>%
                                grepl(Team, pattern = "Wash") ~ "WSN"))
 ```
 
-```{r Join Team Transaction Data to Team Value Data, include = T, message = F, warning = F, echo = T}
+```{r Join Team Transaction Data to Team Value Data, eval = T, include = T, message = F, warning = F, echo = T}
   ## Join with Team Value data and remove extra data
 TeamBatALL = TeamBatALL %>%
   left_join(Team_Transactions_Sum) %>%
-  dplyr::filter(Year != 2020) %>%
-  dplyr::select(Team, Tm, Type, Year, WAR, Salary, Sum_Sal_Change, Sum_Num_Trades, Sum_Num_FAs, Sum_Num_Claims, Sum_Acqs) %>%
+  # dplyr::filter(Year != 2020) %>%
+  dplyr::select(Team, Tm, Type, Year, WAR, Salary,
+                Sum_Sal_Change, Sum_Num_Trades,
+                Sum_Num_FAs, Sum_Num_Claims, Sum_Acqs) %>%
   dplyr::arrange(Sum_Sal_Change)
+
 TeamPitALL = TeamPitALL %>%
   left_join(Team_Transactions_Sum) %>%
-  dplyr::filter(Year != 2020) %>%
-  dplyr::select(Team, Tm, Type, Year, WAR, Salary, Sum_Sal_Change, Sum_Num_Trades, Sum_Num_FAs, Sum_Num_Claims, Sum_Acqs) %>%
+  # dplyr::filter(Year != 2020) %>%
+  dplyr::select(Team, Tm, Type, Year, WAR, Salary,
+                Sum_Sal_Change, Sum_Num_Trades,
+                Sum_Num_FAs, Sum_Num_Claims, Sum_Acqs) %>%
   dplyr::arrange(Sum_Sal_Change)
 
 TeamValALL = TeamBatALL %>%
@@ -1458,7 +1489,9 @@ TeamValALL = TeamBatALL %>%
                    Sum_Num_Claims = mean(Sum_Num_Claims),
                    Sum_Acqs = mean(Sum_Acqs)) %>%
   dplyr::mutate(Net_Salary = Salary + Sum_Sal_Change) %>%
-  dplyr::select(Team, Tm, Year, WAR, Net_Salary, Salary, Sum_Sal_Change, Sum_Num_Trades, Sum_Num_FAs, Sum_Num_Claims, Sum_Acqs)
+  dplyr::select(Team, Tm, Year, WAR,
+                Net_Salary, Salary, Sum_Sal_Change,
+                Sum_Num_Trades, Sum_Num_FAs, Sum_Num_Claims, Sum_Acqs)
 ```
 
 + Join the `TeamValALL` df to the `StandALL` df
@@ -1475,7 +1508,7 @@ TeamValALL = StandALL %>%
 
 ## MLers from ESPN
 
-```{r Scrape and clean Free-Agent data from ESPN, include = TRUE, warning = FALSE, echo = TRUE, message = FALSE}
+```{r Scrape and clean Free-Agent data from ESPN, include = T, message = F, warning = F, echo = T}
   ## Create a variable for a selector
 ESPN_selector = "#my-players-table"
   ## Loop through and import the data for the relevant time-frame
@@ -1495,7 +1528,7 @@ rm(list = ls()[which(grepl(ls(), pattern = "ESPN_FA_2") == T)])
 
 ## Scrape and Clean International Signing Data from Spotrac
 
-```{r Scrape and clean Intl Signing Data from Spotrac, include = TRUE, warning = FALSE, echo = TRUE, message = FALSE}
+```{r Scrape and clean Intl Signing Data from Spotrac, include = T, message = F, warning = F, echo = T}
   ## Loop through the scraping function by the relevant years
 for ( i in 11:21 ) {
   Spotrac_Intl_import_fn(Year = i, spotrac_selector = spotrac_Intl_selector)
@@ -1506,14 +1539,12 @@ IntlALL = purrr::reduce(mget(ls()[which(grepl(ls(), pattern = "Intl_Signings_2")
 rm(list = ls()[which(grepl(ls(), pattern = "Intl_Signings_2") == T)])
 ```
 
-## Save Data
-
-```{r Save data, include = T, message = F, warning = F, echo = T}
+```{r Save data, include = T, message = F, warning = F, echo = F}
 rm(
   list = ls()[
     which(grepl(ls(), pattern = "listy|Changing|Team_Changers") == T) ]
     )
-save.image("~/GitHub/Baseball/Tanking/WranglingEnvironment.RData")
+# save.image("~/GitHub/Baseball/Tanking/WranglingEnvironment.RData")
 ```
 
 # Amateur Draft Data {.tabset .tabset-pills .tabset-fade}
@@ -1524,7 +1555,7 @@ Scrape amateur draft data from `Baseball Almanac`
 
 Data is rife with errors, so clean it up
 
-```{r Scrape and Clean Amateur draft data, include = T, message = F, warning = F, echo = T}
+```{r Scrape and Clean Amateur draft data, eval = T, include = T, message = F, warning = F, echo = T}
   ## set the selector
 almanac_selector = "#wrapper > div.container > div.ba-table > table"
   ## Loop through and scrape the data starting from Epstein and Luhnow hires with Cubs/Astros (2011) to present
@@ -2056,9 +2087,9 @@ LEAGUE_DRAFT_SUB = LEAGUE_DRAFT_SUB %>%
                 
 ```
 
-# Plotting {.tabset .tabset-pills .tabset-fade}
+# Data Summaries {.tabset .tabset-pills .tabset-fade}
 
-## Create and Populate DFs for Plotting
+## Create and Populate Draft Approach DFs
 
 Create dfs
 
@@ -2069,7 +2100,9 @@ Create dfs
 ASTROS_CUBS_DRAFT_SUB = ASTROS_CUBS_DRAFT_SUB %>%
   dplyr::select(-key_bbref) %>%
   left_join(CAREER_WAR_df, by = "bbref_id") %>%
-  dplyr::select(-name_last, -name_first, -name_first, -name_given, -name_suffix, -name_matrilineal, -name_nick, -contains("key"), -contains("played")) %>%
+  dplyr::select(-name_last, -name_first, -name_first,
+                -name_given, -name_suffix, -name_matrilineal, -name_nick,
+                -contains("key"), -contains("played")) %>%
   dplyr::mutate(Name = Name.x, .after = 7) %>%
   dplyr::select(-Name.x, -Name.y)
 
@@ -2082,7 +2115,9 @@ ASTROS_CUBS_DRAFT_SUB %>%
 LEAGUE_DRAFT_SUB = LEAGUE_DRAFT_SUB %>%
   dplyr::select(-key_bbref) %>%
   left_join(CAREER_WAR_df, by = "bbref_id") %>%
-  dplyr::select(-name_last, -name_first, -name_first, -name_given, -name_suffix, -name_matrilineal, -name_nick, -contains("key"), -contains("played")) %>%
+  dplyr::select(-name_last, -name_first, -name_first,
+                -name_given, -name_suffix, -name_matrilineal, -name_nick,
+                -contains("key"), -contains("played")) %>%
   dplyr::mutate(Name = Name.x, .after = 7) %>%
   dplyr::select(-Name.x, -Name.y)
 
@@ -2133,12 +2168,14 @@ for(i in 1:nrow(ASTROS_TANK_DF)){
 }
 
   ## Fill Win %
-ASTROS_TANK_DF[-c(which(ASTROS_TANK_DF$Year == 2020)),2] = StandALL$`W-L%`[ which(StandALL$Tm == "Houston Astros") ]
-CUBS_TANK_DF[-c(which(CUBS_TANK_DF$Year == 2020)),2] = StandALL$`W-L%`[ which(StandALL$Tm == "Chicago Cubs") ]
+ASTROS_TANK_DF[ ,2] = StandALL$`W-L%`[ which(StandALL$Tm == "Houston Astros") ]
+CUBS_TANK_DF[ ,2] = StandALL$`W-L%`[ which(StandALL$Tm == "Chicago Cubs") ]
 LG_TANK_DF$`Win%` = 0.500
 ```
 
-Fill `# Top 5 picks` (shown) and remaining columns (not shown)
++ Fill `# Top 5 picks` column (shown)
+
++ fill remaining columns (not shown)
 
 ```{r TANK DF filling draft picks 2, include = T, message = F, warning = F, echo = T}
 
@@ -2455,7 +2492,13 @@ LG_TANK_DF[,10] = round((LG_TANK_DF[,6] / LG_TANK_DF[,7])*100, digits = 2)
 
 ```
 
-Add `Career bWAR` of draftees to the dfs
++ Add `Career bWAR` of draftees to the dfs
+
++ Add the `WARPM` metric
+
++ join the dfs together
+
++ show the table
 
 ```{r Merge TANK DFs, include = T, message = F, warning = F, echo = T}
 ## Add Career WAR of draftees
@@ -2499,35 +2542,57 @@ ASTROS_TANK_DF$Tm = "Houston Astros"
 CUBS_TANK_DF$Tm = "Chicago Cubs"
 LG_TANK_DF$Tm = "LeagueAVG"
 TANK_DF = rbind.data.frame(ASTROS_TANK_DF, CUBS_TANK_DF, LG_TANK_DF)
+
+TANK_DF = TANK_DF %>%
+  dplyr::select(Tm, Year, `Win%`, `# Top 5 picks`, `# SS Drafted`,
+                `# P Drafted`, `# College Draftees`, `# Draft Picks`,
+                `SS %`, `P %`, `College %`, `# Int'l Signings`,
+                `Int'l Signing Money Spent`, `# FA Contracts`, `Mean FA AAV`,
+                `Mean FA Length`, `Mean FA Total Value`, `Team bWAR`,
+                `Team payroll`, `Draft_Class_Career_WAR`, `WARPM`)
 ```
 
-## Create and Clean the df for Tankers
+```{r Show the Tank Draft table, include = T, message = F, warning = F, echo = F}
+DT::datatable(TANK_DF)
+```
 
-```{r REBUILDERS_df and plotly creation, include = TRUE, warning = FALSE, echo = TRUE, message = FALSE}
+## Create and Clean the Team Performance and Salary DFs
+
++ Aggregate the `Team Performance/Value df`
+
+  - filter as described in the article
+  
+  - show the table, sorted by the largest in-season payroll cuts
+
+```{r REBUILDERS_df and plotly creation, include = T, message = F, warning = F, echo = T, render = T}
+
+  ## Remove the Red Sox, Indians/Guardians, Brewers, Mets, Giants, Tigers, Rays, Jays, Phillies
+
 REBUILDERS_df = TeamValALL %>%
-  group_by(`Tm`, Year) %>%
-  filter(L >= 92)
+  dplyr::filter(L >= 92) %>%
+  dplyr::mutate(GB = as.double(GB)) %>%
+  dplyr::arrange(Year) %>%
+  dplyr::slice(-c(9,10,19,22,26,29,36,40,47,53,54))
 
-  ## Remove the Red Sox, Indians/Guardians, Brewers, Mets, Giants, Rays, Jays, Nats (idx = 5, 7, 23, 35, 40, 30, 52, 58)
-REBUILDERS_df = REBUILDERS_df[ -c(5, 7, 23, 35, 40, 30, 52, 58), ]
+## Re-arrange for display
+Printable_REBUILD = REBUILDERS_df %>%
+  dplyr::rename(`MLB Trades Made` = Sum_Num_Trades,
+                `FA Signings` = Sum_Num_FAs,
+                `Waiver Claims` = Sum_Num_Claims,
+                `Total Acquisitions` = Sum_Acqs,
+                `Payroll (in M $US)` = Salary,
+                `Payroll Change (in M $US)` = Sum_Sal_Change,
+                `Net Payroll (in M $US)` = Net_Salary,
+                bWAR = WAR) %>%
+  # dplyr::slice(-c(4,5,7:11,13:16,20:27,31:38,41,42,45,46)) %>%
+  dplyr::select(Team, Year, W, L, `W-L%`,
+                GB, DivRank, `MLB Trades Made`,
+                `FA Signings`, `Waiver Claims`,
+                `Total Acquisitions`,
+                bWAR, `Payroll (in M $US)`, `Payroll Change (in M $US)`, `Net Payroll (in M $US)`) %>%
+  dplyr::arrange(`Payroll Change (in M $US)`)
 
-REBUILDERS_df = REBUILDERS_df %>%
-  group_by(`Tm`, Year) %>%
-  arrange(`Tm`, Year) %>%
-  ungroup()
-
-REBUILDERS_df$GB = as.double(REBUILDERS_df$GB)
-colnames(REBUILDERS_df)[c(8:13)] = c("MLB Trades Made", "FA Signings", "Minors Callups", "Payroll Sum", "bWAR", "Payroll (in M $US)")
-head(REBUILDERS_df[c(4,5,7:11,13:16,20:27,31:38,41,42,45,46,52:54),-11])
-
-  ## Remove non-qualifiers
-Printable_REBUILD = REBUILDERS_df[c(4,5,7:11,13:16,20:27,31:38,41,42,45,46),-11]
-
-  ## Re-arrange for display
-Printable_REBUILD = Printable_REBUILD %>%
-  select(`Tm`, Year, W, L, W_L, GB, DivRank, `MLB Trades Made`, `FA Signings`, `Minors Callups`, bWAR, `Payroll (in M $US)`)
-
-  ## For plotting
+  ## For plotting with plotly
 Rebuild_T = plot_ly(
   type = 'table',
   columnwidth = c(rep(20,12)),
@@ -2540,20 +2605,23 @@ Rebuild_T = plot_ly(
     font = list(family = "Times", size = 14, color = "black")
   ),
   cells = list(
-    values = rbind(Printable_REBUILD$Tm,
+    values = rbind(Printable_REBUILD$Team,
                    Printable_REBUILD$Year,
                    Printable_REBUILD$W,
                    Printable_REBUILD$L,
-                   Printable_REBUILD$W_L,
+                   Printable_REBUILD$`W-L%`,
                    Printable_REBUILD$GB,
                    Printable_REBUILD$DivRank,
                    Printable_REBUILD$`MLB Trades Made`,
                    Printable_REBUILD$`FA Signings`,
-                   Printable_REBUILD$`Minors Callups`,
+                   Printable_REBUILD$`Waiver Claims`,
                    Printable_REBUILD$bWAR,
-                   Printable_REBUILD$`Payroll (in M $US)`),
+                   Printable_REBUILD$`Net Payroll (in M $US)`),
     align = c("center", "center"),
     line = list(color = "black", width = 1),
     font = list(family = "Times", size = 12, color = c("black"))
   ))
+
+
+DT::datatable(Printable_REBUILD)
 ```
