@@ -2,27 +2,45 @@
 title: "Tanking Graphs"
 author: "Erik Larsen"
 date: "4/23/2022"
-output: html_document
+output: 
+  html_document:
+    toc: yes
+    toc_float:
+      collapsed: yes
+    numbered_sections: yes
+    code_folding: hide
 ---
 
-This snippet was used to generate the graphs in my article (currently under review) on [TheLeftyCatcher](https://www.theleftycatcher.com), where I compared and contrasted how `Jeff Luhnow` and `Theo Epstein` tanked to rebuild the `Chicago Cubs` and `Houston Astros`, beginning in ~2011 into World Series winners. I acquired `MLB Free Agent` data, `MLB Amateur Draft` data, `International Signing` data, `MLB Standings` data, `MLB Payroll` data, and "`MLB Value`" data. I scraped or downloaded this data from multiple sites, including `Baseball Reference`, `ESPN`, and `Baseball Almanac`. It required some processing to compile and analyze with or without graphs.
+# Overview
 
-The data wrangling script to generate the data used for plotting is located [here](). The global environment is located [here](), and the downloaded data files are located [here]().
+This snippet was used to generate the graphs in [my article](https://www.theleftycatcher.com/post/diving-deep-into-tanking) on [TheLeftyCatcher](https://www.theleftycatcher.com), where I compared and contrasted how `Jeff Luhnow` and `Theo Epstein` tanked to rebuild the `Chicago Cubs` and `Houston Astros` into World Series winners.
+
+To analyze tanking, I acquired:
+
++ `MLB Free Agent` data (via `ESPN`)
+
++ `MLB Amateur Draft` data (via `Baseball Almanac`)
+
++ `International Signing` data (via `Spotrac`)
+
++ `MLB Standings` data, `MLB Payroll` data, and "`MLB Value`" data (via `Baseball Reference`)
 
 
-```{r setup, include = FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-knitr::opts_chunk$set(fig.show = TRUE)
-```
+The data wrangling markdown file to acquire and prepare the data for plotting is located [here](https://github.com/eriklarsen4/Baseball/blob/main/Tanking/Tanking-Data-Wrangling.md).
+
+The global environment is located [here](https://github.com/eriklarsen4/Baseball/blob/main/Tanking/WranglingEnvironment.RData).
+
+# Environment Prep {.tabset .tabset-pills .tabset-fade}
+
 
 ## Load packages
 
-```{r Package loading, include = TRUE, warning = FALSE, echo = TRUE, message = FALSE}
+```{r Package loading, include = T, message = F, warning = F, echo = T}
   ## Data wrangling; df re-arrangement, string manipulations
 library(readr)
-library(reshape2)
+# library(reshape2)
 library(tidyverse)
-library(stringr)
+# library(stringr)
 
   ## Web scraping
 library(rvest)
@@ -31,7 +49,7 @@ library(XML)
   ## Plotting
 library(ggplot2)
 library(ggrepel)
-library(GGally)
+# library(GGally)
 library(ggpubr)
 library(plotly)
 
@@ -42,31 +60,40 @@ library(splines)
 
 ## Load the Tanking Data Wrangling Environment
 
-```{r Load the Tanking Data Wrangling R script Environment, include = TRUE, warning = FALSE, echo = TRUE, message = FALSE}
-load("C://Users//Erik//Desktop//BoxCopy//Programming Scripts and Data//Baseball//Projects//Tanking//tanking2E.RData")
+```{r Load the Tanking Data Wrangling R script Environment, include = T, message = F, warning = F, echo = T}
+load("~/GitHub/Baseball/Tanking/WranglingEnvironment.RData")
 ```
 
-## Build models
+# Build Models {.tabset .tabset-pills .tabset-fade}
 
-Payroll, W%
+## Build the WL% ~ Payroll Model
 
-```{r Build Payroll/W model, include = TRUE, warning = FALSE, echo = TRUE, message = FALSE}
+Model `team win-loss percentage`, using linear regression with `payroll` as the sole predictor
+
+```{r mutate, eval = T, include = F, message = F, warning = F, echo = F}
+TeamValALL = TeamValALL %>%
+  dplyr::mutate(W_L = `W-L%`)
+```
+
+```{r Build Payroll/W model, include = T, message = F, warning = F, echo = T}
 Sal_W_model = lm(W_L~Salary, data = TeamValALL[-which(TeamValALL$Year == 2020), ])
 round(summary(Sal_W_model)$r.squared, digits = 3)
 ```
 
-bWAR, W%
+## Build bWAR ~ W% Model
 
-```{r Build WAR/W% model, include = TRUE, warning = FALSE, echo = TRUE, message = FALSE}
+Model `team win-loss percentage`, using linear regression with `WAR` as the sole predictor
+
+```{r Build WAR/W% model, include = T, message = F, warning = F, echo = T}
 WL_WAR_lm = lm(data = TeamValALL[-which(TeamValALL$Year == 2020),], formula = W_L~WAR)
 summary(WL_WAR_lm)$r.squared
 ```
 
 ## Derive Team Color Codes
 
-Use colors from previous piece on [TheLeftyCatcher.com]()
+Use colors from previous piece on [TheLeftyCatcher.com](https://www.theleftycatcher.com/post/free-agency-spending-trends-in-the-tanking-era)
 
-```{r Color Codes, include = TRUE, warning = FALSE, echo = TRUE, message = FALSE}
+```{r Color Codes, include = T, message = F, warning = F, echo = T}
 color_code = matrix(nrow = 30, ncol = 4)
 color_code = as.data.frame(color_code)
 colnames(color_code) = c("ESPNTeam", "ESPNcolor", "currentTeam", "currentcolor")
@@ -85,12 +112,15 @@ color_code$currentcolor = c("darkred", "firebrick", "darkorange1", "firebrick", 
                             "firebrick3", "navy", "blue", "deepskyblue", "red2")
 ```
 
-## W%s 2011-2021
+# Plot Figure 1 {.tabset .tabset-pills .tabset-fade}
 
-Graph every team's win percentage from 2011-2021, omitting 2020.
-Fit the `Sal_W_model` line
+## Creat ggplot objects
 
-```{r Figure 1, include = TRUE, warning = FALSE, echo = TRUE, message = FALSE, render = TRUE}
+Plot every team's win percentage from 2011-2021, omitting 2020
+
++ Fit the `Sal_W_model` line
+
+```{r Figure 1, include = T, message = F, warning = F, echo = T, render = T}
   ## Graph all W-L %s
 WL = ggplot(data = TeamValALL[-which(TeamValALL$Year == 2020),]) +
   geom_point(aes(x = Salary, y = W_L, color = Tm), size = 4, alpha = 0.7) +
@@ -100,7 +130,8 @@ WL = ggplot(data = TeamValALL[-which(TeamValALL$Year == 2020),]) +
               size = 1) +
   geom_text(x = 380, y = 0.620,
             label = expression(paste(("R")^"2", "= 0.176")), color = "black") +
-  coord_cartesian(xlim = c(17,420), ylim = c(0.3, 0.750)) +
+  coord_cartesian(xlim = c(17,420),
+                  ylim = c(0.3, 0.750)) +
   labs(title = "MLB Team Performance Regression\n2011-2021",
        x = "Team Payroll (in M $US)",
        y = "W-L %",
@@ -121,25 +152,46 @@ WL = ggplot(data = TeamValALL[-which(TeamValALL$Year == 2020),]) +
                                 "goldenrod", "navy", "blue", "navyblue", "forestgreen",
                                 "red", "black", "tan4", "darkorange1", "mediumseagreen",
                                 "firebrick3", "navy", "blue", "deepskyblue", "red2"))
+```
+
+## Render the data
+
+```{r Figure 1 plot, include = T, message = F, warning = F, echo = T, render = T}
 WL
 ```
 
+**Salary isn't predictive of team performance in terms of wins and losses**
 
-## Astros and Cubs W%s, Payrolls, and FA Contracts
+# Plot Figure 2 {.tabset .tabset-pills .tabset-fade}
+
+## Create ggplot objects
 
 Create the ggplot objects
 
 `W%`
 
-```{r Figure 2A, include = TRUE, warning = FALSE, echo = TRUE, message = FALSE}
+```{r Figure 2A, include = T, message = F, warning = F, echo = T}
   ## Graph the Astros and Cubs' W-L %s
-CubsStros_WL = ggplot(data = TANK_DF[-which(TANK_DF$Year == 2020),], aes(x = Year)) +
-  geom_line(aes(y = `Win%`, color = Tm)) +
-  geom_point(aes(y = `Win%`, color = Tm)) +
-  geom_vline(xintercept = 2011.5, linetype = "dashed", color = "firebrick")+
-  geom_text(x = 2014, y = 0.7, label = "Epstein, Luhnow\nHired in Off-Season", color = "firebrick", size = 3) +
-  coord_cartesian(xlim = c(2011,2021), ylim = c(0.280, 0.750)) +
-  labs(title = "Cubs & Astros' W%s\n2011-2021", x = "Season", y = "Win %", color = "Stat") + 
+CubsStros_WL = ggplot(data = TANK_DF[-which(TANK_DF$Year == 2020),],
+                      aes(x = Year)) +
+  geom_line(aes(y = `Win%`,
+                color = Tm)) +
+  geom_point(aes(y = `Win%`,
+                 color = Tm)) +
+  geom_vline(xintercept = 2011.5,
+             linetype = "dashed",
+             color = "firebrick")+
+  geom_text(x = 2014,
+            y = 0.7,
+            label = "Epstein, Luhnow\nHired in Off-Season",
+            color = "firebrick",
+            size = 3) +
+  coord_cartesian(xlim = c(2011,2021),
+                  ylim = c(0.280, 0.750)) +
+  labs(title = "Cubs & Astros' W%s\n2011-2021",
+       x = "Season",
+       y = "Win %",
+       color = "Stat") + 
   scale_x_continuous(breaks = c(seq(2011,2021,1))) +
   theme_bw() +
   theme(plot.title = element_text(hjust = 0.5, size = 15),
@@ -160,15 +212,28 @@ CubsStros_WL = ggplot(data = TANK_DF[-which(TANK_DF$Year == 2020),], aes(x = Yea
 
 `Payrolls`
 
-```{r Figure 2B, include = TRUE, warning = FALSE, echo = TRUE, message = FALSE}
+```{r Figure 2B, include = T, message = F, warning = F, echo = T}
   ## Graph the Astros and Cubs' Payrolls
-CubsStros_Payrolls = ggplot(data = TANK_DF[-which(TANK_DF$Year == 2020),], aes(x = Year)) +
-  geom_line(aes(y = `Team payroll`, color = Tm)) +
-  geom_point(aes(y = `Team payroll`, color = Tm)) +
-  geom_vline(xintercept = 2011.5, linetype = "dashed", color = "firebrick")+
-  geom_text(x = 2014, y = 315, label = "Epstein, Luhnow\nHired in Off-Season", color = "firebrick", size = 3) +
-  coord_cartesian(xlim = c(2011,2021), ylim = c(15, 350)) +
-  labs(title = "Cubs & Astros' Team\nPayrolls, 2011-2021", x = "Season", y = "Team Payroll (in M $US)", color = "Stat") + 
+CubsStros_Payrolls = ggplot(data = TANK_DF[-which(TANK_DF$Year == 2020),],
+                            aes(x = Year)) +
+  geom_line(aes(y = `Team payroll`,
+                color = Tm)) +
+  geom_point(aes(y = `Team payroll`,
+                 color = Tm)) +
+  geom_vline(xintercept = 2011.5,
+             linetype = "dashed",
+             color = "firebrick")+
+  geom_text(x = 2014,
+            y = 315,
+            label = "Epstein, Luhnow\nHired in Off-Season",
+            color = "firebrick",
+            size = 3) +
+  coord_cartesian(xlim = c(2011,2021),
+                  ylim = c(15, 350)) +
+  labs(title = "Cubs & Astros' Team\nPayrolls, 2011-2021",
+       x = "Season",
+       y = "Team Payroll (in M $US)",
+       color = "Stat") + 
   scale_x_continuous(breaks = c(seq(2011,2021,1))) +
   theme_bw() +
   theme(plot.title = element_text(hjust = 0.5, size = 15),
@@ -188,14 +253,27 @@ CubsStros_Payrolls = ggplot(data = TANK_DF[-which(TANK_DF$Year == 2020),], aes(x
 
 `Mean MLB Free-Agent Contract AAVs`
 
-```{r Figure 2C, include = TRUE, warning = FALSE, echo = TRUE, message = FALSE}
-CubsStros_FA = ggplot(data = TANK_DF[-which(TANK_DF$Year == 2020),], aes(x = Year)) +
-  geom_line(aes(y = `Mean FA AAV`, color = Tm)) +
-  geom_point(aes(y = `Mean FA AAV`, color = Tm)) +
-  geom_vline(xintercept = 2011.5, linetype = "dashed", color = "firebrick")+
-  geom_text(x = 2014, y = 15.3, label = "Epstein, Luhnow\nHired in Off-Season", color = "firebrick", size = 3) +
-  coord_cartesian(xlim = c(2011,2021), ylim = c(0, 17)) +
-  labs(title = "Cubs & Astros' MLB\nFA Contracts, 2011-2021", x = "Off-Season", y = "Mean MLB Free-Agent Contract AAV (in M $US)", color = "Stat") + 
+```{r Figure 2C, include = T, message = F, warning = F, echo = T}
+CubsStros_FA = ggplot(data = TANK_DF[-which(TANK_DF$Year == 2020),],
+                      aes(x = Year)) +
+  geom_line(aes(y = `Mean FA AAV`,
+                color = Tm)) +
+  geom_point(aes(y = `Mean FA AAV`,
+                 color = Tm)) +
+  geom_vline(xintercept = 2011.5,
+             linetype = "dashed",
+             color = "firebrick")+
+  geom_text(x = 2014,
+            y = 15.3,
+            label = "Epstein, Luhnow\nHired in Off-Season",
+            color = "firebrick",
+            size = 3) +
+  coord_cartesian(xlim = c(2011,2021),
+                  ylim = c(0, 17)) +
+  labs(title = "Cubs & Astros' MLB\nFA Contracts, 2011-2021",
+       x = "Off-Season",
+       y = "Mean MLB Free-Agent Contract AAV (in M $US)",
+       color = "Stat") + 
   scale_x_continuous(breaks = c(seq(2011,2021,1))) +
   theme_bw() +
   theme(plot.title = element_text(hjust = 0.5, size = 15),
@@ -214,27 +292,36 @@ CubsStros_FA = ggplot(data = TANK_DF[-which(TANK_DF$Year == 2020),], aes(x = Yea
                      values = c("dodgerblue", "orange1", "black"))
 ```
 
-Plot the objects together
+## Render the data
 
-```{r Figure 2, include = TRUE, warning = FALSE, echo = TRUE, message = FALSE, render = TRUE}
+Render the Astros' and Cubs' `W%`s, `Payroll`s, `FA Contract AAV`s objects together
+
++ compare against league average
+
+```{r Figure 2, include = T, message = F, warning = F, echo = T, render = T, fig.width = 10}
 ggarrange(CubsStros_WL, CubsStros_Payrolls, CubsStros_FA,
           ncol = 3, nrow = 1, common.legend = TRUE, legend = "right", labels = "AUTO")
 ```
 
-## Astros and Cubs Amateur Data
+# Plot Figure 3 {.tabset .tabset-pills .tabset-fade}
+
+## Create ggplot objects
 
 Create the `College Picks` `ggplot` object
 
-```{r Figure 3A, include = TRUE, warning = FALSE, echo = TRUE, message = FALSE}
+```{r Figure 3A, include = T, message = F, warning = F, echo = T}
 CubsStros_College_Picks = ggplot(data = TANK_DF[-which(TANK_DF$Year == 2020),], aes(x = Year)) +
   geom_line(aes(y = `College %`, color = Tm)) +
   geom_point(aes(y = `College %`, color = Tm)) + 
-  geom_vline(xintercept = 2011.5, linetype = "dashed", color = "firebrick")+
+  geom_vline(xintercept = 2011.5,
+             linetype = "dashed",
+             color = "firebrick")+
   geom_text(x = 2013, y = 50,
             label = "Epstein, Luhnow\nHired in Off-Season",
             color = "firebrick",
             size = 3) +
-  coord_cartesian(xlim = c(2011,2021), ylim = c(0, 100)) +
+  coord_cartesian(xlim = c(2011,2021),
+                  ylim = c(0, 100)) +
   labs(title = "College Amateurs Drafted\n2011-2021",
        x = "Season",
        y = "College Players Taken in Amateur Draft (%)",
@@ -259,13 +346,16 @@ CubsStros_College_Picks = ggplot(data = TANK_DF[-which(TANK_DF$Year == 2020),], 
 
 Create the `Intl Signs` `ggplot` object
 
-```{r Figure 3B, include = TRUE, warning = FALSE, echo = TRUE, message = FALSE}
+```{r Figure 3B, include = T, message = F, warning = F, echo = T}
 CubsStros_Intl_Signs = ggplot(data = TANK_DF[-which(TANK_DF$Year == 2020),],
                               aes(x = Year)) +
   geom_line(aes(y = `# Int'l Signings`, color = Tm)) +
   geom_point(aes(y = `# Int'l Signings`, color = Tm)) +
-  coord_cartesian(xlim = c(2011,2021), ylim = c(0, 20)) +
-  geom_vline(xintercept = 2011.5, linetype = "dashed", color = "firebrick")+
+  coord_cartesian(xlim = c(2011,2021),
+                  ylim = c(0, 20)) +
+  geom_vline(xintercept = 2011.5,
+             linetype = "dashed",
+             color = "firebrick")+
   geom_text(x = 2013, y = 10,
             label = "Epstein, Luhnow\nHired in Off-Season",
             color = "firebrick", size = 3) +
@@ -290,46 +380,57 @@ CubsStros_Intl_Signs = ggplot(data = TANK_DF[-which(TANK_DF$Year == 2020),],
                      values = c("dodgerblue", "orange1", "black"))
 ```
 
-Plot the objects together
+## Render the data
 
-```{r Figure 3, include = TRUE, warning = FALSE, echo = TRUE, message = FALSE, render = TRUE}
+Render the objects together
+
+```{r Figure 3, include = T, message = F, warning = F, echo = T, render = T, fig.width = 10}
 ggarrange(CubsStros_College_Picks, CubsStros_Intl_Signs,
           ncol = 2, nrow = 1, common.legend = TRUE, legend = "right", labels = "AUTO")
 ```
 
-## Which Teams Qualify as Tankers
+# Plot Table 1 {.tabset .tabset-pills .tabset-fade}
+
+Which Teams Qualify as Tankers?
+
+## Create the plotly object
 
 Subset the `TeamValALL` `df` to prep the `tankingtable`
 
-```{r Subset TeamVal Data to prep, include = TRUE, warning = FALSE, echo = TRUE, message = FALSE}
+```{r Subset TeamVal Data to prep, include = T, message = F, warning = F, echo = T}
 REBUILDERS_df = TeamValALL %>%
-  group_by(`Tm`, Year) %>%
-  filter(L >= 92)
+  dplyr::filter(L >= 92) %>%
+  dplyr::mutate(GB = as.double(GB)) %>%
+  dplyr::arrange(Year) %>%
+  dplyr::slice(-c(9,10,19,22,26,29,36,40,47,53,54))
 
-  ## Remove the Red Sox, Indians/Guardians, Brewers, Mets, Giants, Rays, Jays, Nats (idx = 5, 7, 23, 35, 40, 30, 52, 58)
-REBUILDERS_df = REBUILDERS_df[ -c(5, 7, 23, 35, 40, 30, 52, 58), ]
+## Re-arrange for display
+Printable_REBUILD = REBUILDERS_df %>%
+  dplyr::rename(`MLB Trades Made` = Sum_Num_Trades,
+                `FA Signings` = Sum_Num_FAs,
+                `Waiver Claims` = Sum_Num_Claims,
+                `Total Acquisitions` = Sum_Acqs,
+                `Payroll (in M $US)` = Salary,
+                `Payroll Change (in M $US)` = Sum_Sal_Change,
+                `Net Payroll (in M $US)` = Net_Salary,
+                bWAR = WAR) %>%
+  # dplyr::slice(-c(4,5,7:11,13:16,20:27,31:38,41,42,45,46)) %>%
+  dplyr::select(Team, Year, W, L, `W-L%`,
+                GB, DivRank, `MLB Trades Made`,
+                `FA Signings`, `Waiver Claims`,
+                `Total Acquisitions`,
+                bWAR,
+                `Payroll (in M $US)`,
+                `Payroll Change (in M $US)`,
+                `Net Payroll (in M $US)`) %>%
+  dplyr::arrange(`Payroll Change (in M $US)`)
 
-REBUILDERS_df = REBUILDERS_df %>%
-  group_by(`Tm`, Year) %>%
-  arrange(`Tm`, Year) %>%
-  ungroup()
-
-REBUILDERS_df$GB = as.double(REBUILDERS_df$GB)
-colnames(REBUILDERS_df)[c(8:13)] = c("MLB Trades Made", "FA Signings", "Minors Callups", "Payroll Sum", "bWAR", "Payroll (in M $US)")
-print(REBUILDERS_df[c(4,5,7:11,13:16,20:27,31:38,41,42,45,46,52:54),-11], n = 34)
-
-  ## Remove non-qualifiers
-Printable_REBUILD = REBUILDERS_df[c(4,5,7:11,13:16,20:27,31:38,41,42,45,46),-11]
-
-  ## Re-arrange for display
-Printable_REBUILD = Printable_REBUILD %>%
-  select(`Tm`, Year, W, L, W_L, GB, DivRank, `MLB Trades Made`, `FA Signings`, `Minors Callups`, bWAR, `Payroll (in M $US)`)
 ```
 
-Create the `Rebiuld_T` table
 
-```{r Table 1 creation, include = TRUE, warning = FALSE, echo = TRUE, message = FALSE, render = TRUE}
+```{r Table 1 creation, include = F, message = F, warning = F, echo = F, render = F}
   ## plot
+  ## For plotting with plotly
 Rebuild_T = plot_ly(
   type = 'table',
   columnwidth = c(rep(20,12)),
@@ -342,35 +443,46 @@ Rebuild_T = plot_ly(
     font = list(family = "Times", size = 14, color = "black")
   ),
   cells = list(
-    values = rbind(Printable_REBUILD$Tm,
+    values = rbind(Printable_REBUILD$Team,
                    Printable_REBUILD$Year,
                    Printable_REBUILD$W,
                    Printable_REBUILD$L,
-                   Printable_REBUILD$W_L,
+                   Printable_REBUILD$`W-L%`,
                    Printable_REBUILD$GB,
                    Printable_REBUILD$DivRank,
                    Printable_REBUILD$`MLB Trades Made`,
                    Printable_REBUILD$`FA Signings`,
-                   Printable_REBUILD$`Minors Callups`,
+                   Printable_REBUILD$`Waiver Claims`,
                    Printable_REBUILD$bWAR,
-                   Printable_REBUILD$`Payroll (in M $US)`),
+                   Printable_REBUILD$`Net Payroll (in M $US)`),
     align = c("center", "center"),
     line = list(color = "black", width = 1),
     font = list(family = "Times", size = 12, color = c("black"))
   ))
+
 ```
 
-Plot the table
+## Render the data
 
-```{r Table 1, include = TRUE, warning = FALSE, echo = TRUE, message = FALSE, render = TRUE}
-Rebuild_T
+(table will not render approrpiately in markdown format)
+
+```{r Table 1, include = T, message = F, warning = F, echo = T, render = T, fig.width = 12}
+# Rebuild_T
+library(DT)
+DT::datatable(Printable_REBUILD)
 ```
 
-## W%s and bWAR Data
+# Plot Figure 4 {.tabset .tabset-pills .tabset-fade}
 
-Create the `WL_WAR` `ggplot` object; graphs `W%` and team `bWAR`
+## Create ggplot objects
 
-```{r Figure 4A, include = TRUE, warning = FALSE, echo = TRUE, message = FALSE}
+Create the `WL_WAR` ggplot object:
+
++ graphs `W%` and team `bWAR`
+
++ include the model fit
+
+```{r Figure 4A, include = T, message = F, warning = F, echo = T}
 WL_WAR = ggplot(data = TeamValALL[-which(TeamValALL$Year == 2020),]) +
   geom_point(aes(x = TeamValALL$WAR[-which(TeamValALL$Year == 2020)],
                  y = TeamValALL$W_L[-which(TeamValALL$Year == 2020)],
@@ -381,8 +493,12 @@ WL_WAR = ggplot(data = TeamValALL[-which(TeamValALL$Year == 2020),]) +
               intercept = as.numeric(coefficients(WL_WAR_lm)[1]),
               color = "black",
               size = 1) +
-  geom_text(x = 59, y = 0.7, label = expression(paste(("R")^"2", "= 0.822")), color = "black") +
-  coord_cartesian(xlim = c(7,68), ylim = c(0.280, 0.750)) +
+  geom_text(x = 59,
+            y = 0.7,
+            label = expression(paste(("R")^"2", "= 0.822")),
+            color = "black") +
+  coord_cartesian(xlim = c(7,68),
+                  ylim = c(0.280, 0.750)) +
   labs(title = "MLB Team Performance Regression\n2011-2021",
        x = "Team bWAR",
        y = "W-L %",
@@ -405,19 +521,36 @@ WL_WAR = ggplot(data = TeamValALL[-which(TeamValALL$Year == 2020),]) +
                                 "firebrick3", "navy", "blue", "deepskyblue", "red2"))
 ```
 
-Correct the `Guardians` team name; create the `WARPM` column
-Add appropriate labels to the teams with the top `WARPM`
++ correct the `Guardians` team name
 
-```{r W%s and bWAR, include = TRUE, warning = FALSE, echo = TRUE, message = FALSE}
++ create the `WARPM` column
+
++ add appropriate labels to the teams with the top `WARPM`
+
+```{r W%s and bWAR, include = T, message = F, warning = F, echo = T}
 TeamValALL$Tm[ which(TeamValALL$Tm == "Cleveland Indians") ] = "Cleveland Guardians"
 TeamValALL$WARPM = as.numeric(TeamValALL$WAR) / as.numeric(TeamValALL$Salary)
 TeamValALL$labs = ""
-TeamValALL$labs[ order(TeamValALL$WARPM, decreasing = TRUE)[c(1:14)] ] = c("'11 Rays", "'18 Rays", "'21 Guardians", "'11 Royals", "'21 Rays", "'21 Marlins", "'12 A's", "'13 Marlins", "'14 Marlins", "'19 Rays", "'12 Rays", "'13 A's", "'15 Rays", "'18 A's")
+TeamValALL$labs[ order(TeamValALL$WARPM, decreasing = TRUE)[c(1:14)] ] =
+  c("'11 Rays",
+    "'18 Rays",
+    "'21 Guardians",
+    "'11 Royals",
+    "'21 Rays",
+    "'21 Marlins",
+    "'12 A's",
+    "'13 Marlins",
+    "'14 Marlins",
+    "'19 Rays",
+    "'12 Rays",
+    "'13 A's",
+    "'15 Rays",
+    "'18 A's")
 ```
 
-Create the `W%` and `WARPM` `ggplot` object
+Create the `W%` and `WARPM` ggplot object
 
-```{r Figure 4B, include = TRUE, warning = FALSE, echo = TRUE, message = FALSE, render = TRUE}
+```{r Figure 4B, include = T, message = F, warning = F, echo = T, render = T}
 WL_WARPM = ggplot(data = TeamValALL[ -which(TeamValALL$Year == 2020), ]) +
   geom_point(aes(x = WARPM, y = W_L, color = Tm), alpha = 0.7, size = 4) +
   coord_cartesian(xlim = c(min(TeamValALL[ -which(TeamValALL$Year == 2020) ]$WARPM ),
@@ -451,9 +584,9 @@ WL_WARPM = WL_WARPM +
                   min.segment.length = 0, xlim = c(0,NA), ylim = c(0,NA), box.padding = 0.5)
 ```
 
-Now prep data for the `WARPM` and `W-L%` plot subsetted on the rebuilding teams
+Now, prep data for the `WARPM` and `W-L%` plot subsetted on the rebuilding teams
 
-```{r Prep data for WARPM plot on rebuild subset, include = TRUE, warning = FALSE, echo = TRUE, message = FALSE}
+```{r Prep data for WARPM plot on rebuild subset, include = T, message = F, warning = F, echo = T, message = F}
       ## Filter by teams with the same or worse win total as the 2011 Cubs; outside the pandemic
 rebuild_idx = which(TeamValALL$W <= 70 & TeamValALL$Year != 2020)
 rebuild_list = unique(TeamValALL$Tm[rebuild_idx])
@@ -470,9 +603,9 @@ rebuild_filtered_StandALL$labs[ which(rebuild_filtered_StandALL$Salary <= 100)] 
 rebuild_filtered_StandALL$Tm[ which(rebuild_filtered_StandALL$Tm == "Cleveland Indians")] = "Cleveland Guardians"
 ```
 
-Create the tanking subset `ggplot` object
+Create the tanking subset ggplot object
 
-```{r Figure 4C, include = TRUE, warning = FALSE, echo = TRUE, message = FALSE, render = TRUE}
+```{r Figure 4C, include = T, warning = F, echo = T, message = F, render = T}
 WL_rebuild = ggplot(data = rebuild_filtered_StandALL) +
   geom_point(aes(x = WARPM, y = W_L, color = Tm), alpha = 0.7, size = 4) +
   coord_cartesian(xlim = c(min(rebuild_filtered_StandALL$WARPM ),
@@ -513,24 +646,40 @@ WL_rebuild = WL_rebuild +
                   box.padding = 0.5)
 ```
 
+## Render the data
+
 Plot the `W%` and `WARPM` objects together in a plot
 
-```{r Figure 4, include = TRUE, warning = FALSE, echo = TRUE, message = FALSE}
+```{r Figure 4, include = T, warning = F, echo = T, message = F, fig.width = 12}
 ggarrange(WL_WAR, WL_WARPM, WL_rebuild,
           ncol = 3, nrow = 1, common.legend = TRUE, legend = "right", labels = "AUTO")
 ```
 
-## Grading Tanks
+# Plot Table 2 {.tabset .tabset-pills .tabset-fade}
 
-Create the `Grading_Tanks` `df` that houses the tanking clubs' `Win` totals, `Years in Tank`, `Years Not in Tank`, and `Rebuild Grade`
+## Create the Grading Tanks object
+
+Create the `Grading_Tanks` `df`. Houses:
+
++ the tanking clubs' `Win` totals
+
++ the tanking clubs' `Years in Tank`
+
++ the tanking clubs' `Years Not in Tank`
+
++ the tanking clubs' `Rebuild Grade`
 
 `Rebuild Grade` is the average of `Win`s across subsequent seasons after tanking
 
-```{r Table 2 prep 1, include = TRUE, warning = FALSE, echo = TRUE, message = FALSE}
+```{r Table 2 prep 1, include = T, warning = F, echo = T, message = F}
 Grading_Tanks = matrix(nrow = 10, ncol = 3)
 Grading_Tanks = as.data.frame(Grading_Tanks)
 colnames(Grading_Tanks) = c("Tm", "Win Sum", "Years in Tank")
-Grading_Tanks$Tm = c("Atlanta Braves", "Chicago Cubs", "Chicago White Sox", "Cincinnati Reds", "Colorado Rockies", "Detroit Tigers", "Houston Astros", "Miami Marlins", "Minnesota Twins", "Oakland Athletics")
+Grading_Tanks$Tm = c("Atlanta Braves", "Chicago Cubs",
+                     "Chicago White Sox", "Cincinnati Reds",
+                     "Colorado Rockies", "Detroit Tigers",
+                     "Houston Astros", "Miami Marlins",
+                     "Minnesota Twins", "Oakland Athletics")
 
 Grading_Tanks$`Win Sum` = c(sum(72,90,97,88),
                             sum(73,97,103,92,95,84,71),
@@ -542,25 +691,41 @@ Grading_Tanks$`Win Sum` = c(sum(72,90,97,88),
                             sum(77,71,79,77),
                             sum(70,83),
                             sum(75,97,97,86))
+
 Grading_Tanks$`Years in Tank` = c(2,2,2,2,2,1,3,2,2,2)
+
 Grading_Tanks$`Years Not in Tank` = c(4,7,2,4,5,1,6,4,2,4)
+
 Grading_Tanks$`Rebuild Grade` = round(Grading_Tanks$`Win Sum` / Grading_Tanks$`Years Not in Tank`, digits = 1)
 ```
 
 Re-arrange the `df` in order of `Rebuild Grade` and add the tank years to the team name
 
-```{r Table 2 prep 2, include = TRUE, warning = FALSE, echo = TRUE, message = FALSE}
+```{r Table 2 prep 2, include = T, warning = F, echo = T, message = F}
 Grading_Tanks = Grading_Tanks %>%
-  arrange(desc(`Rebuild Grade`))
+  dplyr::arrange(desc(`Rebuild Grade`))
 
-Grading_Tanks$Tm = c("Houston Astros ('11-'13)", "Oakland Athletics ('15-'16)", "Chicago Cubs ('12-'13)", "Atlanta Braves ('15-'16)",
-                     "Chicago White Sox ('17-'18)", "Colorado Rockies ('14-'15)", "Detroit Tigers ('17-'19)", "Minnesota Twins ('11-'13)",
-                     "Miami Marlins ('12-'13)", "Cincinnati Reds ('15-'16)")
+Grading_Tanks$Tm = c("Houston Astros ('11-'13)",
+                     "Oakland Athletics ('15-'16)",
+                     "Chicago Cubs ('12-'13)",
+                     "Atlanta Braves ('15-'16)",
+                     "Chicago White Sox ('17-'18)",
+                     "Colorado Rockies ('14-'15)",
+                     "Detroit Tigers ('17-'19)",
+                     "Minnesota Twins ('11-'13)",
+                     "Miami Marlins ('12-'13)",
+                     "Cincinnati Reds ('15-'16)")
 ```
 
-Create the `plotly` object (table), `Grading_T`
+## Render Table 2
 
-```{r Table 2 creation, include = TRUE, warning = FALSE, echo = TRUE, message = FALSE}
+(will not render appropriately in markdown format)
+
+```{r Plot Table 2, include = F, message = F, warning = F, echo = F, render = F}
+# Grading_Tanks
+```
+
+```{r Table 2 creation, include = F, warning = F, echo = F, message = F}
 Grading_T = plot_ly(
   type = 'table',
   columnwidth = c(rep(20,5)),
@@ -585,8 +750,7 @@ Grading_T = plot_ly(
   ))
 ```
 
-Plot the table
 
-```{r Table 2, inlcude = TRUE, warning = FALSE, echo = TRUE, messasge = FALSE, render = TRUE}
-Grading_T
+```{r Table 2, inlcude = T, warning = F, echo = T, messasge = F, render = T, fig.width = 10}
+DT::datatable(Grading_Tanks)
 ```
