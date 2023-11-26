@@ -1387,3 +1387,318 @@ Hitter_splits = Hitter_splits %>%
   full_join(LgAvg_Hitter_splits) %>%
   dplyr::arrange(OPS)
 ```
+
+```{r Add FG IDs, eval = T, include = F, message = F, warning = F, echo = F}
+Hitter_splits2 = Hitter_splits %>%
+  dplyr::mutate(key_bbref = bbref_id) %>%
+  left_join(CHAD_LU, by = "key_bbref") %>%
+  dplyr::mutate(playerid = key_fangraphs) %>%
+  dplyr::relocate(Name, .before = "bbref_id") %>%
+  dplyr::relocate(playerid, .after = "Name") %>%
+  dplyr::select(-contains("key_"), -contains("name_"), -contains("mlb"))
+
+Pitcher_splits2 = Pitcher_splits %>%
+  dplyr::mutate(key_bbref = bbref_id) %>%
+  left_join(CHAD_LU, by = "key_bbref") %>%
+  dplyr::mutate(playerid = key_fangraphs) %>%
+  dplyr::relocate(Name, .before = "bbref_id") %>%
+  dplyr::relocate(playerid, .after = "Name") %>%
+  dplyr::select(-contains("key_"), -contains("name_"), -contains("mlb"))
+
+Player_Batting_ALL2 = Player_Batting_ALL2 %>%
+  dplyr::mutate(key_bbref = bbref_id) %>%
+  left_join(CHAD_LU, by = "key_bbref") %>%
+  dplyr::mutate(playerid = key_fangraphs, .after = 3) %>%
+  dplyr::mutate(Name = Name.x,
+                bWAR = WAR) %>%
+  dplyr::relocate(Name, .before = lastinit) %>%
+  dplyr::relocate(bWAR, .before = RAR) %>%
+  dplyr::select(-contains("key"), -contains("name_"), -contains("mlb"), -Name.x, -Name.y, -WAR)
+
+Player_Pitching_ALL2 = Player_Pitching_ALL2 %>%
+  dplyr::mutate(key_bbref = bbref_id) %>%
+  left_join(CHAD_LU, by = "key_bbref") %>%
+  dplyr::mutate(playerid = key_fangraphs, .after = 3) %>%
+  dplyr::mutate(Name = Name.x,
+                bWAR = WAR) %>%
+  dplyr::relocate(Name, .before = lastinit) %>%
+  dplyr::select(-contains("key"), -contains("name_"), -contains("mlb"), -Name.x, -Name.y, -WAR)
+```
+
+# Integrate CVSL Rosters and Rules {.tabset .tabset-pills .tabset-fade}
+
+## Import Historic CVSL Roster Environment
+
+```{r Import CVSL Roster Environment, include = T, message = F, warning = F, echo = T}
+load("~/GitHub/Baseball/CVSL/2022/CVSLenv.RData")
+```
+
+```{r Import Draft history, include = F, message = F, warning = F, echo = F}
+path.to.drafts = "~/GitHub/Baseball/CVSL/2022"
+files = list.files(path.to.drafts)
+
+files = files[grepl(files, pattern = "Draft ([0-9]){4}.csv$")]
+
+for ( i in 1:length(files) ) {
+  as.data.frame(
+    assign(
+      gsub(".csv", "", files[], fixed = TRUE)[i], read.csv(file = paste(path.to.drafts, "\\/", files[i], sep = "")))
+  )
+}
+CVSL_2019_DRAFT = `CVSL Draft 2019`
+CVSL_2020_DRAFT = `CVSL Draft 2020`
+CVSL_2021_DRAFT = `CVSL Draft 2021`
+CVSL_2022_DRAFT = `CVSL Draft 2022`
+rm(list = ls()[which(grepl(ls(), pattern = "CVSL Draft") == T)])
+```
+
+```{r Clean Draft results dfs, eval = T, include = F, message = F, warning = F, echo = F}
+# Clean the 2019 dataframe ----
+colnames(CVSL_2019_DRAFT) = CVSL_2019_DRAFT[1,]
+
+  ## Remove dollar signs and co-erce salaries as integers for math ops
+for ( i in seq(2, ncol((CVSL_2019_DRAFT)), 2) ){
+  CVSL_2019_DRAFT[,i] = gsub(CVSL_2019_DRAFT[,i], pattern = "\\$", replacement ="")
+  CVSL_2019_DRAFT[,i] = as.integer(CVSL_2019_DRAFT[,i])
+}
+  ## Re-name the salary columns
+colnames(CVSL_2019_DRAFT)[seq(2, ncol((CVSL_2019_DRAFT)), 2)] = "Salary"
+CVSL_2019_DRAFT = CVSL_2019_DRAFT[ -1, ]
+
+  ## Re-arrange the dataframe to put all players into a column
+dummy = as.data.frame(
+  cbind(c(CVSL_2019_DRAFT[,1], CVSL_2019_DRAFT[,3], CVSL_2019_DRAFT[,5], CVSL_2019_DRAFT[,7], CVSL_2019_DRAFT[,9],
+        CVSL_2019_DRAFT[,11], CVSL_2019_DRAFT[,13], CVSL_2019_DRAFT[,15], CVSL_2019_DRAFT[,17], CVSL_2019_DRAFT[,19]))
+)
+
+colnames(dummy) = "Name"
+
+dummy = dummy %>%
+  dplyr::mutate(Salary = 0, ## Create a second column of integers for Salaries
+                CVSLTeam = "", ## Create a third column of strings for CVSL team id
+                Year = 2019) ## Create a fourth column of integers of the year
+
+  ## Replace the second column with the players' auction values
+    ## remove NA rows
+      ## add the teams that drafted each player
+CVSL_2019_DRAFT = dummy %>%
+  dplyr::mutate(Salary = cbind(c(CVSL_2019_DRAFT[,2],
+                                 CVSL_2019_DRAFT[,4],
+                                 CVSL_2019_DRAFT[,6],
+                                 CVSL_2019_DRAFT[,8],
+                                 CVSL_2019_DRAFT[,10],
+                                 CVSL_2019_DRAFT[,12],
+                                 CVSL_2019_DRAFT[,14],
+                                 CVSL_2019_DRAFT[,16],
+                                 CVSL_2019_DRAFT[,18],
+                                 CVSL_2019_DRAFT[,20]))
+  ) %>%
+  dplyr::filter(!is.na(Salary)) %>%
+  dplyr::mutate(CVSLTeam = case_when(Name %in% CVSL_2019_DRAFT$`Golden Bears` &
+                                       Name != "" ~ "Golden Bears",
+                                     Name %in% CVSL_2019_DRAFT$Phillies &
+                                       Name != "" ~ "Phillies",
+                                     Name %in% CVSL_2019_DRAFT$Nuggets &
+                                       Name != "" ~ "Nuggets",
+                                     Name %in% CVSL_2019_DRAFT$Cattlemen &
+                                       Name != "" ~ "Cattlemen",
+                                     Name %in% CVSL_2019_DRAFT$Bison &
+                                       Name != "" ~ "Bison",
+                                     Name %in% CVSL_2019_DRAFT$Arsenal &
+                                       Name != "" ~ "Arsenal",
+                                     Name %in% CVSL_2019_DRAFT$Tamales &
+                                       Name != "" ~ "Tamales",
+                                     Name %in% CVSL_2019_DRAFT$Matadors &
+                                       Name != "" ~ "Matadors",
+                                     Name %in% CVSL_2019_DRAFT$Dodgers &
+                                       Name != "" ~ "Dodgers",
+                                     Name %in% CVSL_2019_DRAFT$Ducks &
+                                       Name != "" ~ "Ducks"))
+rm(dummy)
+
+# Clean the 2020 df ----
+
+  ## Remove dollar signs and co-erce salaries as integers for math ops
+for ( i in seq(2, ncol((CVSL_2020_DRAFT)), 2) ){
+  CVSL_2020_DRAFT[,i] = gsub(CVSL_2020_DRAFT[,i], pattern = "\\$", replacement ="")
+  CVSL_2020_DRAFT[,i] = as.integer(CVSL_2020_DRAFT[,i])
+}
+  ## Re-name the salary columns
+colnames(CVSL_2020_DRAFT)[seq(2, ncol((CVSL_2020_DRAFT)), 2)] = "Salary"
+  ## Re-name the Team columns
+colnames(CVSL_2020_DRAFT)[seq(1, ncol(CVSL_2020_DRAFT), 2)] = CVSL_2020_DRAFT[ 1, seq(1, ncol(CVSL_2020_DRAFT), 2)]
+  ## remove the first row
+CVSL_2020_DRAFT = CVSL_2020_DRAFT[ -1, ]
+
+  ## Re-arrange the dataframe to put all players into a column
+dummy = as.data.frame(
+  cbind(c(CVSL_2020_DRAFT[,1], CVSL_2020_DRAFT[,3], CVSL_2020_DRAFT[,5], CVSL_2020_DRAFT[,7], CVSL_2020_DRAFT[,9],
+          CVSL_2020_DRAFT[,11], CVSL_2020_DRAFT[,13], CVSL_2020_DRAFT[,15], CVSL_2020_DRAFT[,17], CVSL_2020_DRAFT[,19]))
+)
+
+colnames(dummy) = "Name"
+
+dummy = dummy %>%
+  dplyr::mutate(Salary = 0, ## Create a second column of integers for Salaries
+                CVSLTeam = "", ## Create a third column of strings for CVSL team id
+                Year = 2020) ## Create a fourth column of integers of the year
+
+CVSL_2020_DRAFT = dummy %>%
+  dplyr::mutate(Salary = cbind(c(CVSL_2020_DRAFT[,2],
+                                 CVSL_2020_DRAFT[,4],
+                                 CVSL_2020_DRAFT[,6],
+                                 CVSL_2020_DRAFT[,8],
+                                 CVSL_2020_DRAFT[,10],
+                                 CVSL_2020_DRAFT[,12],
+                                 CVSL_2020_DRAFT[,14],
+                                 CVSL_2020_DRAFT[,16],
+                                 CVSL_2020_DRAFT[,18],
+                                 CVSL_2020_DRAFT[,20]))) %>%
+  dplyr::filter(!is.na(Salary)) %>%
+  dplyr::mutate(CVSLTeam = case_when(Name %in% CVSL_2020_DRAFT$Phillies &
+                                       Name != "" ~ "Phillies",
+                                     Name %in% CVSL_2020_DRAFT$Ducks &
+                                       Name != "" ~ "Ducks",
+                                     Name %in% CVSL_2020_DRAFT$Bison &
+                                       Name != "" ~ "Bison",
+                                     Name %in% CVSL_2020_DRAFT$Dodgers &
+                                       Name != "" ~ "Dodgers",
+                                     Name %in% CVSL_2020_DRAFT$Bears &
+                                       Name != "" ~ "Bears",
+                                     Name %in% CVSL_2020_DRAFT$Matadors &
+                                       Name != "" ~ "Matadors",
+                                     Name %in% CVSL_2020_DRAFT$Cattlemen &
+                                       Name != "" ~ "Cattlemen",
+                                     Name %in% CVSL_2020_DRAFT$Nuggets &
+                                       Name != "" ~ "Nuggets",
+                                     Name %in% CVSL_2020_DRAFT$Copperheads &
+                                       Name != "" ~ "Copperheads",
+                                     Name %in% CVSL_2020_DRAFT$Tamales &
+                                       Name != "" ~ "Tamales"))
+rm(dummy)
+
+    # Clean the 2021 dataframe ----
+  ## Remove the first 4 rows and the extra columns
+CVSL_2021_DRAFT = CVSL_2021_DRAFT[ -c(1:4), -c(seq(2, ncol(CVSL_2021_DRAFT), 2)) ]
+
+  ## Remove the dollar signs and co-erce salaries as integers for math ops
+for ( i in seq(2, ncol((CVSL_2021_DRAFT)), 2) ){
+  CVSL_2021_DRAFT[,i] = gsub(CVSL_2021_DRAFT[,i], pattern = "\\$", replacement ="")
+  CVSL_2021_DRAFT[,i] = as.integer(CVSL_2021_DRAFT[,i])
+}
+  ## Re-name the salary columns
+colnames(CVSL_2021_DRAFT)[seq(2, ncol((CVSL_2021_DRAFT)), 2)] = "Salary"
+rownames(CVSL_2021_DRAFT) = NULL
+
+  ## Re-arrange the dataframe to put all players into a column
+dummy = as.data.frame(
+  cbind(c(CVSL_2021_DRAFT[,1], CVSL_2021_DRAFT[,3], CVSL_2021_DRAFT[,5], CVSL_2021_DRAFT[,7], CVSL_2021_DRAFT[,9],
+          CVSL_2021_DRAFT[,11], CVSL_2021_DRAFT[,13], CVSL_2021_DRAFT[,15], CVSL_2021_DRAFT[,17], CVSL_2021_DRAFT[,19]))
+)
+
+colnames(dummy)[1] = "Name"
+
+dummy = dummy %>%
+  dplyr::mutate(Salary = 0, ## Create a second column of integers for Salaries
+                CVSLTeam = "", ## Create a third column of strings for CVSL team id
+                Year = 2021) ## Create a fourth column of integers of the year
+
+CVSL_2021_DRAFT = dummy %>%
+  dplyr::mutate(Salary = cbind(c(CVSL_2021_DRAFT[,2],
+                                 CVSL_2021_DRAFT[,4],
+                                 CVSL_2021_DRAFT[,6],
+                                 CVSL_2021_DRAFT[,8],
+                                 CVSL_2021_DRAFT[,10],
+                                 CVSL_2021_DRAFT[,12],
+                                 CVSL_2021_DRAFT[,14],
+                                 CVSL_2021_DRAFT[,16],
+                                 CVSL_2021_DRAFT[,18],
+                                 CVSL_2021_DRAFT[,20]))) %>%
+  dplyr::filter(!is.na(Salary)) %>%
+  dplyr::mutate(CVSLTeam = case_when(Name %in% CVSL_2021_DRAFT$Phillies &
+                                       Name != "" ~ "Phillies",
+                                     Name %in% CVSL_2021_DRAFT$Ducks &
+                                       Name != "" ~ "Ducks",
+                                     Name %in% CVSL_2021_DRAFT$Bison &
+                                       Name != "" ~ "Bison",
+                                     Name %in% CVSL_2021_DRAFT$Dodgers &
+                                       Name != "" ~ "Dodgers",
+                                     Name %in% CVSL_2021_DRAFT$Renegades &
+                                       Name != "" ~ "Renegades",
+                                     Name %in% CVSL_2021_DRAFT$Matadors &
+                                       Name != "" ~ "Matadors",
+                                     Name %in% CVSL_2021_DRAFT$Cattlemen &
+                                       Name != "" ~ "Cattlemen",
+                                     Name %in% CVSL_2021_DRAFT$Nuggets &
+                                       Name != "" ~ "Nuggets",
+                                     Name %in% CVSL_2021_DRAFT$Copperheads &
+                                       Name != "" ~ "Copperheads",
+                                     Name %in% CVSL_2021_DRAFT$Tamales &
+                                       Name != "" ~ "Tamales"))
+rm(dummy)
+
+# Clean the 2022 df ----
+  ## Remove the first 4 rows and the extra columns
+CVSL_2022_DRAFT = CVSL_2022_DRAFT[ -c(1:4), -c(seq(7, ncol(CVSL_2022_DRAFT), 8)) ]
+
+dummy = CVSL_2022_DRAFT %>%
+  dplyr::select(-contains("X"), -contains("Players")) %>%
+  dplyr::slice(-c(1:4)) %>%
+  dplyr::mutate(across(contains("Cap"), ~ gsub(., pattern = "\\$", replacement = "")))
+
+CVSL_2022_DRAFT = pivot_longer(dummy, cols = everything()) %>%
+  dplyr::select(value, name) %>%
+  dplyr::rename(CVSLTeam = name) %>%
+  dplyr::rename(Name = value) %>%
+  dplyr::mutate(Salary = case_when(grepl(Name, pattern = "[0-9]") ~ as.numeric(Name),
+                                   TRUE ~ NA_real_), .after = 1) %>%
+  dplyr::mutate(Salary = case_when(is.na(Salary) ~ lead(Salary),
+                                   TRUE ~ NA_real_),
+                Year = 2022) %>%
+  dplyr::filter(!is.na(Salary)) %>%
+  dplyr::arrange(CVSLTeam)
+
+rm(dummy)
+
+DRAFTS = purrr::reduce(mget(ls()[which(grepl(ls(), pattern = "DRAFT") == T) ]), full_join)
+rm(list = ls()[which(grepl(ls(), pattern = "_DRAFT") == T)])
+
+
+```
+
+```{r clean the environment, include = T, message = F, warning = F, echo = F}
+rm(list = ls()[which(grepl(ls(),
+                           pattern = "total|col_names|CVSL_LH|CVSL_RH_|arb_players|bid_players|FG|eligible|dashed_|players|Pitchers_|Hitters|DRAFT|dummy|BID_UNI|Traded|vL|vR|listy|_Standard") == T)])
+```
+
+```{r Import Draft history, include = F, message = F, warning = F, echo = F}
+
+```
+
+```{r Import Blind Bid history, include = F, message = F, warning = F, echo = F}
+
+```
+
+## Eligible Teams
+
+```{r CVSL Eligible Teams, eval = F, include = T, message = F, warning = F, echo = F}
+CVSL_universe = c("SFG", "SDP", "LAD", "ARI", "COL",
+                   "OAK", "TEX", "LAA",
+                   "MIN", "CLE",
+                   "STL",
+                   "PHI", "NYM", "MIA", "ATL", "WSN",
+                   "NYY", "TBR", "TOR", "BOS")
+```
+
+```{r Stats and splits by year, include = T, message = F, warning = F, echo = T}
+
+Hitter_splits %>%
+  dplyr::mutate(key_bbref = bbref_id) %>%
+  inner_join(CHAD_LU, by = "key_bbref") %>%
+  dplyr::select(Name, bbref_id, Split, Year,
+                G, PA, AB, R, H, `2B`, `3B`, HR, RBI,
+                SB, CS, BB, SO, BA, OBP, SLG, OPS, TB,
+                GDP, HBP, SH, SF, IBB, ROE, BAbip, `tOPS+`, `sOPS+`) %>%
+  dplyr::filter(Year == 2022, Split == "vs LHP") %>%
+  dplyr::arrange(OPS)
+```
