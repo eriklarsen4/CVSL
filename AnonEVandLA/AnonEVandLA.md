@@ -416,7 +416,7 @@ estimates.
 
 ## Conclusions/Interpretations
 
--   Out of time. Approach felt redundant (repeated linear regressions with GAMs). 
+-   I ran out of time. Upon reflection, repeating linear regressions/GAMs felt redundant. 
     Other algorithms and workflows capable of more sensitive
     imputation (such as `k-Nearest Neighbors` off the top of my head)
     and estimation (simulations and sampling?) may have been more useful
