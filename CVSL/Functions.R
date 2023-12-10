@@ -1,5 +1,5 @@
 
-# not in function ----
+# the "not in" function ----
 
 "%notin%" = Negate("%in%")
 
@@ -143,8 +143,15 @@ BR_PLAYER_STATS_IMPORT_fn = function(Year, Player_data_type){
                                      grepl(Name, pattern = "\\#") ~ "S",
                                      TRUE ~ "R"), .after = 2) %>%
       dplyr::mutate(rm_idx = case_when(Pos.Summary == "1" ~ 1,
-                                       grepl(Pos.Summary, pattern = "1") ~ 1,
-                                       TRUE ~ 0),
+                                       Pos.Summary == "/1" ~ 1,
+                                       Pos.Summary == "1/H" ~ 1,
+                                       grepl(Pos.Summary, pattern = "1/(\\d)") ~ 1,
+                                       grepl(Pos.Summary, pattern = "1/H(\\d)") ~ 1,
+                                       grepl(Pos.Summary, pattern = "^[2-9].+?") ~ 0,
+                                       grepl(Pos.Summary, pattern = "^\\*") ~ 0,
+                                       grepl(Pos.Summary, pattern = "D") ~ 0,
+                                       grepl(Pos.Summary, pattern = "^H") ~ 0
+                                      ),
                     Year = as.numeric(paste(20,Year, sep = "")),
                     Name = gsub(Name, pattern = "\\*|\\#", replacement = "")) %>%
       dplyr::filter(rm_idx == 0) %>%
@@ -168,8 +175,15 @@ BR_PLAYER_STATS_IMPORT_fn = function(Year, Player_data_type){
                                      grepl(Name, pattern = "\\#") ~ "S",
                                      TRUE ~ "R"), .after = 2) %>%
       dplyr::mutate(rm_idx = case_when(Pos.Summary == "1" ~ 1,
-                                       grepl(Pos.Summary, pattern = "1") ~ 1,
-                                       TRUE ~ 0),
+                                       Pos.Summary == "/1" ~ 1,
+                                       Pos.Summary == "1/H" ~ 1,
+                                       grepl(Pos.Summary, pattern = "1/(\\d)") ~ 1,
+                                       grepl(Pos.Summary, pattern = "1/H(\\d)") ~ 1,
+                                       grepl(Pos.Summary, pattern = "^[2-9].+?") ~ 0,
+                                       grepl(Pos.Summary, pattern = "^\\*") ~ 0,
+                                       grepl(Pos.Summary, pattern = "D") ~ 0,
+                                       grepl(Pos.Summary, pattern = "^H") ~ 0
+                                      ),
                     Year = as.numeric(paste(20,Year, sep = "")),
                     Name = gsub(Name, pattern = "\\*|\\#", replacement = "")) %>%
       dplyr::filter(rm_idx == 0) %>%
