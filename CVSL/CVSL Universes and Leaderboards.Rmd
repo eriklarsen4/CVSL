@@ -1544,6 +1544,10 @@ Player_Pitching_ALL2 = Player_Pitching_ALL2 %>%
   dplyr::select(-contains("key"), -contains("name_"), -contains("mlb"), -contains(".y"))
 ```
 
+```{r import saved environment, include = TRUE, message = F, warning = F, echo = F}
+load("~/GitHub/Baseball/CVSL/2022/BR_envir_2.RData")
+```
+
 ```{r clean the GE, include = T, message = F, warning = F, echo = F}
 rm(list = ls()[which(grepl(ls(), pattern = "Changing|df|Hitter_splits$|LgAvg|Pitcher_splits$|Player_(.+?)_ALL$|Team_") == T)])
 
@@ -1834,22 +1838,23 @@ rm(list = ls()[which(grepl(ls(), pattern = "_Draft") == T)])
 ```{r clean the environment, include = T, message = F, warning = F, echo = F}
 rm(list = ls()[which(grepl(ls(),
                            pattern = "total|col_names|CVSL_LH|CVSL_RH_|arb_players|bid_players|FG|eligible|dashed_|players|Pitchers_|Hitters|DRAFT|dummy|BID_UNI|Traded|vL|vR|listy|_Standard") == T)])
+
+rm(list = ls()[which(grepl(ls(), pattern = "CHAD_LU|DRAFTS|_splits|Player_|%notin%|fn|MASTER") == F)])
 ```
 
-```{r Import Draft history, include = F, message = F, warning = F, echo = F}
-
-DRAFTS = DRAFTS %>%
+```{r Import Draft history, include = T, message = F, warning = F, echo = F}
+ ## Add IDs
+DRAFTS2 = DRAFTS %>%
   dplyr::distinct() %>%
   dplyr::filter(Name != "") %>%
   left_join(CHAD_LU, by = "Name") %>%
   dplyr::mutate(bbref_id = key_bbref,
                 playerid = key_fangraphs) %>%
   dplyr::select(-contains("name_"), -contains("key"), -contains("mlb")) %>%
-  dplyr::filter(CVSLTeam != "Starting.Cap.2") %>%
-  # dplyr::filter(bbref_id == "rodried01")
-  # dplyr::filter(bbref_id != "rodried01") %>%
-  # dplyr::filter(bbref_id != "castidi02") %>%
-  # dplyr::filter(bbref_id != "schuljo03") %>%
+  dplyr::filter(CVSLTeam != "Starting.Cap.2")
+
+## Add missing bbref ids pt 1
+DRAFTS2 = DRAFTS2 %>%
   dplyr::mutate(bbref_id = case_when(grepl(Name, pattern = "Gorkys") ~ CHAD_LU %>%
                                        dplyr::filter(grepl(Name, pattern = "Gorkys")) %>%
                                        dplyr::select(key_bbref) %>%
@@ -1888,8 +1893,9 @@ DRAFTS = DRAFTS %>%
                                        dplyr::select(key_bbref) %>%
                                        as.character(),
                                      
-                                     grepl(Name, pattern = "Anibal Sanchez") ~ CHAD_LU %>%
-                                       dplyr::filter(grepl(Name, pattern = "bal s")) %>%
+                                     grepl(Name, pattern = "Anibal") &
+                                       grepl(Name, pattern = "Sanchez") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "bal S")) %>%
                                        dplyr::select(key_bbref) %>%
                                        as.character(),
                                      
@@ -1903,7 +1909,14 @@ DRAFTS = DRAFTS %>%
                                        dplyr::select(key_bbref) %>%
                                        as.character(),
                                      
-                                     grepl(Name, pattern = "Kiner") ~ CHAD_LU %>%
+                                     TRUE ~ bbref_id) # end part 1 of corrections
+  )
+```
+
+
+```{r correct draft ids pt 2, include = T, message = F, warning = F, echo = F}
+DRAFTS2 = DRAFTS2 %>%
+  dplyr::mutate(bbref_id = case_when(grepl(Name, pattern = "Kiner") ~ CHAD_LU %>%
                                        dplyr::filter(grepl(Name, pattern = "Kiner-")) %>%
                                        dplyr::select(key_bbref) %>%
                                        as.character(),
@@ -1955,7 +1968,13 @@ DRAFTS = DRAFTS %>%
                                        dplyr::select(key_bbref) %>%
                                        as.character(),
                                      
-                                     grepl(Name, pattern = "Jose Alverado") ~ CHAD_LU %>%
+                                     TRUE ~ bbref_id) # end part 2 corrections
+  )
+```
+
+```{r correct draft ids pt 3, include = T, message = F, warning = F, echo = F}
+DRAFTS2 = DRAFTS2 %>%
+  dplyr::mutate(bbref_id = case_when(grepl(Name, pattern = "Jose Alverado") ~ CHAD_LU %>%
                                        dplyr::filter(grepl(Name, pattern = "Jos") &
                                                        grepl(Name, pattern = "Alvarado")) %>%
                                        dplyr::select(key_bbref) %>%
@@ -1972,7 +1991,7 @@ DRAFTS = DRAFTS %>%
                                        as.character(),
                                      
                                      grepl(Name, pattern = "Ponce") ~ CHAD_LU %>%
-                                       dplyr::filter(grepl(Name, pattern = "Daneil P")) %>%
+                                       dplyr::filter(grepl(Name, pattern = "Daniel Ponce")) %>%
                                        dplyr::select(key_bbref) %>%
                                        as.character(),
                                      
@@ -2006,7 +2025,13 @@ DRAFTS = DRAFTS %>%
                                        dplyr::select(key_bbref) %>%
                                        as.character(),
                                      
-                                     grepl(Name, pattern = "Elieser Hernandez") ~ CHAD_LU %>%
+                                     TRUE ~ bbref_id) # end pt. 3 corrections
+  )
+```
+
+```{r correct draft ids pt 4, include = T, message = F, warning = F, echo = F}
+DRAFTS2 = DRAFTS2 %>%
+  dplyr::mutate(bbref_id = case_when(grepl(Name, pattern = "Elieser Hernandez") ~ CHAD_LU %>%
                                        dplyr::filter(grepl(Name, pattern = "Elieser")) %>%
                                        dplyr::select(key_bbref) %>%
                                        as.character(),
@@ -2058,7 +2083,13 @@ DRAFTS = DRAFTS %>%
                                        dplyr::select(key_bbref) %>%
                                        as.character(),
                                      
-                                     grepl(Name, pattern = "Adam Civale") ~ CHAD_LU %>%
+                                     TRUE ~ bbref_id) # end pt 4 corrections
+  )
+```
+
+```{r correct draft ids pt 5, include = T, message = F, warning = F, echo = F}
+DRAFTS2 = DRAFTS2 %>%
+  dplyr::mutate(bbref_id = case_when(grepl(Name, pattern = "Adam Civale") ~ CHAD_LU %>%
                                        dplyr::filter(grepl(Name, pattern = "Civale")) %>%
                                        dplyr::select(key_bbref) %>%
                                        as.character(),
@@ -2110,7 +2141,13 @@ DRAFTS = DRAFTS %>%
                                        dplyr::select(key_bbref) %>%
                                        as.character(),
                                      
-                                     grepl(Name, pattern = "Oscar Mercado") ~ CHAD_LU %>%
+                                     TRUE ~ bbref_id) # end pt 5 corrections
+  )
+```
+
+```{r correct draft ids pt 6, include = T, message = F, warning = F, echo = F}
+DRAFTS2 = DRAFTS2 %>%
+  dplyr::mutate(bbref_id = case_when(grepl(Name, pattern = "Oscar Mercado") ~ CHAD_LU %>%
                                        dplyr::filter(grepl(Name, pattern = "scar Mercado")) %>%
                                        dplyr::select(key_bbref) %>%
                                        as.character(),
@@ -2161,7 +2198,13 @@ DRAFTS = DRAFTS %>%
                                        dplyr::select(key_bbref) %>%
                                        as.character(),
                                      
-                                     grepl(Name, pattern = "John Merryweather") ~ CHAD_LU %>%
+                                     TRUE ~ bbref_id) # end pt. 6 corrections
+  )
+```
+
+```{r correct draft ids pt 7, include = T, message = F, warning = F, echo = F}
+DRAFTS2 = DRAFTS2 %>%
+  dplyr::mutate(bbref_id = case_when(grepl(Name, pattern = "John Merryweather") ~ CHAD_LU %>%
                                        dplyr::filter(grepl(Name, pattern = "Merryweather")) %>%
                                        dplyr::select(key_bbref) %>%
                                        as.character(),
@@ -2187,14 +2230,14 @@ DRAFTS = DRAFTS %>%
                                        as.character(),
                                      
                                      grepl(Name, pattern = "Andres Gimenez") ~ CHAD_LU %>%
-                                       dplyr::filter(grepl(Name, pattern = "s gim") &
-                                                       grepl(name_given, pattern = "s alf")) %>%
+                                       dplyr::filter(grepl(Name, pattern = "s Gim") &
+                                                       grepl(name_given, pattern = "s Alf")) %>%
                                        dplyr::select(key_bbref) %>%
                                        as.character(),
                                      
                                      grepl(Name, pattern = "Andres Giminez") ~ CHAD_LU %>%
-                                       dplyr::filter(grepl(Name, pattern = "s gim") &
-                                                       grepl(name_given, pattern = "s alf")) %>%
+                                       dplyr::filter(grepl(Name, pattern = "s Gim") &
+                                                       grepl(name_given, pattern = "s Alf")) %>%
                                        dplyr::select(key_bbref) %>%
                                        as.character(),
                                      
@@ -2213,7 +2256,13 @@ DRAFTS = DRAFTS %>%
                                        dplyr::select(key_bbref) %>%
                                        as.character(),
                                      
-                                     grepl(Name, pattern = "Adam Ott") ~ CHAD_LU %>%
+                                     TRUE ~ bbref_id) # end pt 7 corrections
+  )
+```
+
+```{r correct draft ids pt 8, include = T, message = F, warning = F, echo = F}
+DRAFTS2 = DRAFTS2 %>%
+  dplyr::mutate(bbref_id = case_when(grepl(Name, pattern = "Adam Ott") ~ CHAD_LU %>%
                                        dplyr::filter(grepl(Name, pattern = "Adam Ott")) %>%
                                        dplyr::select(key_bbref) %>%
                                        as.character(),
@@ -2263,7 +2312,13 @@ DRAFTS = DRAFTS %>%
                                        dplyr::select(key_bbref) %>%
                                        as.character(),
                                      
-                                     grepl(Name, pattern = "Christian V") ~ CHAD_LU %>%
+                                     TRUE ~ bbref_id) # end pt. 8 corrections
+  )
+```
+
+```{r correct draft ids pt 9, include = T, message = F, warning = F, echo = F}
+DRAFTS2 = DRAFTS2 %>%
+  dplyr::mutate(bbref_id = case_when(grepl(Name, pattern = "Christian V") ~ CHAD_LU %>%
                                        dplyr::filter(grepl(Name, pattern = "Christian V") &
                                                        name_given == "Christian Rafael") %>%
                                        dplyr::select(key_bbref) %>%
@@ -2314,7 +2369,13 @@ DRAFTS = DRAFTS %>%
                                        dplyr::select(key_bbref) %>%
                                        as.character(),
                                      
-                                     grepl(Name, pattern = "Teoscar") ~ CHAD_LU %>%
+                                     TRUE ~ bbref_id) # end pt 9 corrections
+  )
+```
+
+```{r correct draft ids pt 10, include = T, message = F, warning = F, echo = F}
+DRAFTS2 = DRAFTS2 %>%
+  dplyr::mutate(bbref_id = case_when(grepl(Name, pattern = "Teoscar") ~ CHAD_LU %>%
                                        dplyr::filter(grepl(Name, pattern = "Teosc")) %>%
                                        dplyr::select(key_bbref) %>%
                                        as.character(),
@@ -2364,7 +2425,13 @@ DRAFTS = DRAFTS %>%
                                        dplyr::select(key_bbref) %>%
                                        as.character(),
                                      
-                                     grepl(Name, pattern = "Noe Ramirez") ~ CHAD_LU %>%
+                                     TRUE ~ bbref_id) # end pt 10 corrections
+  )
+```
+
+```{r correct draft ids pt 11, include = T, message = F, warning = F, echo = F}
+DRAFTS2 = DRAFTS2 %>%
+  dplyr::mutate(bbref_id = case_when(grepl(Name, pattern = "Noe Ramirez") ~ CHAD_LU %>%
                                        dplyr::filter(grepl(Name, pattern = "No") &
                                                        grepl(Name, pattern = "Ramirez")) %>%
                                        dplyr::select(key_bbref) %>%
@@ -2410,22 +2477,16 @@ DRAFTS = DRAFTS %>%
                                        dplyr::select(key_bbref) %>%
                                        as.character(),
                                      
-                                     grepl(Name, pattern = "Anibal") &
-                                       grepl(Name, pattern = "Sanchez") ~ CHAD_LU %>%
-                                       dplyr::filter(grepl(Name, pattern = "bal s")) %>%
-                                       dplyr::select(key_bbref) %>%
-                                       as.character(),
-                                     
-                                     grepl(Name, pattern = "Daniel") &
-                                       grepl(Name, pattern = "Leon") ~ CHAD_LU %>%
-                                       dplyr::filter(grepl(Name, pattern = "ponce de leon")) %>%
-                                       dplyr::select(key_bbref) %>%
-                                       as.character(),
-                                     
-                                     grepl(Name, pattern = "Andres") &
+                                     TRUE ~ bbref_id) # end pt 11 corrections
+  )
+```
+
+```{r correct draft ids pt 12, include = T, message = F, warning = F, echo = F}
+DRAFTS2 = DRAFTS2 %>%
+  dplyr::mutate(bbref_id = case_when(grepl(Name, pattern = "Andres") &
                                        grepl(Name, pattern = "Gim") ~ CHAD_LU %>%
-                                       dplyr::filter(grepl(Name, pattern = "Andr" &
-                                                       Name, pattern = "s Gim")) %>%
+                                       dplyr::filter(grepl(Name, pattern = "Andr") &
+                                                       grepl(Name, pattern = "s Gim")) %>%
                                        dplyr::select(key_bbref) %>%
                                        as.character(),
                                      
@@ -2434,13 +2495,13 @@ DRAFTS = DRAFTS %>%
                                        dplyr::select(key_bbref) %>%
                                        as.character(),
                                      
-                                     grepl(Name, pattern = "g Kim") ~ CHAD_LU %>%
+                                     grepl(Name, pattern = "Ha-seo") ~ CHAD_LU %>%
                                        dplyr::filter(grepl(Name, pattern = "Ha-seo")) %>%
                                        dplyr::select(key_bbref) %>%
                                        as.character(),
                                      
                                      grepl(Name, pattern = "Harold") &
-                                       gprel(Name, pattern = "Ram") ~ CHAD_LU %>%
+                                       grepl(Name, pattern = "Ram") ~ CHAD_LU %>%
                                        dplyr::filter(grepl(Name, pattern = "Harold Ram")) %>%
                                        dplyr::select(key_bbref) %>%
                                        as.character(),
@@ -2453,9 +2514,10 @@ DRAFTS = DRAFTS %>%
                                      
                                      grepl(Name, pattern = "Jose") &
                                        grepl(Name, pattern = "Quintana") ~ CHAD_LU %>%
-                                       dplyr::filter(grepl(Name, pattern = "Quintana")) %>%
+                                       dplyr::filter(grepl(Name, pattern = "Quintana") &
+                                                       grepl(Name, pattern = "Jos")) %>%
                                        dplyr::select(key_bbref) %>%
-                                       as.characteR(),
+                                       as.character(),
                                      
                                      grepl(Name, pattern = "Gary") &
                                        grepl(Name, pattern = "Sanchez") ~ CHAD_LU %>%
@@ -2465,8 +2527,7 @@ DRAFTS = DRAFTS %>%
                                        as.character(),
                                      
                                      grepl(Name, pattern = "Nick Castellanos") ~ CHAD_LU %>%
-                                       dplyr::filter(grepl(Name, pattern  = "Ni") &
-                                                       grepl(Name, pattern = "Castellanos")) %>%
+                                       dplyr::filter(grepl(Name, pattern  = "Nick Castellanos")) %>%
                                        dplyr::select(key_bbref) %>%
                                        as.character(),
                                      
@@ -2480,7 +2541,13 @@ DRAFTS = DRAFTS %>%
                                        dplyr::select(key_bbref) %>%
                                        as.character(),
                                      
-                                     grepl(Name, pattern = "Quijada") ~ CHAD_LU %>%
+                                     TRUE ~ bbref_id) # end pt 12 corrections
+  )
+```
+
+```{r correct draft ids pt 13, include = T, message = F, warning = F, echo = F}
+DRAFTS2 = DRAFTS2 %>%
+  dplyr::mutate(bbref_id = case_when(grepl(Name, pattern = "Quijada") ~ CHAD_LU %>%
                                        dplyr::filter(grepl(Name, pattern = "Quijada")) %>%
                                        dplyr::select(key_bbref) %>%
                                        as.character(),
@@ -2534,7 +2601,13 @@ DRAFTS = DRAFTS %>%
                                        dplyr::select(key_bbref) %>%
                                        as.character(),
                                      
-                                     grepl(Name, pattern = "Adrian Morejon") ~ CHAD_LU %>%
+                                     TRUE ~ bbref_id) # end pt 13 corrections
+  )
+```
+
+```{r correct draft ids pt 14, include = T, message = F, warning = F, echo = F}
+DRAFTS2 = DRAFTS2 %>%
+  dplyr::mutate(bbref_id = case_when(grepl(Name, pattern = "Adrian Morejon") ~ CHAD_LU %>%
                                        dplyr::filter(grepl(Name, pattern = "n morej")) %>%
                                        dplyr::select(key_bbref) %>%
                                        as.character(),
@@ -2556,20 +2629,46 @@ DRAFTS = DRAFTS %>%
                                        dplyr::select(key_bbref) %>%
                                        as.character(),
                                      
+                                     grepl(Name, pattern = "Jose Suarez") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Jos") &
+                                                       grepl(Name, pattern = "rez") &
+                                                       grepl(Name, pattern = "Su")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
                                      
+                                     grepl(Name, pattern = "Michael King") ~ CHAD_LU %>%
+                                       dplyr::filter(name_given == "Michael McRae") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     grepl(Name, pattern = "Ranger") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Ranger Su")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
                                      
                                      TRUE ~ bbref_id)
-                )
+                ) %>%
+  dplyr::filter(bbref_id != "rodried01") %>%
+  dplyr::filter(bbref_id != "rodried01") %>%
+  dplyr::filter(bbref_id != "castidi02") %>%
+  dplyr::filter(bbref_id != "schuljo03")
+
+DRAFTS = DRAFTS2
+rm(DRAFTS2)
+```
+
+```{r add fg ids and correct names, include = T, message = F, warning = F, echo = F}
 
 DRAFTS = DRAFTS %>%
   dplyr::mutate(key_bbref = bbref_id) %>%
-  anti_join(CHAD_LU, by = "key_bbref") %>%
+  inner_join(CHAD_LU, by = "key_bbref") %>%
   dplyr::select(-playerid) %>%
   dplyr::rename(playerid = key_fangraphs) %>%
-  dplyr::rename(Name = Name.x) %>%
+  dplyr::rename(Name = Name.y) %>%
   dplyr::select(-contains("key"), -contains(".x"),
                 -contains(".y"), -contains("name_"),
-                -contains("mlb"))
+                -contains("mlb")) %>%
+  dplyr::relocate(Name, .before = 1)
 
 ## Correct spellings or players with improper baseball reference ids
 DRAFTS = DRAFTS %>%
@@ -2590,8 +2689,11 @@ DRAFTS = DRAFTS %>%
 
 ```
 
+```{r save universe environment, eval = F include = F, message = F, warning = F, echo = F}
+save.image("~/GitHub/Baseball/CVSL/2022/CompleteUniversesAndLeaderboardsEnv.RData")
+```
 
-## Plot Draft Results
+## Plot Some Draft Results
 ```{r Join Draft history with stats, include = T, message = F, warning = F, echo = F}
 
 DRAFTS %>%
@@ -2621,6 +2723,8 @@ DRAFTS %>%
                  size = 2.5,
                  alpha = 0.6,
                  color = CVSLTeam)) +
+  geom_smooth(aes(x = Rbat,
+                  y = Salary), method = "gam", se = F)+
   facet_wrap(~Year)+
   labs(title = "CVSL Auction Draft History, 2019-2021\nHitters", x = "RBat, aka wRC+", y = "Salary ($)")+
   guides(alpha = "none")+
@@ -2630,7 +2734,6 @@ DRAFTS %>%
   scale_color_manual(values = c("darkgoldenrod", "chocolate", "black",
                                 "forestgreen", "firebrick", "orange", "gray48",
                                 "red", "navy", "skyblue"))
-  
 ```
 
 
