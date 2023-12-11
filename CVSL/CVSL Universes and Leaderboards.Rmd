@@ -2,13 +2,7 @@
 title: "CVSL Universes and Leaderboards"
 author: "Erik Larsen"
 date: '2023-11-20'
-output:
-  html_document:
-    toc: yes
-    toc_float:
-      collapsed: yes
-    numbered_sections: yes
-    code_folding: hide
+output: github_document
 ---
 
 # Overview
