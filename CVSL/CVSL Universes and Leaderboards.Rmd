@@ -42,6 +42,8 @@ Required packages:
 
 ## Load Packages and Functions
 
+Load packages and [data acquisition & processing functions](https://github.com/eriklarsen4/Baseball/blob/main/CVSL/Functions.R)
+
 ```{r Package and Function load, include = T, message = F, warning = F, echo = T}
 library(readr)
 library(tidyverse)
@@ -50,10 +52,17 @@ library(XML)
 library(stringr)
 library(stringi)
 library(baseballr)
+library(ggplot2)
+library(ggrepel)
 
 source("~/GitHub/Baseball/CVSL/Functions.R")
+
+load("~/GitHub/Baseball/CVSL/2022/CompleteUniversesAndLeaderboardsEnv.RData")
+```
+
+```{r old environments, include = F, warning = F, message = F, echo = F}
 # load("~/GitHub/Baseball/CVSL/2022/CVSLenv.RData")
-load("~/GitHub/Baseball/CVSL/2022/CVSL_BR_envir.RData")
+# load("~/GitHub/Baseball/CVSL/2022/CVSL_BR_envir.RData")
 ```
 
 ```{r Chadwick db, eval = F, include = F, message = F, warning = F, echo = T}
@@ -79,9 +88,9 @@ CHAD_LU = CHAD_LU %>%
 
 ## Scrape and Clean Baseball Reference Hitters Data
 
-Scrape hitting data from `Baseball Reference` for relevant years
+Scrape hitting data from `Baseball Reference` for relevant years using the scraping function I developed ([code here](https://github.com/eriklarsen4/Baseball/blob/main/CVSL/Functions.R))
 
-```{r Scrape BR hitting ata, eval = F, include = T, message = F, warning = F, echo = T}
+```{r Scrape BR hitting data, eval = F, include = T, message = F, warning = F, echo = T}
 
 for (i in 16:23){
   if (i %% 17 == 0){
@@ -105,7 +114,9 @@ Player_Batting_ALL = purrr::reduce(mget(ls()[which(grepl(ls(),
 rm(list = ls()[which(grepl(ls(), pattern = "Player_b") == T)])
 ```
 
-```{r Extract hitters names and add playerids, include = T, message = F, warning = F, echo = T}
+Add their `player id`s ([function here](https://github.com/eriklarsen4/Baseball/blob/main/CVSL/Functions.R))
+
+```{r Extract hitters names and add playerids, eval = F, include = T, message = F, warning = F, echo = T}
 
 hitternames = Player_Batting_ALL %>%
   dplyr::select(Name) %>%
@@ -121,7 +132,7 @@ Player_Batting_ALL = ID_ADD_fn(df = Player_Batting_ALL,
 
 ```
 
-```{r Correct hittername spellings, eval = F, include = T, message = F, warning = F, echo = F}
+```{r Correct hittername spellings, eval = F, include = F, message = F, warning = F, echo = F}
 
 Player_Batting_ALL = Player_Batting_ALL %>%
   
@@ -374,7 +385,7 @@ Player_Batting_ALL = Player_Batting_ALL %>%
 
 ```
 
-```{r Correct hitter positions, eval = F, include = T, message = F, warning = F, echo = F}
+```{r Correct hitter positions, eval = F, include = F, message = F, warning = F, echo = F}
   ## Loop through and tab each team's number of acqusitions for the main acq. types in each year;
     ## Put them in their own dfs
       ## For hitters
@@ -447,7 +458,7 @@ rm(listy)
 
 ## Scrape and Clean Baseball Reference Pitching Data
 
-Scrape pitching data from `Baseball Reference` for relevant years
+Scrape pitching data from `Baseball Reference` for relevant years; same function as for hitters, but tailored to pitchers
 
 ```{r Scrape BR pitching data, eval = F, include = T, message = F, warning = F, echo = T}
 
@@ -472,6 +483,8 @@ Player_Pitching_ALL = purrr::reduce(mget(ls()[which(grepl(ls(),
 
 rm(list = ls()[which(grepl(ls(), pattern = "Player_p") == T)])
 ```
+
+Add their `player id`s
 
 ```{r Add playerids to pitchers df, eval = F, include = T, message = F, warning = F, echo = T}
 pitchernames = Player_Pitching_ALL %>%
@@ -982,7 +995,7 @@ Team_Changers_hitters = Team_Changers_hitters %>%
 
   + repeat for pitchers
   
-```{r Scrape Individual pitchers pages, eval = F, include = F, message = F, warning = F, echo = T}
+```{r Scrape Individual pitchers pages, eval = F, include = T, message = F, warning = F, echo = T}
 
 for (i in 1:nrow(Team_Changers_pitchers)){
   if (i %% 17 == 0) {
@@ -1064,14 +1077,10 @@ x = Team_Changers_hitters %>%
 y = Player_Batting_ALL %>%
   dplyr::filter(Tm == "TOT") %>%
   dplyr::distinct() %>%
-  # dplyr::group_by(across(c(-Tm))) %>%
   left_join(x) %>%
   dplyr::mutate(Tm = Tm.x, .after = 5) %>%
   dplyr::filter(!is.na(Tm)) %>%
   dplyr::select(-Tm.x)
-  # dplyr::select(-Tm, -Tm.y) %>%
-  # dplyr::mutate(Tm = Tm.x, .after = 3) %>%
-  # dplyr::select(-Tm.x)
 
   ## Re-define the data by IDing the players who were traded, replacing all player seasons with their totals
     ## where, if they were traded, only their total and for the team they ended with are shown
@@ -1103,7 +1112,7 @@ rm(x)
 rm(y)
 ```
 
-```{r Integrate the pitchers changers data, eval = T, include = T, message = F, warning = F, echo = T}
+```{r Integrate the pitchers changers data, eval = F, include = T, message = F, warning = F, echo = T}
   ## join all hitters and pitchers who changed teams
 # Team_Transactions_ALL = Team_Changers_hitters %>%
   # full_join(Team_Changers_pitchers)
@@ -1153,6 +1162,11 @@ Player_Pitching_ALL2 = Player_Pitching_ALL %>%
 rm(x)
 rm(y)
 ```
+
+
+## Scrape Splits Data
+
+Show the scrape code for acquiring every players' platoon splits
 
 ```{r Correct hitter names for scraping splits, eval = F, include = F, warning = F, message = F, echo = F}
 Player_Batting_ALL2 = Player_Batting_ALL2 %>%
@@ -1311,10 +1325,6 @@ Hitter_splits = Hitter_splits %>%
   dplyr::rename(Name = Nameo)
 ```
 
-## Scrape Splits Data
-
-Show the scrape code (data imported)
-
 ```{r Correct pitcher names to scrape splits, eval = F, include = F, message = F, warning = F, echo = F}
 Player_Pitching_ALL2 = Player_Pitching_ALL2 %>%
   dplyr::mutate(bbref_id = case_when(grepl(Name, pattern = "Luis") &
@@ -1426,21 +1436,33 @@ rm(list = ls()[which(grepl(ls(), pattern = "pitching_splits") == T)])
 #   dplyr::select(-contains("_Year"))
 ```
 
-```{r group splits, eval = T, include = T, message = F, warning = F, echo = T}
+```{r load splits environment, include = T, message = F, warning = F, echo = F}
+load("~/GitHub/Baseball/CVSL/2022/BR_envir_2.RData")
+```
 
-## Get the handedness of the pitcher
+Wrangle the splits data to add more player information
+
+```{r group splits, eval = T, include = T, message = F, warning = F, echo = T}
+## Get more player info, like the handedness of the pitcher
 Pitcher_splits = Pitcher_splits %>%
   dplyr::mutate(key_bbref = bbref_id) %>%
   dplyr::mutate(across(where(is.numeric), as.character)) %>%
   dplyr::mutate(Year = as.double(Year)) %>%
   left_join(Player_Pitching_ALL2, by = c("bbref_id", "Year")) %>%
   dplyr::rename_at(vars(contains(".x")), ~ str_remove(., ".x")) %>%
-  dplyr::select(c(1:30,34))
+  dplyr::relocate(lastinit, .after = "bbref_id") %>%
+  dplyr::relocate(Year, .before = 1) %>%
+  dplyr::relocate(Age, .after = "lastinit") %>%
+  dplyr::relocate(Tm, .after = "Throws") %>%
+  dplyr::relocate(Traded, .after = "Tm") %>%
+  dplyr::relocate(Throws, .after = "Traded") %>%
+  dplyr::relocate(Split, .after = "Throws") %>%
+  dplyr::select(c(1:36))
 
 ## Group by platoon year to derive lg avg splits
 LgAvg_Pitcher_Splits = Pitcher_splits %>%
-  dplyr::mutate(across(c(3:29), as.numeric)) %>%
-  dplyr::group_by(Throws, Split, Year) %>%
+  dplyr::mutate(across(c(10:36), as.numeric)) %>%
+  dplyr::group_by(Year, Throws, Split) %>%
   dplyr::summarize(across(where(is.numeric), mean, na.rm = T)) %>%
   dplyr::ungroup() %>%
   dplyr::mutate(bbref_id = "LgAvg", .before = 1) %>%
@@ -1449,46 +1471,51 @@ LgAvg_Pitcher_Splits = Pitcher_splits %>%
   dplyr::mutate(across(c("SO/W"), round, 2)) %>%
   dplyr::mutate(across(c("G", "PA", "AB", "R", "H", "2B", "3B", "HR", "SB", "CS",
                          "BB", "SO", "TB", "GDP", "HBP", "SH", "SF", "IBB", "ROE",
-                         "tOPS+", "sOPS+"), round, 0)) %>%
+                         "tOPS+", "sOPS+", "Traded"), round, 0)) %>%
   dplyr::arrange(desc(`sOPS+`))
 
 ## Add the Lg Avg back to the splits
 Pitcher_splits = Pitcher_splits %>%
-  dplyr::mutate(across(c(3:29), as.numeric)) %>%
-  dplyr::relocate(Throws, .after = 2) %>%
-  dplyr::relocate(Year, .after = 3) %>%
+  dplyr::mutate(across(c(10:36), as.numeric)) %>%
   full_join(LgAvg_Pitcher_Splits) %>%
   dplyr::arrange(OPS)
 
-## Add searchable pitcher name
+## Add searchable pitcher name, FG id
 Pitcher_splits = Pitcher_splits %>%
   dplyr::rename(key_bbref = bbref_id) %>%
   left_join(CHAD_LU, by = c("key_bbref")) %>%
-  dplyr::relocate(Name, .before = 1) %>%
-  dplyr::rename(bbref_id = key_bbref) %>%
+  dplyr::rename(Name = Name.y) %>%
+  dplyr::select(-Name.x) %>%
+  dplyr::relocate(Name, .before = 2) %>%
+  dplyr::rename(bbref_id = key_bbref,
+                playerid = key_fangraphs) %>%
+  dplyr::relocate(playerid, .after = "lastinit") %>%
   dplyr::select(-contains("name_"), -contains("key"), -contains("mlb"))
 
 ## Get the handedness, name, team, trade status, positions of the batter
 Hitter_splits = Hitter_splits %>%
+  dplyr::relocate(Year, .before = 1) %>%
+  dplyr::relocate(lastinit, .after = "bbref_id") %>%
   dplyr::mutate(key_bbref = bbref_id) %>%
-  left_join(Player_Batting_ALL2, by = c("bbref_id", "Year")) %>%
-  dplyr::relocate(Bats, .after = 2) %>%
-  dplyr::relocate(Age, .after = 3) %>%
-  dplyr::relocate(Tm, .after = 4) %>%
-  dplyr::relocate(Traded, .after = 5) %>%
-  dplyr::relocate(Positions, .after = 6) %>%
-  dplyr::relocate(Name, .before = 1) %>%
-  dplyr::relocate(Year, .before = 6) %>%
-  dplyr::rename_at(vars(contains(".x")), ~ str_remove(., ".x")) %>%
-  dplyr::select(c(1:37), -GS) %>%
-  dplyr::mutate(lastinit = str_extract(bbref_id, pattern = "[a-z]{1}"), .after = 3)
+  left_join(CHAD_LU, by = c("key_bbref")) %>%
+  dplyr::rename(playerid = key_fangraphs) %>%
+  dplyr::relocate(playerid, .after = "lastinit") %>%
+  dplyr::relocate(Age, .after = "playerid") %>%
+  dplyr::relocate(Tm, .after = "Age") %>%
+  dplyr::relocate(Traded, .after = "Tm") %>%
+  dplyr::rename(Name = Name.x) %>%
+  dplyr::select(-contains("key"), -contains("name_"), -contains("mlb"), -contains(".y"))
 
 ## Group by platoon year to derive lg avg splits
 LgAvg_Hitter_splits = Hitter_splits %>%
-  dplyr::group_by(Bats, Split, Year) %>%
+  dplyr::group_by(Year, Bats, Split) %>%
   dplyr::summarize(across(where(is.numeric), mean, na.rm = T)) %>%
   dplyr::ungroup() %>%
-  dplyr::mutate(bbref_id = "LgAvg", .before = 1) %>%
+  dplyr::mutate(bbref_id = "LgAvg", .before = 3) %>%
+  dplyr::mutate(lastinit = "LgAvg", .before = 4) %>%
+  dplyr::mutate(playerid = "LgAvg") %>%
+  dplyr::relocate(Split, .after = "playerid") %>%
+  dplyr::relocate(Bats, .after = "Split") %>%
   dplyr::mutate(across(c("BA", "OBP", "SLG", "OPS", "BAbip", "tOPS+", "sOPS+"), round, 3)) %>%
   dplyr::mutate(across(c("Traded", "G", "PA", "AB", "R", "H", "2B", "3B", "HR", "RBI",
                          "SB", "CS", "BB", "SO", "TB", "GDP", "HBP", "SH", "SF", "IBB",
@@ -1496,33 +1523,15 @@ LgAvg_Hitter_splits = Hitter_splits %>%
 
 ## Add the lg avg back to the splits
 Hitter_splits = Hitter_splits %>%
+  dplyr::mutate(playerid = as.character(playerid)) %>%
   full_join(LgAvg_Hitter_splits) %>%
   dplyr::arrange(desc(`sOPS+`))
 ```
 
 ```{r Add FG IDs, eval = T, include = F, message = F, warning = F, echo = F}
-## Add FG IDs to the hitter splits
-Hitter_splits2 = Hitter_splits %>%
-  dplyr::mutate(key_bbref = bbref_id) %>%
-  left_join(CHAD_LU, by = c("key_bbref")) %>%
-  dplyr::mutate(playerid = key_fangraphs) %>%
-  dplyr::rename(Name = Name.x) %>%
-  dplyr::relocate(playerid, .after = "bbref_id") %>%
-  dplyr::relocate(lastinit, .after = "bbref_id") %>%
-  dplyr::select(-contains("key_"), -contains("name_"), -contains("mlb"), -contains(".y"))
-
-## Add FG IDs to the pitcher splits
-Pitcher_splits2 = Pitcher_splits %>%
-  dplyr::mutate(key_bbref = bbref_id) %>%
-  left_join(CHAD_LU, by = "key_bbref") %>%
-  dplyr::mutate(playerid = key_fangraphs) %>%
-  dplyr::rename(Name = Name.x) %>%
-  dplyr::relocate(playerid, .after = "bbref_id") %>%
-  dplyr::mutate(lastinit = str_extract(bbref_id, pattern = "[a-z]{1}"), .after = "bbref_id") %>%
-  dplyr::select(-contains("key_"), -contains("name_"), -contains("mlb"))
 
 ## Add FG IDs to the aggregated hitter stats
-Player_Batting_ALL2 = Player_Batting_ALL2 %>%
+Player_Batting = Player_Batting_ALL2 %>%
   dplyr::mutate(key_bbref = bbref_id) %>%
   left_join(CHAD_LU, by = "key_bbref") %>%
   dplyr::mutate(playerid = key_fangraphs, .after = 3) %>%
@@ -1533,7 +1542,7 @@ Player_Batting_ALL2 = Player_Batting_ALL2 %>%
   dplyr::select(-contains("key"), -contains("name_"), -contains("mlb"), -contains(".y"))
 
 ## Add FG IDs to the aggregated pitcher stats
-Player_Pitching_ALL2 = Player_Pitching_ALL2 %>%
+Player_Pitching = Player_Pitching_ALL2 %>%
   dplyr::mutate(key_bbref = bbref_id) %>%
   left_join(CHAD_LU, by = "key_bbref") %>%
   dplyr::mutate(playerid = key_fangraphs, .after = 3) %>%
@@ -1544,8 +1553,8 @@ Player_Pitching_ALL2 = Player_Pitching_ALL2 %>%
   dplyr::select(-contains("key"), -contains("name_"), -contains("mlb"), -contains(".y"))
 ```
 
-```{r import saved environment, include = TRUE, message = F, warning = F, echo = F}
-load("~/GitHub/Baseball/CVSL/2022/BR_envir_2.RData")
+```{r import saved environment, include = F, message = F, warning = F, echo = F}
+# load("~/GitHub/Baseball/CVSL/2022/BR_envir_2.RData")
 ```
 
 ```{r clean the GE, include = T, message = F, warning = F, echo = F}
@@ -1836,13 +1845,13 @@ rm(list = ls()[which(grepl(ls(), pattern = "_Draft") == T)])
 ```
 
 ```{r clean the environment, include = T, message = F, warning = F, echo = F}
-rm(list = ls()[which(grepl(ls(),
-                           pattern = "total|col_names|CVSL_LH|CVSL_RH_|arb_players|bid_players|FG|eligible|dashed_|players|Pitchers_|Hitters|DRAFT|dummy|BID_UNI|Traded|vL|vR|listy|_Standard") == T)])
+# rm(list = ls()[which(grepl(ls(),
+#                            pattern = "total|col_names|CVSL_LH|CVSL_RH_|arb_players|bid_players|FG|eligible|dashed_|players|Pitchers_|Hitters|DRAFT|dummy|BID_UNI|Traded|vL|vR|listy|_Standard") == T)])
 
 rm(list = ls()[which(grepl(ls(), pattern = "CHAD_LU|DRAFTS|_splits|Player_|%notin%|fn|MASTER") == F)])
 ```
 
-```{r Import Draft history, include = T, message = F, warning = F, echo = F}
+```{r correct draft ids pt 1, include = T, message = F, warning = F, echo = F}
  ## Add IDs
 DRAFTS2 = DRAFTS %>%
   dplyr::distinct() %>%
@@ -2689,12 +2698,23 @@ DRAFTS = DRAFTS %>%
 
 ```
 
-```{r save universe environment, eval = F include = F, message = F, warning = F, echo = F}
-save.image("~/GitHub/Baseball/CVSL/2022/CompleteUniversesAndLeaderboardsEnv.RData")
+```{r save universe environment, eval = F, include = F, message = F, warning = F, echo = F}
+# save.image("~/GitHub/Baseball/CVSL/2022/CompleteUniversesAndLeaderboardsEnv.RData")
 ```
 
 ## Plot Some Draft Results
-```{r Join Draft history with stats, include = T, message = F, warning = F, echo = F}
+
+Scatter plot of some previous draft results
+
+```{r Join Draft history with stats, include = T, message = F, warning = F, echo = F, render = T, fig.height = 8, fig.width = 11}
+DRAFTS = DRAFTS %>%
+  dplyr::mutate(labs = "") %>%
+  dplyr::arrange(desc(Salary))
+
+DRAFTS = DRAFTS %>%
+  dplyr::mutate(labs = case_when(Salary >= 35 ~ Name,
+                                 TRUE ~ ""))
+
 
 DRAFTS %>%
   dplyr::mutate(Year2 = Year - 1, .after = 3) %>%
@@ -2712,34 +2732,36 @@ DRAFTS %>%
                                      CVSLTeam == "Tamales" ~ "Wombats",
                                      CVSLTeam == "Dodgers" ~ "Twins",
                                      TRUE ~ CVSLTeam),
-                Rbat = as.double(Rbat),
-                RAR = as.double(RAR),
-                WAR = as.double(WAR),
-                WAA = as.double(WAA)) %>%
-  dplyr::group_by(Year) %>%
+                Rbat = as.double(Rbat)) %>%
+  dplyr::mutate(`CVSL Draft` = paste("CVSL Draft", Year + 1, sep = " ")) %>%
+  dplyr::group_by(`CVSL Draft`) %>%
   ggplot() +
   geom_point(aes(x = Rbat,
                  y = Salary,
-                 size = 2.5,
-                 alpha = 0.6,
-                 color = CVSLTeam)) +
+                 size = 2.2,
+                 alpha = 0.4,
+                 color = CVSLTeam,
+                 label = labs)) +
   geom_smooth(aes(x = Rbat,
                   y = Salary), method = "gam", se = F)+
-  facet_wrap(~Year)+
-  labs(title = "CVSL Auction Draft History, 2019-2021\nHitters", x = "RBat, aka wRC+", y = "Salary ($)")+
+  facet_wrap(~`CVSL Draft`)+
+  labs(title = "CVSL Auctions, Hitters (2019-2022)", x = "'RBat'", y = "Salary ($)")+
   guides(alpha = "none")+
   guides(size = "none")+
   theme_bw()+
   theme(plot.title = element_text(hjust = 0.5, size = 12)) +
   scale_color_manual(values = c("darkgoldenrod", "chocolate", "black",
                                 "forestgreen", "firebrick", "orange", "gray48",
-                                "red", "navy", "skyblue"))
+                                "red", "navy", "skyblue")) +
+  geom_text_repel(aes(x = Rbat, y = Salary, label = labs), color = "black", size = 3, max.overlaps = Inf, box.padding = 0.5)
 ```
 
 
 ## Eligible MLB Teams
 
-```{r CVSL Eligible Teams, eval = F, include = T, message = F, warning = F, echo = F}
+The MLB teams from which CVSL Managers can draft players
+
+```{r CVSL Eligible Teams, eval = T, include = T, message = F, warning = F, echo = T}
 CVSL_universe = c("SFG", "SDP", "LAD", "ARI", "COL",
                    "OAK", "TEX", "LAA",
                    "MIN", "CLE",
@@ -2752,13 +2774,15 @@ CVSL_universe = c("SFG", "SDP", "LAD", "ARI", "COL",
 
 Filter hitters by:
 
-+ `C`s need **>= 100 ABs** to be eligible to catch in games
-+ all other hitters need **>= 175 ABs** to be eligible to play in games
++ `C`s need **>= 100 ABs** to be eligible to catch in CVSL games
++ all other hitters need **>= 175 ABs** to be eligible to play in CVSL games
 
 Filter pitchers by:
 
-+ `SP`s need **>= 8 starts (GS)** *AND* **>= 30 IP** to be eligible to start in games
-+ `RP`s need **>= 30 IP** to be eligible to pitch in games
++ `SP`s need **>= 8 starts (GS)** *AND* **>= 30 IP** to be eligible to start in CVSL games
++ `RP`s need **>= 30 IP** to be eligible to pitch in CVSL games
+
++ **code below is filtered to include only 2023 MLB stats**
 
 ```{r Stats and splits by year, include = T, message = F, warning = F, echo = T}
 
@@ -2789,16 +2813,6 @@ eligible_hitters_2024 = Player_Batting %>%
   dplyr::filter(Tm %in% CVSL_universe) %>%
   dplyr::distinct()
 
-Hitter_splits %>%
-  dplyr::mutate(Bats = case_when(Bats == "S" &
-                                   Split == "vs LHP" ~ "R",
-                                 Bats == "S" &
-                                   Split == "vs RHP" ~ "L",
-                                 TRUE ~ Bats)) %>%
-  dplyr::filter(Year == 2023) %>%
-  dplyr::filter(bbref_id %in% eligible_hitters_2024$bbref_id) %>%
-  dplyr::arrange(desc(`sOPS+`)) %>%
-  dplyr::filter(Tm %in% CVSL_universe)
 
 eligible_pitchers_2024 = Player_Pitching %>%
   dplyr::filter(Year == 2023) %>%
@@ -2814,6 +2828,27 @@ eligible_pitchers_2024 = Player_Pitching %>%
   dplyr::filter(eligible == 1) %>%
   dplyr::distinct()
 
+```
+
+Show top 5 `hitter` splits for **2024** (based on 2023 MLB stats)
+
+```{r Show hitter splits, include = T, message = F, warning = F, echo = T}
+Hitter_splits %>%
+  dplyr::mutate(Bats = case_when(Bats == "S" &
+                                   Split == "vs LHP" ~ "R",
+                                 Bats == "S" &
+                                   Split == "vs RHP" ~ "L",
+                                 TRUE ~ Bats)) %>%
+  dplyr::filter(Year == 2023) %>%
+  dplyr::filter(bbref_id %in% eligible_hitters_2024$bbref_id) %>%
+  dplyr::arrange(desc(`sOPS+`)) %>%
+  dplyr::filter(Tm %in% CVSL_universe) %>%
+  dplyr::slice(c(1:5))
+```
+
+Show top 5 `pitcher` splits for **2024** (based on 2023 MLB stats)
+
+```{r Show pitcher splits, include = T, message = F, warning = F, echo = T}
 Pitcher_splits %>%
   dplyr::select(-contains(".y")) %>%
   dplyr::filter(Year == 2023) %>%
@@ -2826,5 +2861,6 @@ Pitcher_splits %>%
   dplyr::filter(Tm %in% CVSL_universe) %>%
   dplyr::mutate(`BB%` = round(BB / PA, 3),
                 `K%` = round(SO / PA, 3)) %>%
-  dplyr::arrange(OBP)
+  dplyr::arrange(OBP) %>%
+  dplyr::slice(c(1:5))
 ```
