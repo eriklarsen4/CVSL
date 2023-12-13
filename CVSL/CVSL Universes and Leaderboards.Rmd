@@ -2,7 +2,13 @@
 title: "CVSL Universes and Leaderboards"
 author: "Erik Larsen"
 date: '2023-11-20'
-output: github_document
+output: 
+  html_document:
+    toc: yes
+    toc_float:
+      collapsed: yes
+    numbered_sections: yes
+    code_folding: hide
 ---
 
 # Overview
@@ -1553,29 +1559,25 @@ Show the resulting data frames:
 ## Hitters' splits
 
 ```{r Hitter splits DF DT, include = T, message = F, warning = F, echo = F}
-Hitter_splits %>%
-  dplyr::slice(c(1:5))
+DT::datatable(Hitter_splits)
 ```
 
 ## Pitchers' splits
 
 ```{r Pitcher splits DF DT, include = T, message = F, warning = F, echo = F}
-Pitcher_splits %>%
-  dplyr::slice(c(1:5))
+DT::datatable(Pitcher_splits)
 ```
 
 ## Aggregated hitters' data
 
 ```{r Aggregate Hitter DF DT, include = T, message = F, warning = F, echo = F}
-Player_Batting %>%
-  dplyr::slice(c(1:5))
+DT::datatable(Player_Batting)
 ```
 
 ## Aggregated pitchers' data
 
 ```{r Aggregate Pitcher DF DT, include = T, message = F, warning = F, echo = F}
-Player_Pitching %>%
-  dplyr::slice(c(1:5))
+DT::datatable(Player_Pitching)
 ```
 
 # Integrate CVSL Rosters and Rules {.tabset .tabset-pills .tabset-fade}
@@ -2848,7 +2850,7 @@ Hitter_splits %>%
   dplyr::filter(bbref_id %in% eligible_hitters_2024$bbref_id) %>%
   dplyr::arrange(desc(`sOPS+`)) %>%
   dplyr::filter(Tm %in% CVSL_universe) %>%
-  dplyr::slice(c(1:5))
+  DT::datatable()
 ```
 
 
@@ -2873,5 +2875,5 @@ Pitcher_splits %>%
   dplyr::mutate(`BB%` = round(BB / PA, 3),
                 `K%` = round(SO / PA, 3)) %>%
   dplyr::arrange(OBP) %>%
-  dplyr::slice(c(1:5))
+  DT::datatable()
 ```
