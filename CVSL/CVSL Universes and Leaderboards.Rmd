@@ -2,7 +2,7 @@
 title: "CVSL Universes and Leaderboards"
 author: "Erik Larsen"
 date: '2023-11-20'
-output:
+output: 
   html_document:
     toc: yes
     toc_float:
@@ -62,7 +62,7 @@ load("~/GitHub/Baseball/CVSL/2022/CompleteUniversesAndLeaderboardsEnv.RData")
 
 ```{r old environments, include = F, warning = F, message = F, echo = F}
 # load("~/GitHub/Baseball/CVSL/2022/CVSLenv.RData")
-load("~/GitHub/Baseball/CVSL/2022/CVSL_BR_envir.RData")
+# load("~/GitHub/Baseball/CVSL/2022/CVSL_BR_envir.RData")
 ```
 
 ```{r Chadwick db, eval = F, include = F, message = F, warning = F, echo = T}
@@ -1432,9 +1432,9 @@ rm(list = ls()[which(grepl(ls(), pattern = "pitching_splits") == T)])
 #   dplyr::select(-contains("_Year"))
 ```
 
-```{r load splits environment, include = T, message = F, warning = F, echo = F}
+```{r load splits environment, include = F, message = F, warning = F, echo = F}
 #save.image("~/GitHub/Baseball/CVSL/2022/BR_envir_2.RData")
-load("~/GitHub/Baseball/CVSL/2022/BR_envir_2.RData")
+# load("~/GitHub/Baseball/CVSL/2022/BR_envir_2.RData")
 ```
 
 Wrangle the splits data to add more player information
@@ -1513,7 +1513,7 @@ Hitter_splits = Hitter_splits %>%
   dplyr::arrange(desc(`sOPS+`))
 ```
 
-```{r Add FG IDs, eval = T, include = F, message = F, warning = F, echo = F}
+```{r Add FG IDs, eval = F, include = F, message = F, warning = F, echo = F}
 
 ## Add FG IDs to the aggregated hitter stats
 Player_Batting = Player_Batting_ALL2 %>%
@@ -1542,7 +1542,7 @@ Player_Pitching = Player_Pitching_ALL2 %>%
 # load("~/GitHub/Baseball/CVSL/2022/BR_envir_2.RData")
 ```
 
-```{r clean the GE, include = T, message = F, warning = F, echo = F}
+```{r clean the GE, eval = F, include = F, message = F, warning = F, echo = F}
 rm(list = ls()[which(grepl(ls(), pattern = "Changing|df|LgAvg|Player_(.+?)_ALL$|Team_") == T)])
 
 Player_Batting = Player_Batting_ALL2
