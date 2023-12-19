@@ -1517,7 +1517,34 @@ Hitter_splits = Hitter_splits %>%
 
 ## Add FG IDs to the aggregated hitter stats
 Player_Batting = Player_Batting_ALL2 %>%
-  dplyr::mutate(key_bbref = bbref_id) %>%
+  dplyr::mutate(bbref_id = case_when(grepl(Name, pattern = "Michael") &
+                                       grepl(Name, pattern = "Harris") &
+                                       grepl(Name, pattern = "II") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Michael Harris")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Bobby") &
+                                       grepl(Name, pattern = "Witt") &
+                                       grepl(Name, pattern = "Jr") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Bobby Witt") &
+                                                       name_suffix == "Jr.") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Matt") &
+                                       grepl(Name, pattern = "Reynolds") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Matt Reynolds") &
+                                                       name_given == "Matthew William") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Luis") &
+                                       grepl(Name, pattern = "Alexander") &
+                                       grepl(Name, pattern = "Basabe") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Alexander Basabe")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     TRUE ~ bbref_id),
+                key_bbref = bbref_id,
+                lastinit = str_extract(string = bbref_id, pattern = "[a-z]{1}")) %>%
   left_join(CHAD_LU, by = "key_bbref") %>%
   dplyr::mutate(playerid = key_fangraphs, .after = 3) %>%
   dplyr::rename(Name = Name.x,
