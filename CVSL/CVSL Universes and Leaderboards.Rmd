@@ -1269,6 +1269,12 @@ Player_Batting_ALL2 = Player_Batting_ALL2 %>%
                                        dplyr::select(key_bbref) %>%
                                        as.character(),
                                      
+                                     grepl(Name, pattern = "Allen") &
+                                       grepl(Name, pattern = "Nick") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Nick Allen")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
                                      TRUE ~ bbref_id),
                 
                 lastinit = str_extract(bbref_id, pattern = "[a-z]{1}"))
@@ -1823,11 +1829,10 @@ rm(dummy)
 
 # Clean the 2022 df ----
   ## Remove the first 4 rows and the extra columns
-CVSL_Draft_2022 = CVSL_Draft_2022[ -c(1:4), -c(seq(7, ncol(CVSL_Draft_2022), 8)) ]
+CVSL_Draft_2022 = CVSL_Draft_2022[ -c(1:4), -c(seq(7, ncol(CVSL_Draft_2022), 7)) ]
 
 dummy = CVSL_Draft_2022 %>%
   dplyr::select(-contains("X"), -contains("Players")) %>%
-  dplyr::slice(-c(1:4)) %>%
   dplyr::mutate(across(contains("Cap"), ~ gsub(., pattern = "\\$", replacement = "")))
 
 CVSL_Draft_2022 = pivot_longer(dummy, cols = everything()) %>%
@@ -2689,6 +2694,46 @@ DRAFTS2 = DRAFTS2 %>%
                                        dplyr::select(key_bbref) %>%
                                        as.character(),
                                      
+                                     grepl(Name, pattern = "Edwin Diaz") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Edwin D") &
+                                                       name_given == "Edwin Daniel") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     grepl(Name, pattern = "Jose Castillo") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Jos") &
+                                                       grepl(name_given, pattern = "Gregorio") &
+                                                       name_matrilineal == "Tovar") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                  
+                                     grepl(Name, pattern = "Nick Allen") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Nick Allen")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     grepl(Name, pattern = "Charlie Morton") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Charlie Morton")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     grepl(Name, pattern = "Erasmo Ramirez") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Erasmo")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     grepl(Name, pattern = "Cesar Hernandez") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "sar Hern")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     grepl(Name, pattern = "Jesus Sanchez") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Jes") &
+                                                       grepl(Name, pattern = "s S") &
+                                                       grepl(Name, pattern = "nchez")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
                                      TRUE ~ bbref_id)
                 ) %>%
   dplyr::filter(bbref_id != "rodried01") %>%
@@ -2725,6 +2770,7 @@ DRAFTS = DRAFTS %>%
     dplyr::filter(!(grepl(CVSLTeam, pattern = "Ducks") & key_bbref == "cruzne01")) %>%
     dplyr::filter(!(grepl(CVSLTeam, pattern = "Ducks") & key_bbref == "perdolu01")) %>% 
     dplyr::filter(!(grepl(CVSLTeam, pattern = "Cattlemen") & key_bbref == "mortoch01")) %>%
+    dplyr::filter(!(grepl(CVSLTeam, pattern = "Renegades") & key_bbref == "cruzne01")) %>%
     dplyr::filter(!(grepl(CVSLTeam, pattern = "Cattlemen") & key_bbref == "hamilbi01")) %>%
     dplyr::filter(!grepl(bbref_id, pattern = "kellyjo(03|04)")) %>%
     dplyr::mutate(Name = Name.y, .before = 1) %>%
