@@ -26,7 +26,6 @@ load(
 )
 
 
-
 # commented out commands ----
 # CHAD_LU_2 = chadwick_player_lu()
 # 
@@ -129,55 +128,63 @@ ui <- navbarPage(
              tabPanel("2023", dataTableOutput('HittersAgg2023'))),
   
   navbarMenu("Aggregated Pitcher Season Totals",
-             tabPanel("2016", dataTableOutput("PitchersAgg2016")),
-             tabPanel("2017", dataTableOutput("PitchersAgg2017")),
-             tabPanel("2018", dataTableOutput("PitchersAgg2018")),
-             tabPanel("2019", dataTableOutput("PitchersAgg2019")),
-             tabPanel("2020", dataTableOutput("PitchersAgg2020")),
-             tabPanel("2021", dataTableOutput("PitchersAgg2021")),
-             tabPanel("2022", dataTableOutput("PitchersAgg2022")),
-             tabPanel("2023", dataTableOutput("PitchersAgg2023"))),
+             tabPanel("2016", dataTableOutput("PitchersAgg2016", width = "20%")),
+             tabPanel("2017", dataTableOutput("PitchersAgg2017", width = "20%")),
+             tabPanel("2018", dataTableOutput("PitchersAgg2018", width = "20%")),
+             tabPanel("2019", dataTableOutput("PitchersAgg2019", width = "20%")),
+             tabPanel("2020", dataTableOutput("PitchersAgg2020", width = "20%")),
+             tabPanel("2021", dataTableOutput("PitchersAgg2021", width = "20%")),
+             tabPanel("2022", dataTableOutput("PitchersAgg2022", width = "20%")),
+             tabPanel("2023", dataTableOutput("PitchersAgg2023", width = "20%"))),
   
   navbarMenu("2023 Season Splits",
              
-             tabPanel("Hitters vLHP", dataTableOutput("HitterSplitsvLHP")),
-             tabPanel("Hitters vRHP", dataTableOutput("HitterSplitsvRHP")),
-             tabPanel("Pitcher vLHB", dataTableOutput("PitcherSplitsvLHB")),
-             tabPanel("Pitcher vRHB", dataTableOutput("PitcherSplitsvRHB"))),
+             tabPanel("Hitters vLHP", dataTableOutput("HitterSplitsvLHP", width = "20%")),
+             tabPanel("Hitters vRHP", dataTableOutput("HitterSplitsvRHP", width = "20%")),
+             tabPanel("Pitcher vLHB", dataTableOutput("PitcherSplitsvLHB", width = "20%")),
+             tabPanel("Pitcher vRHB", dataTableOutput("PitcherSplitsvRHB", width = "20%"))),
 
   navbarMenu("CVSL Draft History", 
              
              tabPanel("Draft History, Hitters", sidebarLayout(
 
-                                                               sidebarPanel = sidebarPanel(varSelectInput("xvar", "X variable", DRAFTS_hitters, selected = "bWAR"),
-                                                                                           varSelectInput("yvar", "Y variable", DRAFTS_hitters, selected = "Salary"),
-                                                                                           checkboxGroupInput("team", "Filter by CVSL Team",
-                                                                                                              choices = c(unique(DRAFTS_hitters$CVSLTeam)),
-                                                                                                              selected = c(unique(DRAFTS_hitters$CVSLTeam))),
-                                                                                           checkboxGroupInput("by_Year", "Filter by Draft Year",
+                                                               sidebarPanel = sidebarPanel(
+                                                                                           varSelectInput("hitxvar", strong("X variable"), DRAFTS_hitters, selected = "bWAR"),
+                                                                                           varSelectInput("hityvar", strong("Y variable"), DRAFTS_hitters, selected = "Salary"),
+                                                                                           checkboxGroupInput(inputId = "hitteam", label = strong("Filter by CVSL Team"),
+                                                                                                              choices = c(sort(unique(DRAFTS_hitters$CVSLTeam))),
+                                                                                                              selected = c(sort(unique(DRAFTS_hitters$CVSLTeam)))),
+                                                                                           checkboxGroupInput(inputId = "hitby_Year", label = strong("Filter by Draft Year"),
                                                                                                               choices = c(as.character(unique(DRAFTS_hitters$`Draft Year`))),
-                                                                                                              selected = c(as.character(unique(DRAFTS_hitters$`Draft Year`))))),
+                                                                                                              selected = c(as.character(unique(DRAFTS_hitters$`Draft Year`)))),
+                                                                                           checkboxInput("hitgroupbyteam",label = strong("Group By Team"), value = F),
+                                                                                           checkboxInput("hitshowfit", label = strong("Show Fit Line"), value = F), width = 3),
 
-                                                               mainPanel = plotOutput("draft_h"),
+                                                               mainPanel = plotOutput("draft_h", width = 6),
                                                 
-                                                               position = "left"
+                                                               position = "left", 
                                                 
                                                              )
              
              ),
              tabPanel("Draft History, Pitchers", sidebarLayout(
                
-                                                               sidebarPanel = sidebarPanel(varSelectInput("xvar", "X variable", DRAFTS_pitchers, selected = "bWAR"),
-                                                                                           varSelectInput("yvar", "Y variable", DRAFTS_pitchers, selected = "Salary"),
-                                                                                           checkboxInput("by_CVSLTeam", "Show Team", TRUE),
-                                                                                           checkboxGroupInput("team", "Filter by CVSL Team",
-                                                                                                              choices = unique(DRAFTS_pitchers$CVSLTeam),
-                                                                                                              selected = unique(DRAFTS_pitchers$CVSLTeam))),
-                                                               
-                                                               mainPanel = plotOutput("draft_p"),
-                                                               
-                                                               position = "left"
-                                                               
+                                                                 sidebarPanel = sidebarPanel(
+                                                                                             varSelectInput("xvar", strong("X variable"), DRAFTS_pitchers, selected = "bWAR"),
+                                                                                             varSelectInput("yvar", strong("Y variable"), DRAFTS_pitchers, selected = "Salary"),
+                                                                                             checkboxGroupInput(inputId = "team", label = strong("Filter by CVSL Team"),
+                                                                                                                choices = c(sort(unique(DRAFTS_pitchers$CVSLTeam))),
+                                                                                                                selected = c(sort(unique(DRAFTS_pitchers$CVSLTeam)))),
+                                                                                             checkboxGroupInput(inputId = "by_Year", label = strong("Filter by Draft Year"),
+                                                                                                                choices = c(as.character(unique(DRAFTS_pitchers$`Draft Year`))),
+                                                                                                                selected = c(as.character(unique(DRAFTS_pitchers$`Draft Year`)))),
+                                                                                             checkboxInput("groupbyteam",label = strong("Group By Team"), value = F),
+                                                                                             checkboxInput("showfit", label = strong("Show Fit Line"), value = F), width = 3),
+                                                                 
+                                                                 mainPanel = plotOutput("draft_p", width = 6),
+                                                                 
+                                                                 position = "left", 
+                                                                 
                                                                )
              
              )
@@ -193,135 +200,199 @@ ui <- navbarPage(
 
 # server logic ----
 
-server <- function(input, output) {
+server <- function(input, output, session) {
 
-  output$HittersAgg2016 = renderDataTable(Player_Batting %>% dplyr::select(-c(38:42,44)) %>% dplyr::filter(Year == 2016) )
-  output$HittersAgg2017 = renderDataTable(Player_Batting %>% dplyr::select(-c(38:42,44)) %>% dplyr::filter(Year == 2017) )
-  output$HittersAgg2018 = renderDataTable(Player_Batting %>% dplyr::select(-c(38:42,44)) %>% dplyr::filter(Year == 2018) )
-  output$HittersAgg2019 = renderDataTable(Player_Batting %>% dplyr::select(-c(38:42,44)) %>% dplyr::filter(Year == 2019) )
-  output$HittersAgg2020 = renderDataTable(Player_Batting %>% dplyr::select(-c(38:42,44)) %>% dplyr::filter(Year == 2020) )
-  output$HittersAgg2021 = renderDataTable(Player_Batting %>% dplyr::select(-c(38:42,44)) %>% dplyr::filter(Year == 2021) )
-  output$HittersAgg2022 = renderDataTable(Player_Batting %>% dplyr::select(-c(38:42,44)) %>% dplyr::filter(Year == 2022) )
-  output$HittersAgg2023 = renderDataTable(Player_Batting %>% dplyr::select(-c(38:42,44)) %>% dplyr::filter(Year == 2023) )
+  output$HittersAgg2016 = renderDataTable(Player_Batting %>% dplyr::select(-c(38:42,44)) %>% dplyr::filter(Year == 2016), filter = "top")
+  output$HittersAgg2017 = renderDataTable(Player_Batting %>% dplyr::select(-c(38:42,44)) %>% dplyr::filter(Year == 2017), filter = "top" )
+  output$HittersAgg2018 = renderDataTable(Player_Batting %>% dplyr::select(-c(38:42,44)) %>% dplyr::filter(Year == 2018), filter = "top" )
+  output$HittersAgg2019 = renderDataTable(Player_Batting %>% dplyr::select(-c(38:42,44)) %>% dplyr::filter(Year == 2019), filter = "top" )
+  output$HittersAgg2020 = renderDataTable(Player_Batting %>% dplyr::select(-c(38:42,44)) %>% dplyr::filter(Year == 2020), filter = "top" )
+  output$HittersAgg2021 = renderDataTable(Player_Batting %>% dplyr::select(-c(38:42,44)) %>% dplyr::filter(Year == 2021), filter = "top" )
+  output$HittersAgg2022 = renderDataTable(Player_Batting %>% dplyr::select(-c(38:42,44)) %>% dplyr::filter(Year == 2022), filter = "top" )
+  output$HittersAgg2023 = renderDataTable(Player_Batting %>% dplyr::select(-c(38:42,44)) %>% dplyr::filter(Year == 2023) , filter = "top")
 
-  output$PitchersAgg2016 = renderDataTable(Player_Pitching %>% dplyr::select(-c(42:46,48,49,53:57)) %>% dplyr::filter(Year == 2016) )
-  output$PitchersAgg2017 = renderDataTable(Player_Pitching %>% dplyr::select(-c(42:46,48,49,53:57)) %>% dplyr::filter(Year == 2017) )
-  output$PitchersAgg2018 = renderDataTable(Player_Pitching %>% dplyr::select(-c(42:46,48,49,53:57)) %>% dplyr::filter(Year == 2018) )
-  output$PitchersAgg2019 = renderDataTable(Player_Pitching %>% dplyr::select(-c(42:46,48,49,53:57)) %>% dplyr::filter(Year == 2019) )
-  output$PitchersAgg2020 = renderDataTable(Player_Pitching %>% dplyr::select(-c(42:46,48,49,53:57)) %>% dplyr::filter(Year == 2020) )
-  output$PitchersAgg2021 = renderDataTable(Player_Pitching %>% dplyr::select(-c(42:46,48,49,53:57)) %>% dplyr::filter(Year == 2021) )
-  output$PitchersAgg2022 = renderDataTable(Player_Pitching %>% dplyr::select(-c(42:46,48,49,53:57)) %>% dplyr::filter(Year == 2022) )
-  output$PitchersAgg2023 = renderDataTable(Player_Pitching %>% dplyr::select(-c(42:46,48,49,53:57)) %>% dplyr::filter(Year == 2023) )
+  output$PitchersAgg2016 = renderDataTable(Player_Pitching %>% dplyr::select(-c(42:46,48,49,53:57)) %>% dplyr::filter(Year == 2016), filter = "top" )
+  output$PitchersAgg2017 = renderDataTable(Player_Pitching %>% dplyr::select(-c(42:46,48,49,53:57)) %>% dplyr::filter(Year == 2017) , filter = "top")
+  output$PitchersAgg2018 = renderDataTable(Player_Pitching %>% dplyr::select(-c(42:46,48,49,53:57)) %>% dplyr::filter(Year == 2018), filter = "top" )
+  output$PitchersAgg2019 = renderDataTable(Player_Pitching %>% dplyr::select(-c(42:46,48,49,53:57)) %>% dplyr::filter(Year == 2019) , filter = "top")
+  output$PitchersAgg2020 = renderDataTable(Player_Pitching %>% dplyr::select(-c(42:46,48,49,53:57)) %>% dplyr::filter(Year == 2020), filter = "top" )
+  output$PitchersAgg2021 = renderDataTable(Player_Pitching %>% dplyr::select(-c(42:46,48,49,53:57)) %>% dplyr::filter(Year == 2021), filter = "top" )
+  output$PitchersAgg2022 = renderDataTable(Player_Pitching %>% dplyr::select(-c(42:46,48,49,53:57)) %>% dplyr::filter(Year == 2022), filter = "top" )
+  output$PitchersAgg2023 = renderDataTable(Player_Pitching %>% dplyr::select(-c(42:46,48,49,53:57)) %>% dplyr::filter(Year == 2023) , filter = "top")
   
-  output$PitcherSplitsvLHB = renderDataTable(Pitcher_splits %>% dplyr::filter(grepl(Split, pattern = "LHB")))
-  output$PitcherSplitsvRHB = renderDataTable(Pitcher_splits %>% dplyr::filter(grepl(Split, pattern = "RHB")))
-  output$HitterSplitsvLHP = renderDataTable(Hitter_splits %>% dplyr::filter(grepl(Split, pattern = "LHP")))
-  output$HitterSplitsvRHP = renderDataTable(Hitter_splits %>% dplyr::filter(grepl(Split, pattern = "RHP")))
+  output$PitcherSplitsvLHB = renderDataTable(Pitcher_splits %>% dplyr::filter(grepl(Split, pattern = "LHB")), filter = "top")
+  output$PitcherSplitsvRHB = renderDataTable(Pitcher_splits %>% dplyr::filter(grepl(Split, pattern = "RHB")), filter = "top")
+  output$HitterSplitsvLHP = renderDataTable(Hitter_splits %>% dplyr::filter(grepl(Split, pattern = "LHP")), filter = "top")
+  output$HitterSplitsvRHP = renderDataTable(Hitter_splits %>% dplyr::filter(grepl(Split, pattern = "RHP")), filter = "top")
   
+  DRAFTS_hitters = DRAFTS_hitters %>%
+    dplyr::mutate(teamcolors = case_when(CVSLTeam == "Arsenal" ~ "darkgoldenrod3",
+                                         CVSLTeam == "Bison" ~ "chocolate",
+                                         CVSLTeam == "Cattlemen" ~ "black",
+                                         CVSLTeam == "Ducks" ~ "forestgreen",
+                                         CVSLTeam == "Matadors" ~ "firebrick",
+                                         CVSLTeam == "Nuggets" ~ "orange",
+                                         CVSLTeam == "Phillies" ~ "gray48",
+                                         CVSLTeam == "Renegades" ~ "red",
+                                         CVSLTeam == "Twins" ~ "navy",
+                                         CVSLTeam == "Wombats" ~ "skyblue"
+    ))
   
-  hitters_years_df <- reactive({
+  DRAFTS_pitchers = DRAFTS_pitchers %>%
+    dplyr::mutate(teamcolors = case_when(CVSLTeam == "Arsenal" ~ "darkgoldenrod3",
+                                         CVSLTeam == "Bison" ~ "chocolate",
+                                         CVSLTeam == "Cattlemen" ~ "black",
+                                         CVSLTeam == "Ducks" ~ "forestgreen",
+                                         CVSLTeam == "Matadors" ~ "firebrick",
+                                         CVSLTeam == "Nuggets" ~ "orange",
+                                         CVSLTeam == "Phillies" ~ "gray48",
+                                         CVSLTeam == "Renegades" ~ "red",
+                                         CVSLTeam == "Twins" ~ "navy",
+                                         CVSLTeam == "Wombats" ~ "skyblue"
+    ))
+  
 
-    
-    if ( length(input$by_Year) >= 1
-         
-         ) {
-        
-        data = DRAFTS_hitters %>% #dplyr::filter(CVSLTeam %in% c(input$team)) %>%
-          dplyr::filter(as.character(`Draft Year`) %in% c(input$by_Year))
-      
-    } else {
-      
-      data = DRAFTS_hitters
-      
-    } 
-    
-    data
-
-  })
-  
   hitters_teams_df <- reactive({
+
+
+      df <- DRAFTS_hitters %>%
+        dplyr::filter(CVSLTeam %in% sort(unlist(input$hitteam)[c(1:10)]))
+
+
+      df2 <- df %>%
+        dplyr::filter(as.character(`Draft Year`) %in% input$hitby_Year)
+
+
+      df2
+
+  })
+
+  pitchers_teams_df <- reactive({
     
-    if ( length(input$team) >= 1
-         
-    ) {
-      
-      data = hitters_years_df()[DRAFTS_hitters$CVSLTeam %in% c(input$team), ]
-      
-    } else {
-      
-      data = hitters_years_df()
-      
-    }
     
-    data
+    df3 <- DRAFTS_pitchers %>%
+      dplyr::filter(CVSLTeam %in% input$team)
+    
+    
+    df4 <- df3 %>%
+      dplyr::filter(as.character(`Draft Year`) %in% input$by_Year)
+    
+    
+    df4
     
   })
+  
 
   output$draft_h = renderPlot({
     
-    p <- ggplot(hitters_teams_df() ,
-               
-               aes(!!input$xvar, !!input$yvar, alpha = 0.5, color = CVSLTeam)) +
-      # geom_smooth(aes(!!input$xvar, !!input$yvar), method = "gam") +
-      
-      # scale_color_manual(values = c("darkgoldenrod", "chocolate", "black",
-      #                                              "forestgreen", "firebrick", "orange", "gray48",
-      #                                              "red", "navy", "skyblue")) #+
-      
-      list(
-            geom_point(),
-            # scale_color_manual(values = c(team_colors)),
-            guides(alpha = "none")
-            
-
-      )
-      
-    p
+    req( length( sort(unlist(input$hitteam)[c(1:10)]) ) >= 1)
+    if (input$hitgroupbyteam == T & input$hitshowfit == T & length(input$hitby_Year) >= 1 )
+    h <- ggplot(hitters_teams_df(), aes(!!input$hitxvar, !!input$hityvar, alpha = 0.5)) +
+      theme(plot.title = element_text(hjust = 0.5))+
+      labs(title = "CVSL Auctions, Hitters (2019-2023)")+
+      geom_point(aes(color = CVSLTeam)) +
+      scale_color_manual(values = c("darkgoldenrod", "chocolate", "black",
+                                    "forestgreen", "firebrick", "orange", "gray48",
+                                    "red", "navy", "skyblue")) +
+      geom_smooth(aes(x = !!input$hitxvar, y = !!input$hityvar), method = "gam", se = F, color = "violet", linetype = "dashed")+
+      facet_wrap(~ CVSLTeam) +
+      guides(alpha = "none")
     
-  }, height = 600, width = 900, res = 100)
+    else if (input$hitgroupbyteam == T & input$hitshowfit == F & length(input$hitby_Year) >= 1)
+      h <- ggplot(hitters_teams_df(), aes(!!input$hitxvar, !!input$hityvar, alpha = 0.5)) +
+        theme(plot.title = element_text(hjust = 0.5))+
+        labs(title = "CVSL Auctions, Hitters (2019-2023)")+
+        geom_point(aes(color = CVSLTeam)) +
+        scale_color_manual(values = c("darkgoldenrod", "chocolate", "black",
+                                      "forestgreen", "firebrick", "orange", "gray48",
+                                      "red", "navy", "skyblue")) +
+        facet_wrap(~ CVSLTeam) +
+        guides(alpha = "none")
+    
+    else if (input$hitgroupbyteam == F & input$hitshowfit == T & length(input$hitby_Year) >= 1)
+      h <- ggplot(hitters_teams_df(), aes(!!input$hitxvar, !!input$hityvar, alpha = 0.5)) +
+        theme(plot.title = element_text(hjust = 0.5))+
+        labs(title = "CVSL Auctions, Hitters (2019-2023)")+
+        geom_point(aes(color = CVSLTeam)) +
+        scale_color_manual(values = c("darkgoldenrod", "chocolate", "black",
+                                      "forestgreen", "firebrick", "orange", "gray48",
+                                      "red", "navy", "skyblue")) +
+        geom_smooth(aes(x = !!input$hitxvar, y = !!input$hityvar), method = "gam", se = F, color = "violet", linetype = "dashed")+
+        guides(alpha = "none")
+    
+    else if (length(input$hitby_Year) >= 1)
+      h <- ggplot(hitters_teams_df(), aes(!!input$hitxvar, !!input$hityvar, alpha = 0.5)) +
+        theme(plot.title = element_text(hjust = 0.5))+
+        labs(title = "CVSL Auctions, Hitters (2019-2023)")+
+        geom_point(aes(color = CVSLTeam)) +
+        scale_color_manual(values = c("darkgoldenrod", "chocolate", "black",
+                                      "forestgreen", "firebrick", "orange", "gray48",
+                                      "red", "navy", "skyblue")) +
+        guides(alpha = "none")
+      
+    else h = NULL
+    
+      
+    h
+    
+  }, height = 500, width = 800, res = 100)
   
   
-  subset_pitchers_df <- reactive({
-    
-    req(input$by_CVSLTeam)
-    DRAFTS_pitchers %>% dplyr::filter(CVSLTeam %in% input$by_CVSLTeam)
-    
-    
-  })
   
   output$draft_p = renderPlot({
     
-    p = ggplot(subset_pitchers_df(),
-               
-               aes(!!input$xvar, !!input$yvar, color = CVSLTeam)) +
-      
-      geom_point() #+ 
-      # scale_color_manual(values = c("darkgoldenrod", "chocolate", "black",
-      #                                              "forestgreen", "firebrick", "orange", "gray48",
-      #                                              "red", "navy", "skyblue")) #+ 
+    req( length( sort(unlist(input$team)[c(1:10)]) ) >= 1)
+    if (input$groupbyteam == T & input$showfit == T & length(input$by_Year) >= 1)
+      p <- ggplot(pitchers_teams_df(), aes(!!input$xvar, !!input$yvar, alpha = 0.5)) +
+        theme(plot.title = element_text(hjust = 0.5))+
+        labs(title = "CVSL Auctions, Pitchers (2019-2023)")+
+        geom_point(aes(color = CVSLTeam)) +
+        scale_color_manual(values = c("darkgoldenrod", "chocolate", "black",
+                                      "forestgreen", "firebrick", "orange", "gray48",
+                                      "red", "navy", "skyblue")) +
+        geom_smooth(aes(x = !!input$xvar, y = !!input$yvar), method = "gam", se = F, color = "violet", linetype = "dashed")+
+        facet_wrap(~ CVSLTeam) +
+        guides(alpha = "none")
     
-    # list(
-    #   
-    #       if (input$by_CVSLTeam >= 1) facet_wrap(~CVSLTeam)
-    #   
-    # )
+    else if (input$groupbyteam == T & input$showfit == F & length(input$by_Year) >= 1)
+      p <- ggplot(pitchers_teams_df(), aes(!!input$xvar, !!input$yvar, alpha = 0.5)) +
+        theme(plot.title = element_text(hjust = 0.5))+
+        labs(title = "CVSL Auctions, Pitchers (2019-2023)")+
+        geom_point(aes(color = CVSLTeam)) +
+        scale_color_manual(values = c("darkgoldenrod", "chocolate", "black",
+                                      "forestgreen", "firebrick", "orange", "gray48",
+                                      "red", "navy", "skyblue")) +
+        facet_wrap(~ CVSLTeam) +
+        guides(alpha = "none")
+    
+    else if (input$groupbyteam == F & input$showfit == T & length(input$by_Year) >= 1)
+      p <- ggplot(pitchers_teams_df(), aes(!!input$xvar, !!input$yvar, alpha = 0.5)) +
+        theme(plot.title = element_text(hjust = 0.5))+
+        labs(title = "CVSL Auctions, Pitchers (2019-2023)")+
+        geom_point(aes(color = CVSLTeam)) +
+        scale_color_manual(values = c("darkgoldenrod", "chocolate", "black",
+                                      "forestgreen", "firebrick", "orange", "gray48",
+                                      "red", "navy", "skyblue")) +
+        geom_smooth(aes(x = !!input$xvar, y = !!input$yvar), method = "gam", se = F, color = "violet", linetype = "dashed")+
+        guides(alpha = "none")
+    
+    else if (length(input$by_Year) >= 1)
+      p <- ggplot(pitchers_teams_df(), aes(!!input$xvar, !!input$yvar, alpha = 0.5)) +
+        theme(plot.title = element_text(hjust = 0.5))+
+        labs(title = "CVSL Auctions, Pitchers (2019-2023)")+
+        geom_point(aes(color = CVSLTeam)) +
+        scale_color_manual(values = c("darkgoldenrod", "chocolate", "black",
+                                      "forestgreen", "firebrick", "orange", "gray48",
+                                      "red", "navy", "skyblue")) +
+        guides(alpha = "none")
+    
+    else p = NULL
     
     
-    # list(
-    #   
-    #   
-    #   # if (input$xvar == "bWAR") theme(panel.grid.major.x = c(-1, 11))
-    #   
-    #   geom_point() +
-    #     scale_color_manual(values = c("darkgoldenrod", "chocolate", "black",
-    #                                   "forestgreen", "firebrick", "orange", "gray48",
-    #                                   "red", "navy", "skyblue"))
-    #            
-    #   )
     
     p
     
-  }, height = 600, width = 900, res = 100)
+  }, height = 500, width = 800, res = 100)
   
 }
 
@@ -369,3 +440,14 @@ shinyApp(ui = ui, server = server)
 # 
 # # Run the application 
 # shinyApp(ui = ui, server = server)
+# DRAFTS_hitters %>%
+#   dplyr::mutate(CVSLTeam = as.factor(CVSLTeam)) %>%
+#   dplyr::select(CVSLTeam) %>%
+#   dplyr::distinct(CVSLTeam) %>%
+#   dplyr::arrange(CVSLTeam)
+# 
+# DRAFTS_hitters %>%
+#   dplyr::filter(CVSLTeam %in% c("Arsenal", "Bison"))
+# list(c(unique(DRAFTS_hitters$CVSLTeam)))[[1]]
+# get(list(unique(DRAFTS_hitters$CVSLTeam))[[2]])
+# sort(unlist(as.list(unique(DRAFTS_hitters$CVSLTeam))[c(1:10)]))["Arsenal"]
