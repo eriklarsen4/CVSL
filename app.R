@@ -5,110 +5,17 @@
 # library(shiny)
 # library(ggplot2)
 # library(ggExtra)
-# library(DT)
+library(DT)
 library(baseballr)
 library(tidyverse)
 
 library(here)
 
-# rsconnect::setAccountInfo(name='genuinechuckles', token='36B974DE17CDC1C90A155DA4FCC44339', secret='h3eBnnKZp9HNe6CllCcEXFUZUNexNnGMqk2WRj9l')
-
 library(rsconnect)
 
-
-# load(url("https://github.com/eriklarsen4/Baseball/blob/main/CVSL/2022/CompleteUniversesAndLeaderboardsEnv.RData"))
-# load(".data/CompleteUniversesAndLeaderboards.RData")
-# load("~/GitHub/Baseball/CVSL/2022/CompleteUniversesAndLeaderboardsEnv.RData")
-# save.image("~/GitHub/Baseball/CVSL/CVSLDraftPrep/data/CompleteUniversesAndLeaderboards.RData")
-# setwd("./data")
-
-# load(
-#   here("CVSL", "CVSLDraftPrep", "data" , "CompleteUniversesAndLeaderboards.RData")
-# )
-# setwd("~GitHub/Baseball/CVSL/CVSLDraftPrep")
-# load(
-#   here("CVSL", "CVSLDraftPrep", "CompleteUniversesAndLeaderboards.RData")
-# )
 load("CompleteUniversesAndLeaderboards.RData")
-# commented out commands ----
-# CHAD_LU_2 = chadwick_player_lu()
-# 
-# CHAD_LU_2 = CHAD_LU_2 %>%
-#   dplyr::filter(mlb_played_last >= 2016) %>%
-#   dplyr::mutate(bday = as.Date(paste(birth_year, "-", birth_month, "-", birth_day, sep = "")),
-#                 Name = paste(name_first, name_last, sep = " ")) %>%
-#   dplyr::select(Name, key_bbref, bday)
-# 
-# CHAD_LU = CHAD_LU %>%
-#   inner_join(CHAD_LU_2)
-# 
-# 
-# DRAFTS %>%
-#   dplyr::mutate(`Draft Year` = as.numeric(Year),
-#                 Year = Year - 1) %>%
-#   left_join(Player_Batting, by = c("bbref_id", "Year")) %>%
-#   dplyr::filter(!is.na(Name.y)) %>%
-#   dplyr::rename(Name = Name.x) %>%
-#   dplyr::select(-Name.y, -contains("key")) %>%
-#   dplyr::mutate(key_bbref = bbref_id) %>%
-#   dplyr::left_join(CHAD_LU_2, by = "key_bbref") %>%
-#   dplyr::mutate(Age_continuous = as.numeric(difftime(as.Date(paste(Year, "-07-01", sep = "")), as.Date(bday), units = "days"))/ 365.25) %>%
-#   dplyr::select(-contains(".y"), -contains("key")) %>%
-#   dplyr::rename(Name = Name.x) %>%
-#   dplyr::mutate(CVSLTeam = case_when(CVSLTeam == "Bears" ~ "Renegades",
-#                                      CVSLTeam == "Copperheads" ~ "Arsenal",
-#                                      CVSLTeam == "Golden Bears" ~ "Renegades",
-#                                      CVSLTeam == "Tamales" ~ "Wombats",
-#                                      CVSLTeam == "Dodgers" ~ "Twins",
-#                                      TRUE ~ CVSLTeam))
-# 
-# DRAFTS_hitters = DRAFTS %>%
-#   dplyr::mutate(CVSLTeam = case_when(CVSLTeam == "Bears" ~ "Renegades",
-#                                      CVSLTeam == "Copperheads" ~ "Arsenal",
-#                                      CVSLTeam == "Golden Bears" ~ "Renegades",
-#                                      CVSLTeam == "Tamales" ~ "Wombats",
-#                                      CVSLTeam == "Dodgers" ~ "Twins",
-#                                      TRUE ~ CVSLTeam)) %>%
-#   dplyr::mutate(`Draft Year` = as.numeric(Year),
-#                 Year = Year - 1) %>%
-#   left_join(Player_Batting, by = c("bbref_id", "Year")) %>%
-#   dplyr::filter(CVSLTeam == "Arsenal" & `Draft Year` == 2022)
-#   
-#   dplyr::filter(!is.na(Name.y)) %>%
-#   dplyr::rename(Name = Name.x) %>%
-#   dplyr::select(-Name.y, -contains("key")) %>%
-#   dplyr::mutate(key_bbref = bbref_id) %>%
-#   left_join(CHAD_LU_2, by = "key_bbref") %>%
-#   dplyr::mutate(Age_continuous = as.numeric(difftime(as.Date(paste(Year, "-07-01", sep = "")), as.Date(bday), units = "days"))/ 365.25) %>%
-#   dplyr::select(-contains(".y"), -contains("key")) %>%
-#   dplyr::rename(Name = Name.x) %>%
-#   
-#   dplyr::mutate(across(c(14:15,17:51), as.double))
-# 
-# DRAFTS_pitchers = DRAFTS %>%
-#   dplyr::mutate(`Draft Year` = as.numeric(Year),
-#                 Year = Year - 1) %>%
-#   left_join(Player_Pitching, by = c("bbref_id", "Year")) %>%
-#   dplyr::filter(!is.na(Name.y)) %>%
-#   dplyr::rename(Name = Name.x,
-#                 Salary = Salary.x) %>%
-#   dplyr::select(-contains("key"), -contains(".y"), -Acquired, -RA9extras, -contains("%"), -PPFp) %>%
-#   dplyr::mutate(key_bbref = bbref_id) %>%
-#   left_join(CHAD_LU_2, by = "key_bbref") %>%
-#   dplyr::mutate(Age_continuous = as.numeric(difftime(as.Date(paste(Year, "-07-01", sep = "")), as.Date(bday), units = "days")) / 365.25,
-#                 playerid = as.character(playerid)) %>%
-#   dplyr::rename(Name = Name.x) %>%
-#   dplyr::select(-Name.y) %>%
-#   dplyr::mutate(CVSLTeam = case_when(CVSLTeam == "Bears" ~ "Renegades",
-#                                      CVSLTeam == "Copperheads" ~ "Arsenal",
-#                                      CVSLTeam == "Golden Bears" ~ "Renegades",
-#                                      CVSLTeam == "Tamales" ~ "Wombats",
-#                                      CVSLTeam == "Dodgers" ~ "Twins",
-#                                      TRUE ~ CVSLTeam)) %>%
-#   dplyr::mutate(across(c(14:53), as.double))
-# 
-# DRAFTS_full = DRAFTS_pitchers %>%
-#   full_join(DRAFTS_hitters) %>% dplyr::distinct()
+
+
 
 # ui object ----
 
@@ -196,11 +103,6 @@ ui <- navbarPage(
   
   
 )
-
-
-
-
-
 
 # server logic ----
 
@@ -343,11 +245,6 @@ server <- function(input, output, session) {
       
     else h = NULL
     
-    # shinyjs::delay(expr = ({
-    #   
-    #   options(warn = storeWarn)
-    #   
-    # }), ms = 100)
     h
     
   }, height = 500, width = 800, res = 100)
@@ -404,14 +301,7 @@ server <- function(input, output, session) {
         guides(alpha = "none")
     
     else p = NULL
-    
-    # shinyjs::delay(expr = ({
-    #   
-    #   options(warn = storeWarn)
-    #   
-    # }), ms = 100)
-    
-    
+  
     p
     
   }, height = 500, width = 800, res = 100)
@@ -422,56 +312,3 @@ server <- function(input, output, session) {
 # run the app ----
 
 shinyApp(ui = ui, server = server)
-
-# deployApp("~/GitHub/Baseball/CVSL")
-# ----
-# Define UI for application that draws a histogram
-# ui <- fluidPage(
-# 
-#     # Application title
-#     titlePanel("Old Faithful Geyser Data"),
-# 
-#     # Sidebar with a slider input for number of bins 
-#     sidebarLayout(
-#         sidebarPanel(
-#             sliderInput("bins",
-#                         "Number of bins:",
-#                         min = 1,
-#                         max = 50,
-#                         value = 30)
-#         ),
-# 
-#         # Show a plot of the generated distribution
-#         mainPanel(
-#            plotOutput("distPlot")
-#         )
-#     )
-# )
-# 
-# # Define server logic required to draw a histogram
-# server <- function(input, output) {
-# 
-#     output$distPlot <- renderPlot({
-#         # generate bins based on input$bins from ui.R
-#         x    <- faithful[, 2]
-#         bins <- seq(min(x), max(x), length.out = input$bins + 1)
-# 
-#         # draw the histogram with the specified number of bins
-#         hist(x, breaks = bins, col = 'darkgray', border = 'white')
-#     })
-# }
-# 
-# # Run the application 
-# shinyApp(ui = ui, server = server)
-# DRAFTS_hitters %>%
-#   dplyr::mutate(CVSLTeam = as.factor(CVSLTeam)) %>%
-#   dplyr::select(CVSLTeam) %>%
-#   dplyr::distinct(CVSLTeam) %>%
-#   dplyr::arrange(CVSLTeam)
-# 
-# DRAFTS_hitters %>%
-#   dplyr::filter(CVSLTeam %in% c("Arsenal", "Bison"))
-# list(c(unique(DRAFTS_hitters$CVSLTeam)))[[1]]
-# get(list(unique(DRAFTS_hitters$CVSLTeam))[[2]])
-# sort(unlist(as.list(unique(DRAFTS_hitters$CVSLTeam))[c(1:10)]))["Arsenal"]
-# length(sum(unique(DRAFTS_hitters$CVSLTeam) %in% as.list(DRAFTS_hitters$CVSLTeam))
