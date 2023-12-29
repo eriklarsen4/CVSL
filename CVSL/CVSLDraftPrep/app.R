@@ -1,6 +1,7 @@
 
 
 # load libraries ----
+install.packages(c("shiny", "ggplot2", "DT", "baseballr", "tidyverse", "here", "rsconnect"))
 library(shiny)
 library(ggplot2)
 library(ggExtra)
@@ -21,10 +22,13 @@ library(rsconnect)
 # save.image("~/GitHub/Baseball/CVSL/CVSLDraftPrep/data/CompleteUniversesAndLeaderboards.RData")
 # setwd("./data")
 
-load(
-  here("CVSL", "CVSLDraftPrep", "data" , "CompleteUniversesAndLeaderboards.RData")
-)
+# load(
+#   here("CVSL", "CVSLDraftPrep", "data" , "CompleteUniversesAndLeaderboards.RData")
+# )
 
+load(
+  here("CVSL", "CVSLDraftPrep", "CompleteUniversesAndLeaderboards.RData")
+)
 
 # commented out commands ----
 # CHAD_LU_2 = chadwick_player_lu()
@@ -158,11 +162,11 @@ ui <- navbarPage(
                                                                                                               choices = c(as.character(unique(DRAFTS_hitters$`Draft Year`))),
                                                                                                               selected = c(as.character(unique(DRAFTS_hitters$`Draft Year`)))),
                                                                                            checkboxInput("hitgroupbyteam",label = strong("Group By Team"), value = F),
-                                                                                           checkboxInput("hitshowfit", label = strong("Show Fit Line"), value = F), width = 3),
+                                                                                           checkboxInput("hitshowfit", label = strong("Show Trend Line"), value = F), width = 3),
 
                                                                mainPanel = plotOutput("draft_h", width = 6),
                                                 
-                                                               position = "left", 
+                                                               position = "left" 
                                                 
                                                              )
              
@@ -179,11 +183,11 @@ ui <- navbarPage(
                                                                                                                 choices = c(as.character(unique(DRAFTS_pitchers$`Draft Year`))),
                                                                                                                 selected = c(as.character(unique(DRAFTS_pitchers$`Draft Year`)))),
                                                                                              checkboxInput("groupbyteam",label = strong("Group By Team"), value = F),
-                                                                                             checkboxInput("showfit", label = strong("Show Fit Line"), value = F), width = 3),
+                                                                                             checkboxInput("showfit", label = strong("Show Trend Line"), value = F), width = 3),
                                                                  
                                                                  mainPanel = plotOutput("draft_p", width = 6),
                                                                  
-                                                                 position = "left", 
+                                                                 position = "left" 
                                                                  
                                                                )
              
@@ -202,6 +206,9 @@ ui <- navbarPage(
 
 server <- function(input, output, session) {
 
+  storeWarn = getOption("warn")
+  options(warn = -1)
+  
   output$HittersAgg2016 = renderDataTable(Player_Batting %>% dplyr::select(-c(38:42,44)) %>% dplyr::filter(Year == 2016), filter = "top")
   output$HittersAgg2017 = renderDataTable(Player_Batting %>% dplyr::select(-c(38:42,44)) %>% dplyr::filter(Year == 2017), filter = "top" )
   output$HittersAgg2018 = renderDataTable(Player_Batting %>% dplyr::select(-c(38:42,44)) %>% dplyr::filter(Year == 2018), filter = "top" )
@@ -283,33 +290,37 @@ server <- function(input, output, session) {
   })
   
 
-  output$draft_h = renderPlot({
+  tryCatch({output$draft_h = renderPlot({
     
     req( length( sort(unlist(input$hitteam)[c(1:10)]) ) >= 1)
-    if (input$hitgroupbyteam == T & input$hitshowfit == T & length(input$hitby_Year) >= 1 )
-    h <- ggplot(hitters_teams_df(), aes(!!input$hitxvar, !!input$hityvar, alpha = 0.5)) +
+    
+    if (input$hitgroupbyteam == T & #input$hitshowfit == T & 
+        length(input$hitby_Year) >= 1 )
+      
+      h <- ggplot(hitters_teams_df(), aes(!!input$hitxvar, !!input$hityvar, alpha = 0.5)) +
       theme(plot.title = element_text(hjust = 0.5))+
       labs(title = "CVSL Auctions, Hitters (2019-2023)")+
       geom_point(aes(color = CVSLTeam)) +
       scale_color_manual(values = c("darkgoldenrod", "chocolate", "black",
                                     "forestgreen", "firebrick", "orange", "gray48",
                                     "red", "navy", "skyblue")) +
-      geom_smooth(aes(x = !!input$hitxvar, y = !!input$hityvar), method = "gam", se = F, color = "violet", linetype = "dashed")+
+      # geom_smooth(aes(x = !!input$hitxvar, y = !!input$hityvar), method = "gam", se = F, color = "violet", linetype = "dashed", na.rm = T)+
       facet_wrap(~ CVSLTeam) +
       guides(alpha = "none")
     
-    else if (input$hitgroupbyteam == T & input$hitshowfit == F & length(input$hitby_Year) >= 1)
-      h <- ggplot(hitters_teams_df(), aes(!!input$hitxvar, !!input$hityvar, alpha = 0.5)) +
-        theme(plot.title = element_text(hjust = 0.5))+
-        labs(title = "CVSL Auctions, Hitters (2019-2023)")+
-        geom_point(aes(color = CVSLTeam)) +
-        scale_color_manual(values = c("darkgoldenrod", "chocolate", "black",
-                                      "forestgreen", "firebrick", "orange", "gray48",
-                                      "red", "navy", "skyblue")) +
-        facet_wrap(~ CVSLTeam) +
-        guides(alpha = "none")
+    # else if (input$hitgroupbyteam == T & input$hitshowfit == F & length(input$hitby_Year) >= 1)
+    #   h <- ggplot(hitters_teams_df(), aes(!!input$hitxvar, !!input$hityvar, alpha = 0.5)) +
+    #     theme(plot.title = element_text(hjust = 0.5))+
+    #     labs(title = "CVSL Auctions, Hitters (2019-2023)")+
+    #     geom_point(aes(color = CVSLTeam)) +
+    #     scale_color_manual(values = c("darkgoldenrod", "chocolate", "black",
+    #                                   "forestgreen", "firebrick", "orange", "gray48",
+    #                                   "red", "navy", "skyblue")) +
+    #     facet_wrap(~ CVSLTeam) +
+    #     guides(alpha = "none")
     
-    else if (input$hitgroupbyteam == F & input$hitshowfit == T & length(input$hitby_Year) >= 1)
+    else if (input$hitgroupbyteam == F & input$hitshowfit == T & 
+             length(input$hitby_Year) >= 1)
       h <- ggplot(hitters_teams_df(), aes(!!input$hitxvar, !!input$hityvar, alpha = 0.5)) +
         theme(plot.title = element_text(hjust = 0.5))+
         labs(title = "CVSL Auctions, Hitters (2019-2023)")+
@@ -317,7 +328,7 @@ server <- function(input, output, session) {
         scale_color_manual(values = c("darkgoldenrod", "chocolate", "black",
                                       "forestgreen", "firebrick", "orange", "gray48",
                                       "red", "navy", "skyblue")) +
-        geom_smooth(aes(x = !!input$hitxvar, y = !!input$hityvar), method = "gam", se = F, color = "violet", linetype = "dashed")+
+        geom_smooth(aes(x = !!input$hitxvar, y = !!input$hityvar), method = "gam", se = F, color = "violet", linetype = "dashed", na.rm = T)+
         guides(alpha = "none")
     
     else if (length(input$hitby_Year) >= 1)
@@ -332,17 +343,23 @@ server <- function(input, output, session) {
       
     else h = NULL
     
-      
+    # shinyjs::delay(expr = ({
+    #   
+    #   options(warn = storeWarn)
+    #   
+    # }), ms = 100)
     h
     
   }, height = 500, width = 800, res = 100)
+  })
   
   
   
-  output$draft_p = renderPlot({
+  tryCatch({output$draft_p = renderPlot({
     
     req( length( sort(unlist(input$team)[c(1:10)]) ) >= 1)
-    if (input$groupbyteam == T & input$showfit == T & length(input$by_Year) >= 1)
+    if (input$groupbyteam == T & length(input$by_Year) >= 1)
+      
       p <- ggplot(pitchers_teams_df(), aes(!!input$xvar, !!input$yvar, alpha = 0.5)) +
         theme(plot.title = element_text(hjust = 0.5))+
         labs(title = "CVSL Auctions, Pitchers (2019-2023)")+
@@ -350,20 +367,20 @@ server <- function(input, output, session) {
         scale_color_manual(values = c("darkgoldenrod", "chocolate", "black",
                                       "forestgreen", "firebrick", "orange", "gray48",
                                       "red", "navy", "skyblue")) +
-        geom_smooth(aes(x = !!input$xvar, y = !!input$yvar), method = "gam", se = F, color = "violet", linetype = "dashed")+
+        # geom_smooth(aes(x = !!input$xvar, y = !!input$yvar), method = "gam", se = F, color = "violet", linetype = "dashed", na.rm = T)+
         facet_wrap(~ CVSLTeam) +
         guides(alpha = "none")
     
-    else if (input$groupbyteam == T & input$showfit == F & length(input$by_Year) >= 1)
-      p <- ggplot(pitchers_teams_df(), aes(!!input$xvar, !!input$yvar, alpha = 0.5)) +
-        theme(plot.title = element_text(hjust = 0.5))+
-        labs(title = "CVSL Auctions, Pitchers (2019-2023)")+
-        geom_point(aes(color = CVSLTeam)) +
-        scale_color_manual(values = c("darkgoldenrod", "chocolate", "black",
-                                      "forestgreen", "firebrick", "orange", "gray48",
-                                      "red", "navy", "skyblue")) +
-        facet_wrap(~ CVSLTeam) +
-        guides(alpha = "none")
+    # else if (input$groupbyteam == T & input$showfit == F & length(input$by_Year) >= 1)
+    #   p <- ggplot(pitchers_teams_df(), aes(!!input$xvar, !!input$yvar, alpha = 0.5)) +
+    #     theme(plot.title = element_text(hjust = 0.5))+
+    #     labs(title = "CVSL Auctions, Pitchers (2019-2023)")+
+    #     geom_point(aes(color = CVSLTeam)) +
+    #     scale_color_manual(values = c("darkgoldenrod", "chocolate", "black",
+    #                                   "forestgreen", "firebrick", "orange", "gray48",
+    #                                   "red", "navy", "skyblue")) +
+    #     facet_wrap(~ CVSLTeam) +
+    #     guides(alpha = "none")
     
     else if (input$groupbyteam == F & input$showfit == T & length(input$by_Year) >= 1)
       p <- ggplot(pitchers_teams_df(), aes(!!input$xvar, !!input$yvar, alpha = 0.5)) +
@@ -373,7 +390,7 @@ server <- function(input, output, session) {
         scale_color_manual(values = c("darkgoldenrod", "chocolate", "black",
                                       "forestgreen", "firebrick", "orange", "gray48",
                                       "red", "navy", "skyblue")) +
-        geom_smooth(aes(x = !!input$xvar, y = !!input$yvar), method = "gam", se = F, color = "violet", linetype = "dashed")+
+        geom_smooth(aes(x = !!input$xvar, y = !!input$yvar), method = "gam", se = F, color = "violet", linetype = "dashed", na.rm = T)+
         guides(alpha = "none")
     
     else if (length(input$by_Year) >= 1)
@@ -388,11 +405,17 @@ server <- function(input, output, session) {
     
     else p = NULL
     
+    # shinyjs::delay(expr = ({
+    #   
+    #   options(warn = storeWarn)
+    #   
+    # }), ms = 100)
     
     
     p
     
   }, height = 500, width = 800, res = 100)
+  })
   
 }
 
@@ -451,3 +474,4 @@ shinyApp(ui = ui, server = server)
 # list(c(unique(DRAFTS_hitters$CVSLTeam)))[[1]]
 # get(list(unique(DRAFTS_hitters$CVSLTeam))[[2]])
 # sort(unlist(as.list(unique(DRAFTS_hitters$CVSLTeam))[c(1:10)]))["Arsenal"]
+# length(sum(unique(DRAFTS_hitters$CVSLTeam) %in% as.list(DRAFTS_hitters$CVSLTeam))
