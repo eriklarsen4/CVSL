@@ -1,0 +1,633 @@
+
+library(readr)
+library(tidyverse)
+library(Lahman)
+
+##### Scraping position players "dashboard" stats from FanGraphs #####
+library(rvest)
+library(XML)
+#css_selector = "#LeaderBoard1_dg1_ctl00 > tbody"
+
+#FG_PP = read_html("https://www.fangraphs.com/leaders.aspx?pos=all&stats=bat&lg=all&qual=170&type=8&season=2021&month=0&season1=2021&ind=0&team=0&rost=0&age=0&filter=&players=0&startdate=2021-01-01&enddate=2021-12-31&sort=4,a") %>% 
+#  html_element(css = css_selector) %>%
+#  html_table()
+
+#table_header = "#LeaderBoard1_dg1_ctl00 > thead > tr:nth-child(2)"
+
+#library(stringr)
+
+#FG_colnames = read_html("https://www.fangraphs.com/leaders.aspx?pos=all&stats=bat&lg=all&qual=170&type=8&season=2021&month=0&season1=2021&ind=0&team=0&rost=0&age=0&filter=&players=0&startdate=2021-01-01&enddate=2021-12-31&sort=4,a") %>% 
+#  html_element(css = table_header) %>%
+#  html_text2() %>%
+#  str_split(pattern = "\t")
+
+#FG_colnames = unlist(FG_colnames)
+#FG_colnames = FG_colnames[-length(FG_colnames)]
+
+#colnames(FG_PP) = FG_colnames
+
+
+
+  ##### FanGraphs Hitters leaderboard downloads #####
+setwd("C:/Users/Erik/Desktop/BoxCopy/Strato/2022/")
+
+
+  ### FG 2021 Pitchers and Hitters totals and splits ###
+files = list.files(pattern = "2021 FG")
+for ( i in 1:length(files) ) {
+  as.data.frame(
+    assign(
+      gsub(".csv", "", files[], fixed = TRUE)[i], read.csv(file = files[i]))
+  )
+}
+  ## Re-name the FG tables containing minima for splits in 2021
+    ## delete the old filenames
+Hitters_total = `2021 FG Hitters min 50 PA`
+Hitters_split = `2021 FG Hitters min 50 PA Split teams`
+Hitters_adv = `2021 FG Adv 100 PA min`
+Pitchers_total = `2021 FG Pitchers min 30 IP`
+Pitchers_split = `2021 FG Pitchers min 30 IP Split teams`
+Pitchers_adv_2021 = `2021 FG Adv 30 IP min`
+Catchers_total = `2021 FG Catchers min 100 PA`
+  ## Remove the old objects
+rm(`2021 FG Hitters min 50 PA`, `2021 FG Hitters min 50 PA Split teams`, `2021 FG Pitchers min 30 IP`, `2021 FG Pitchers min 30 IP Split teams`, `2021 FG Catchers min 100 PA`, `2021 FG Adv 30 IP min`, `2021 FG Adv 30 IP min`, `2021 FG Adv 100 PA min`)
+
+  ### FG Hitters advanced metrics for each season in the league
+files = list.files(pattern = "FG Adv 100 PA min")
+for ( i in 1:length(files) ) {
+  as.data.frame(
+    assign(
+      gsub(".csv", "", files[], fixed = TRUE)[i], read.csv(file = files[i]))
+  )
+}
+  ## Re-name the FG tables for hitters containing advanced metrics for each season
+    ## delete the old objects
+Hitters_adv_2016 = `2016 FG Adv 100 PA min`
+Hitters_adv_2017 = `2017 FG Adv 100 PA min`
+Hitters_adv_2018 = `2018 FG Adv 100 PA min`
+Hitters_adv_2019 = `2019 FG Adv 100 PA min`
+Hitters_adv_2020 = `2020 FG Adv 100 PA min`
+Hitters_adv_2021 = `2021 FG Adv 100 PA min`
+rm(`2016 FG Adv 100 PA min`, `2017 FG Adv 100 PA min`, `2018 FG Adv 100 PA min`, `2019 FG Adv 100 PA min`, `2020 FG Adv 100 PA min`, `2021 FG Adv 100 PA min`)
+  ## Fix the "Name" column names
+colnames(Hitters_adv_2016)[1] = "Name"
+colnames(Hitters_adv_2017)[1] = "Name"
+colnames(Hitters_adv_2018)[1] = "Name"
+colnames(Hitters_adv_2019)[1] = "Name"
+colnames(Hitters_adv_2020)[1] = "Name"
+colnames(Hitters_adv_2021)[1] = "Name"
+
+  ##### Baseball Reference hitter and pitcher leaderboard/universe downloads #####
+  ### Import the Baseball Reference dfs that contain handedness and position info
+files = list.files(pattern = "BR")
+for (i in 1:length(files) ) {
+  as.data.frame(
+    assign(
+      gsub(".csv", "", files[], fixed = TRUE)[i], read.csv(file = files[i], encoding = "UTF8")
+    )
+  )
+}
+  ## Re-name them to include underscores
+    ##  First, concatenate the dataframe names into a list
+BR_list = ls()[
+  which(grepl(ls(), pattern = "BR") == TRUE)
+]
+    ## Replace the spaces with underscores and assign the files to the names
+for(i in 1:length(unlist(BR_list))){
+    
+    BR_list[i] = gsub(" ", "_", ls()[
+      which(grepl(ls(), pattern = "BR") == TRUE)[i]
+    ], fixed = TRUE)
+    
+    as.data.frame(
+      assign(unlist(BR_list)[i], read.csv(file = files[i], encoding = "UTF8")
+    )
+    )
+}
+
+clean_BR_df_fn = function(df, Player_type, Year){
+  if (Player_type == "Hitter") {
+    df = df[ , -c(1,3) ]
+    df = add_column(df, "Bats" = "", .after = 4)
+    df$Bats[which(grepl(df$Name, pattern = "\\*") == TRUE)] = "L"
+    df$Name = gsub(df$Name, pattern = "\\*", replacement = "")
+    df$Bats[which(grepl(df$Name, pattern = "\\#") == TRUE)] = "B"
+    df$Name = gsub(df$Name, pattern = "\\#", replacement = "")
+    df$Bats[which(df$Bats == "")] = "R"
+    colnames(df)[3] = "Team"
+    colnames(df)[ncol(df)] = "Positions"
+    
+    if (Year == "2016"){
+        ## Remove the unrecognized characters
+      df$Name = gsub(df$Name, pattern = "(?!'|-)[^[a-zA-Z,.]|]", replacement = " ", perl = TRUE)
+        ## Shrink the extra spaces down
+      df$Name = gsub(df$Name, pattern = "  ", replacement = " ", perl = TRUE)
+        ## Remove spaces at the end of strings
+      df$Name = gsub(df$Name, pattern = "\\s$", replacement = "", perl = TRUE)
+        ## Add missing vowels
+      df$Name[which(grepl(df$Name, pattern = "[A-Z]{1}\\s[a-z]") == TRUE)] = c("Yoenis Cespedes", "Aledmys Diaz", "Hector Olivera")
+        ## Add missing vowels
+      df$Name[which(grepl(df$Name, pattern = "[a-z]{1}\\s[a-z]") == TRUE)][c(1,6,7,8,9,10)] = c("Gerardo Concepcion", "Leonys Martin", "Alexei Ramirez", "Alexei Ramirez", "Alexei Ramirez", "Yasmany Tomas")
+    }
+    if (Year == "2017"){
+      df$Name = gsub(df$Name, pattern = "(?!'|-)[^[a-zA-Z,.]|]", replacement = " ", perl = TRUE)
+      df$Name = gsub(df$Name, pattern = "  ", replacement = " ", perl = TRUE)
+      df$Name = gsub(df$Name, pattern = "\\s$", replacement = "", perl = TRUE)
+      df$Name[which(grepl(df$Name, pattern = "[A-Z]{1}\\s[a-z]") == TRUE)] = c("Yoenis Cespedes", "Aledmys Diaz", "Yandy Diaz")
+      df$Name[which(grepl(df$Name, pattern = "[a-z]{1}\\s[a-z]") == TRUE)][c(9:12)] = c("Leonys Martin", "Leonys Martin", "Leonys Martin", "Yasmany Tomas")
+    }
+    if (Year == "2018"){
+        ## Remove the unrecognized characters
+      df$Name = gsub(df$Name, pattern = "(?!'|-)[^[a-zA-Z,.]|]", replacement = " ", perl = TRUE)
+        ## Shrink the extra spaces down
+      df$Name = gsub(df$Name, pattern = "  ", replacement = " ", perl = TRUE)
+        ## Add the missing vowels
+      df$Name[which(grepl(df$Name, pattern = "[A-Z]{1}\\s[a-z]") == TRUE)] = c("Yoenis Cespedes", "Aledmys Diaz", "Yandy Diaz", "Yoan Lopez", "Cionel Perez")
+        ## Add more missing vowels
+      df$Name[which(grepl(df$Name, pattern = "[a-z]{1}\\s[a-z]") == TRUE)][c(5:8)] = c("Adolis Garcia", "Leonys Martin", "Leonys Martin", "Leonys Martin")
+        ## Add more missing vowels
+      df$Name[which(grepl(df$Name, pattern = "Jos "))] = c("Jose Abreu", "Jose Iglesias")
+        ## Make sure of additional _A-Z_ are shrunk down
+      df$Name = gsub(df$Name, pattern = "\\s[A-Z]{1}\\s", replacement = " ", perl = TRUE)
+    }
+    if (Year == "2019"){
+      df$Name = gsub(df$Name, pattern = "(?!'|-)[^[a-zA-Z,.]|]", replacement = " ", perl = TRUE)
+      df$Name = gsub(df$Name, pattern = "  ", replacement = " ", perl = TRUE)
+      df$Name[which(grepl(df$Name, pattern = "[A-Z]{1}\\s[a-z]") == TRUE)] = c("Michel Baez", "Aledmys Diaz", "Yandy Diaz", "Yoan Lopez", "Cionel Perez")
+      df$Name[which(grepl(df$Name, pattern = "[a-z]{1}\\s[a-z]") == TRUE)][c(7,8,10)] = c("Leonys Martin", "Adrian Morejon", "Yasmany Tomas")
+      df$Name[which(grepl(df$Name, pattern = "Jos "))] = c("Jose Abreu", "Jose Iglesias")
+      df$Name[which(grepl(df$Name, pattern = "Yordan"))] = "Yordan Alvarez"
+      df$Name = gsub(df$Name, pattern = "\\s[A-Z]{1}\\s", replacement = " ", perl = TRUE)
+    }
+    if (Year == "2020"){
+      df$Name = gsub(df$Name, pattern = "(?!'|-)[^[a-zA-Z,.]|]", replacement = " ", perl = TRUE)
+      df$Name = gsub(df$Name, pattern = "  ", replacement = " ", perl = TRUE)
+      df$Name = gsub(df$Name, pattern = "\\s$", replacement = "", perl = TRUE)
+      df$Name[which(grepl(df$Name, pattern = "[A-Z]{1}\\s[a-z]") == TRUE)] = c("Yoenis Cespedes", "Aledmys Diaz", "Yandy Diaz", "Jorge Ona")
+      df$Name[which(grepl(df$Name, pattern = "[a-z]{1}\\s[a-z]") == TRUE)][c(2,3)] = c("Adolis Garcia", "Yadiel Hernandez")
+      df$Name[which(grepl(df$Name, pattern = "Jos "))] = c("Jose Abreu", "Jose Barrero", "Jose Iglesias")
+      df$Name[which(grepl(df$Name, pattern = "Yordan"))] = "Yordan Alvarez"
+      df$Name = gsub(df$Name, pattern = "\\s[A-Z]{1}\\s", replacement = " ", perl = TRUE)
+      
+    }
+    if (Year == "2021"){
+      df$Name = gsub(df$Name, pattern = "(?!'|-)[^[a-zA-Z,.]|]", replacement = " ", perl = TRUE)
+      df$Name = gsub(df$Name, pattern = "  ", replacement = " ", perl = TRUE)
+      df$Name[which(grepl(df$Name, pattern = "[A-Z]{1}\\s[a-z]") == TRUE)] = c("Yandy Diaz", "Aledmys Diaz", "Cionel Perez", "Yoan Lopez")
+      df$Name[which(grepl(df$Name, pattern = "[a-z]{1}\\s[a-z]") == TRUE)][c(4,6)] = c("Vladimir Gutierrez", "Adrian Morejon")
+      df$Name[which(grepl(df$Name, pattern = "Jos "))] = c("Jose Abreu", "Jose Barrero")
+      df$Name[which(grepl(df$Name, pattern = "Yordan"))] = "Yordan Alvarez"
+      df$Name = gsub(df$Name, pattern = "\\s[A-Z]{1}\\s", replacement = " ", perl = TRUE)
+    }
+    df = df[ -c(which(grepl(df$Name, pattern = "LgAvg") == TRUE)), ]
+  }
+  if (Player_type == "Pitcher") {
+    df = df[ , -c(1,3)]
+    df = add_column(df, "Throws" = "", .after = 4)
+    df$Throws[which(grepl(df$Name, pattern = "\\*") == TRUE)] = "L"
+    df$Name = gsub(df$Name, pattern = "\\*", replacement = "")
+    df$Throws[which(df$Throws == "")] = "R"
+    colnames(df)[3] = "Team"
+    
+    if (Year == "2016") {
+      df$Name = gsub(df$Name, pattern = "(?!'|-)[^[a-zA-Z,.]|]", replacement = " ", perl = TRUE)
+      df$Name = gsub(df$Name, pattern = "  ", replacement = " ", perl = TRUE)
+      df$Name = gsub(df$Name, pattern = "\\s$", replacement = "", perl = TRUE)
+      df$Name[which(grepl(df$Name, pattern = "[A-Z]{1}\\s[a-z]") == TRUE)] = c("Michel Baez", "Yoan Lopez", "Cionel Perez")
+      df$Name[which(grepl(df$Name, pattern = "[a-z]{1}\\s[a-z]") == TRUE)][1] = "Gerardo Concepcion"
+      df$Name = gsub(df$Name, pattern = "\\s[A-Z]{1}\\s", replacement = " ", perl = TRUE)
+    }
+    if (Year == "2017") {
+      df$Name = gsub(df$Name, pattern = "(?!'|-)[^[a-zA-Z,.]|]", replacement = " ", perl = TRUE)
+      df$Name = gsub(df$Name, pattern = "  ", replacement = " ", perl = TRUE)
+      df$Name = gsub(df$Name, pattern = "\\s$", replacement = "", perl = TRUE)
+      df$Name[which(grepl(df$Name, pattern = "[a-z]{1}\\s[a-z]") == TRUE)][c(2,3)] = c("Onelki Garcia", "Leonys Martin")
+      df$Name = gsub(df$Name, pattern = "\\s[A-Z]{1}\\s", replacement = " ", perl = TRUE)
+    }
+    if (Year == "2018") {
+      df$Name = gsub(df$Name, pattern = "(?!'|-)[^[a-zA-Z,.]|]", replacement = " ", perl = TRUE)
+      df$Name = gsub(df$Name, pattern = "  ", replacement = " ", perl = TRUE)
+      df$Name = gsub(df$Name, pattern = "\\s$", replacement = "", perl = TRUE)
+      df$Name[which(grepl(df$Name, pattern = "[A-Z]{1}\\s[a-z]") == TRUE)] = c("Yoan Lopez", "Cionel Perez")
+      df$Name = gsub(df$Name, pattern = "\\s[A-Z]{1}\\s", replacement = " ", perl = TRUE)
+    }
+    if (Year == "2019") {
+      df$Name = gsub(df$Name, pattern = "(?!'|-)[^[a-zA-Z,.]|]", replacement = " ", perl = TRUE)
+      df$Name = gsub(df$Name, pattern = "  ", replacement = " ", perl = TRUE)
+      df$Name = gsub(df$Name, pattern = "\\s$", replacement = "", perl = TRUE)
+      df$Name[which(grepl(df$Name, pattern = "[A-Z]{1}\\s[a-z]") == TRUE)] = c("Michel Baez", "Yoan Lopez", "Cionel Perez")
+      df$Name[which(grepl(df$Name, pattern = "[a-z]{1}\\s[a-z]") == TRUE)][c(2,4)] = c("Adrian Morejon", "Jose Rodriguez")
+      df$Name = gsub(df$Name, pattern = "\\s[A-Z]{1}\\s", replacement = " ", perl = TRUE)
+    }
+    if (Year == "2020") {
+      df$Name = gsub(df$Name, pattern = "(?!'|-)[^[a-zA-Z,.]|]", replacement = " ", perl = TRUE)
+      df$Name = gsub(df$Name, pattern = "  ", replacement = " ", perl = TRUE)
+      df$Name = gsub(df$Name, pattern = "\\s$", replacement = "", perl = TRUE)
+      df$Name[which(grepl(df$Name, pattern = "[A-Z]{1}\\s[a-z]") == TRUE)] = c("Michel Baez", "Yoan Lopez", "Cionel Perez")
+      df$Name[which(grepl(df$Name, pattern = "[a-z]{1}\\s[a-z]") == TRUE)][c(2,4)] = c("Adrian Morejon", "Jose Rodriguez")
+      df$Name = gsub(df$Name, pattern = "\\s[A-Z]{1}\\s", replacement = " ", perl = TRUE)
+    }
+    if (Year == "2021") {
+      df$Name = gsub(df$Name, pattern = "(?!'|-)[^[a-zA-Z,.]|]", replacement = " ", perl = TRUE)
+      df$Name = gsub(df$Name, pattern = "  ", replacement = " ", perl = TRUE)
+      df$Name = gsub(df$Name, pattern = "\\s$", replacement = "", perl = TRUE)
+      df$Name[which(grepl(df$Name, pattern = "[A-Z]{1}\\s[a-z]") == TRUE)] = c("Yoan Lopez", "Cionel Perez")
+      df$Name[which(grepl(df$Name, pattern = "[a-z]{1}\\s[a-z]") == TRUE)][c(5,6)] = c("Vladimir Gutierrez", "Adrian Morejon")
+      df$Name = gsub(df$Name, pattern = "\\s[A-Z]{1}\\s", replacement = " ", perl = TRUE)
+    }
+    df = df[ -c(which(grepl(df$Name, pattern = "LgAvg") == TRUE)), ]
+  }
+  return(df)
+}
+  ## Delete the old dfs with spaces
+rm(`BR 2016 Standard Batting Leaders`, `BR 2016 Standard Pitching Leaders`,
+   `BR 2017 Standard Batting Leaders`, `BR 2017 Standard Pitching Leaders`,
+   `BR 2018 Standard Batting Leaders`, `BR 2018 Standard Pitching Leaders`,
+   `BR 2019 Standard Batting Leaders`, `BR 2019 Standard Pitching Leaders`,
+   `BR 2020 Standard Batting Leaders`, `BR 2020 Standard Pitching Leaders`,
+   `BR 2021 Standard Batting Leaders`, `BR 2021 Standard Pitching Leaders`,
+   BR_list)
+
+  ## Clean the dfs; remove unrecognized characters due to improper encoding,
+    ##  remove extra columns and rows; re-name strings, convert handedness
+BR_2016_Standard_Pitching_Leaders = clean_BR_df_fn(df = BR_2016_Standard_Pitching_Leaders, Player_type = "Pitcher", Year = "2016")
+BR_2017_Standard_Pitching_Leaders = clean_BR_df_fn(df = BR_2017_Standard_Pitching_Leaders, Player_type = "Pitcher", Year = "2017")
+BR_2018_Standard_Pitching_Leaders = clean_BR_df_fn(df = BR_2018_Standard_Pitching_Leaders, Player_type = "Pitcher", Year = "2018")
+BR_2019_Standard_Pitching_Leaders = clean_BR_df_fn(df = BR_2019_Standard_Pitching_Leaders, Player_type = "Pitcher", Year = "2019")
+BR_2020_Standard_Pitching_Leaders = clean_BR_df_fn(df = BR_2020_Standard_Pitching_Leaders, Player_type = "Pitcher", Year = "2020")
+BR_2021_Standard_Pitching_Leaders = clean_BR_df_fn(df = BR_2021_Standard_Pitching_Leaders, Player_type = "Pitcher", Year = "2021")
+
+BR_2016_Standard_Pitching_Leaders = BR_2016_Standard_Pitching_Leaders[ -which(duplicated(BR_2016_Standard_Pitching_Leaders$Name)), ]
+BR_2017_Standard_Pitching_Leaders = BR_2017_Standard_Pitching_Leaders[ -which(duplicated(BR_2017_Standard_Pitching_Leaders$Name)), ]
+BR_2018_Standard_Pitching_Leaders = BR_2018_Standard_Pitching_Leaders[ -which(duplicated(BR_2018_Standard_Pitching_Leaders$Name)), ]
+BR_2019_Standard_Pitching_Leaders = BR_2019_Standard_Pitching_Leaders[ -which(duplicated(BR_2019_Standard_Pitching_Leaders$Name)), ]
+BR_2020_Standard_Pitching_Leaders = BR_2020_Standard_Pitching_Leaders[ -which(duplicated(BR_2020_Standard_Pitching_Leaders$Name)), ]
+BR_2021_Standard_Pitching_Leaders = BR_2021_Standard_Pitching_Leaders[ -which(duplicated(BR_2021_Standard_Pitching_Leaders$Name)), ]
+
+BR_2016_Standard_Batting_Leaders = clean_BR_df_fn(df = BR_2016_Standard_Batting_Leaders, Player_type = "Hitter", Year = "2016")
+BR_2017_Standard_Batting_Leaders = clean_BR_df_fn(df = BR_2017_Standard_Batting_Leaders, Player_type = "Hitter", Year = "2017")
+BR_2018_Standard_Batting_Leaders = clean_BR_df_fn(df = BR_2018_Standard_Batting_Leaders, Player_type = "Hitter", Year = "2018")
+BR_2019_Standard_Batting_Leaders = clean_BR_df_fn(df = BR_2019_Standard_Batting_Leaders, Player_type = "Hitter", Year = "2019")
+BR_2020_Standard_Batting_Leaders = clean_BR_df_fn(df = BR_2020_Standard_Batting_Leaders, Player_type = "Hitter", Year = "2020")
+BR_2021_Standard_Batting_Leaders = clean_BR_df_fn(df = BR_2021_Standard_Batting_Leaders, Player_type = "Hitter", Year = "2021")
+
+  ## Check that strings are compatible to merge BR info with FG info
+BR_2021_Standard_Batting_Leaders$Name[which(grepl(BR_2021_Standard_Batting_Leaders$Name, pattern = "Whit Merrifield") == TRUE)]
+BR_2021_Standard_Pitching_Leaders$Name[grepl(BR_2021_Standard_Pitching_Leaders$Name, pattern = "\\s")]
+
+  ##### FanGraphs pitcher leaderboards scraped from FG #####
+  ## Import the advanced pitching metric dfs scraped from FGs from 2019 and 2020 (2021 already included)
+FG_selector = "#LeaderBoard1_dg1_ctl00 > tbody"
+FG_col_selector = "#LeaderBoard1_dg1_ctl00 > thead > tr:nth-child(2)"
+FG_  = "#LeaderBoard1_dg1_ctl00"
+
+
+  ## Scrape the table that includes the column names
+Pitchers_adv_2019 = read_html("https://www.fangraphs.com/leaders.aspx?pos=all&stats=pit&lg=all&qual=30&type=1&season=2021&month=0&season1=2019&ind=0&team=0&rost=0&age=0&filter=&players=0&startdate=2019-01-01&enddate=2019-12-31") %>%
+  html_element(css = FG_) %>%
+  html_table()
+  ## slice to create a vector of column names
+col_names = Pitchers_adv_2019[2,]
+
+  ## Scrape the data, overwriting the old table that doesn't have the column names
+Pitchers_adv_2019 = read_html("https://www.fangraphs.com/leaders.aspx?pos=all&stats=pit&lg=all&qual=30&type=1&season=2021&month=0&season1=2019&ind=0&team=0&rost=0&age=0&filter=&players=0&startdate=2019-01-01&enddate=2019-12-31") %>%
+  html_element(css = FG_selector) %>%
+  html_table()
+  ## Re-name the columns
+colnames(Pitchers_adv_2019) = col_names
+
+Pitchers_adv_2020 = read_html("https://www.fangraphs.com/leaders.aspx?pos=all&stats=pit&lg=all&qual=30&type=1&season=2021&month=0&season1=2020&ind=0&team=0&rost=0&age=0&filter=&players=0&startdate=2020-01-01&enddate=2020-12-31") %>%
+  html_element(css = FG_selector) %>%
+  html_table()
+  ## Re-name the columns
+colnames(Pitchers_adv_2020) = col_names
+
+Pitchers_adv_2018 = read_html("https://www.fangraphs.com/leaders.aspx?pos=all&stats=pit&lg=all&qual=30&type=1&season=2018&month=0&season1=2018&ind=0&team=0&rost=0&age=0&filter=&players=0&startdate=2018-01-01&enddate=2018-12-31") %>%
+  html_element(css = FG_selector) %>%
+  html_table()
+## Re-name the columns
+colnames(Pitchers_adv_2018) = col_names
+
+  ## Remove the "rank column"
+Pitchers_adv_2018 = Pitchers_adv_2018[,-1]
+Pitchers_adv_2019 = Pitchers_adv_2019[,-1]
+Pitchers_adv_2020 = Pitchers_adv_2020[,-1]
+#####
+
+  ## Re-name all the other FG df "Name" columns; these are all dfs of stats from 2021
+colnames(Hitters_total)[1] = "Name"
+colnames(Hitters_split)[1] = "Name"
+colnames(Hitters_adv)[1] = "Name"
+colnames(Pitchers_total)[1] = "Name"
+colnames(Pitchers_split)[1] = "Name"
+colnames(Pitchers_adv_2021)[1] = "Name"
+colnames(Catchers_total)[1] = "Name"
+
+  ## Create a function that enables to pipe an object's strings through another object's strings
+"%notin%" = Negate("%in%")
+
+  ##### FanGraphs pitcher leaderboards downloads #####
+files = list.files(pattern = "FG Pitchers min 30 IP")
+for ( i in 1:length(files) ) {
+  as.data.frame(
+    assign(
+      gsub(".csv", "", files[], fixed = TRUE)[i], read.csv(file = files[i]))
+  )
+}
+Pitchers_2016 = `2016 FG Pitchers min 30 IP`
+Pitchers_2017 = `2017 FG Pitchers min 30 IP`
+Pitchers_2018 = `2018 FG Pitchers min 30 IP`
+Pitchers_2019 = `2019 FG Pitchers min 30 IP`
+Pitchers_2020 = `2020 FG Pitchers min 30 IP`
+Pitchers_2021 = `2021 FG Pitchers min 30 IP`
+rm(`2016 FG Pitchers min 30 IP`, `2017 FG Pitchers min 30 IP`, `2018 FG Pitchers min 30 IP`, `2019 FG Pitchers min 30 IP`, `2020 FG Pitchers min 30 IP`, `2021 FG Pitchers min 30 IP`, `2021 FG Pitchers min 30 IP Split teams`)
+
+colnames(Pitchers_2016)[1] = "Name"
+colnames(Pitchers_2017)[1] = "Name"
+colnames(Pitchers_2018)[1] = "Name"
+colnames(Pitchers_2019)[1] = "Name"
+colnames(Pitchers_2020)[1] = "Name"
+colnames(Pitchers_2021)[1] = "Name"
+
+##### Hitters #####
+  ## Remove hitters with < 100 ABs
+Hitters_total = Hitters_total[ which(Hitters_total$AB >= 100), ]
+rownames(Hitters_total) = NULL
+  ## Confirm pitchers are not included in the dataframe (should only be Shohei Ohtani)
+Hitters_total$Name[ which(Hitters_total$playerid %in% Pitchers_total$playerid) ]
+
+  ## Find which hitters changed teams
+dashed_hitters = Hitters_total$Name[ which( Hitters_total$Team == "- - -") ]
+
+
+## Iterate through to subset the split data frame by those that have been traded and accrued >= 100 ABs
+dummy = vector()
+for ( i in 1:length(dashed_hitters) ){
+  dummy[i] = list(which(Hitters_split$Name == dashed_hitters[i]))
+}
+Traded_hitters = Hitters_split[ unlist(dummy), ]
+rm(dummy)
+Traded_hitters
+
+dashed_hitters
+
+dashed_hitters_to = c("LAD",
+              "CHC",
+              "OAK",
+              "SDP",
+              "OAK",
+              "CLE",
+              "BOS",
+              "TOR",
+              "BOS",
+              "TBR",
+              "SFG",
+              "NYM",
+              "MIL",
+              "ATL",
+              "MIL",
+              "OAK",
+              "NYY",
+              "PIT",
+              "BAL",
+              "PIT",
+              "MIL",
+              "PHI",
+              "SEA",
+              "ATL",
+              "LAD",
+              "WSN",
+              "PIT",
+              "BAL",
+              "CHW",
+              "CIN",
+              "ATL",
+              "ATL",
+              "LAA",
+              "PIT",
+              "SDP",
+              "SEA",
+              "MIA",
+              "TOR",
+              "OAK",
+              "CLE",
+              "TBR",
+              "LAA",
+              "BOS",
+              "HOU",
+              "NYY",
+              "TEX",
+              "PIT",
+              "ATL",
+              "TOR",
+              "LAD",
+              "SFG",
+              "NYY",
+              "COL",
+              "PIT",
+              "MIA")
+
+dummy = vector()
+
+for (i in dashed_hitters){
+    dummy[i] = which(Hitters_total$Name == i)
+}
+for (i in 1:length(dashed_hitters_to)){
+    Hitters_total$Team[dummy[i]] = dashed_hitters_to[i]
+}
+rm(dummy)
+
+  ## Slice eligible catchers ( >= 100 ABs)
+Catchers_total = Catchers_total[ which(Catchers_total$AB >= 100), ]
+  ## Concatenate eligible catchers into a list
+eligible_Catchers = Catchers_total$Name
+
+  ## Concatenate eligible hitters ( >= 175 ABs, or catchers with >= 100 ABs) into a list
+eligible_Hitters = Hitters_total$Name[ which(Hitters_total$AB >= 175 | Hitters_total$Name %in% eligible_Catchers) ]
+
+  ## Slice all eligible hitters
+Hitters_total = Hitters_total[ which(Hitters_total$Name %in% eligible_Hitters) , ]
+
+  ## Filter by the CVSL universe teams
+CVSL_universe = c("LAA", "OAK", "TEX", "SFG", "COL", "LAD", "SDP", "ARI", "MIN", "CLE", "STL", "NYY", "BOS", "TOR", "TBR", "NYM", "PHI", "ATL", "MIA", "WSN")
+
+##### Pitchers #####
+
+  ## Find which pitchers changed teams
+dashed_pitchers = Pitchers_total$Name[ which( Pitchers_total$Team == "- - -") ]
+
+  ## Iterate through to subset the split data frame by those that have been traded and accrued >= 30 IP
+dummy = vector()
+for ( i in 1:length(dashed_pitchers) ){
+  dummy[i] = list(which(Pitchers_split$Name == dashed_pitchers[i]))
+}
+Traded_pitchers = Pitchers_split[ unlist(dummy), ]
+rm(dummy)
+Traded_pitchers
+
+dashed_pitchers
+dashed_pitchers_to = c("LAD",
+                       "TOR",
+                       "PHI",
+                       "CHW",
+                       "SEA",
+                       "NYM",
+                       "CHW",
+                       "TBR",
+                       "OAK",
+                       "NYM",
+                       "TOR",
+                       "TBR",
+                       "HOU",
+                       "NYY",
+                       "SDP",
+                       "NYY",
+                       "CIN",
+                       "SFG",
+                       "ATL",
+                       "CHC",
+                       "SEA",
+                       "HOU",
+                       "NYY",
+                       "ARI",
+                       "STL",
+                       "MIN",
+                       "KCR",
+                       "LAD",
+                       "HOU",
+                       "HOU",
+                       "KCR",
+                       "SEA",
+                       "SEA",
+                       "MIL",
+                       "TEX",
+                       "SFG",
+                       "TBR",
+                       "NYM",
+                       "TOR",
+                       "TBR",
+                       "MIL",
+                       "ARI",
+                       "NYY",
+                       "SFG",
+                       "CIN",
+                       "BOS",
+                       "TOR",
+                       "PIT",
+                       "SEA",
+                       "TEX",
+                       "PHI",
+                       "STL",
+                       "STL",
+                       "WSN",
+                       "MIL",
+                       "COL",
+                       "NYM",
+                       "PIT",
+                       "MIN",
+                       "PIT",
+                       "MIA",
+                       "CIN",
+                       "SDP",
+                       "SDP",
+                       "TBR",
+                       "ARI",
+                       "SDP",
+                       "CLE")
+
+dummy = vector()
+
+for (i in dashed_pitchers){
+  dummy[i] = which(Pitchers_total$Name == i)
+}
+for (i in 1:length(dashed_pitchers_to)){
+  Pitchers_total$Team[dummy[i]] = dashed_pitchers_to[i]
+}
+rm(dummy)
+
+  ## Slice eligible pitchers
+Pitchers_total = Pitchers_total[ which(Pitchers_total$IP >= 30), ]
+
+  ## Concatenate eligible starters into a list
+eligible_SPs = Pitchers_total$Name[ which(Pitchers_total$IP >= 30 & Pitchers_total$GS >= 8) ]
+  ## Concatenate eligible relievers into a list
+eligible_RPs = Pitchers_total$Name[ which(Pitchers_total$Name %notin% eligible_SPs == TRUE) ]
+
+##### Filter by the CVSL universe #####
+
+  ## Find eligible catchers that are outside the CVSL universe
+Hitters_total$Name[ which( Hitters_total$Name %in% eligible_Catchers == TRUE )[
+  which(
+    Hitters_total$Team[ which( Hitters_total$Name %in% eligible_Catchers == TRUE ) ] %notin% CVSL_universe == TRUE
+  )
+]
+]
+eligible_Catchers_out = Hitters_total$Name[ which( Hitters_total$Name %in% eligible_Catchers == TRUE )[
+  which(
+    Hitters_total$Team[ which( Hitters_total$Name %in% eligible_Catchers == TRUE ) ] %notin% CVSL_universe == TRUE
+  )
+]
+]
+
+  ## Find eligible hitters that are outside the CVSL universe
+Hitters_total$Name[ which( Hitters_total$Name %in% eligible_Hitters == TRUE )[
+  which(
+    Hitters_total$Team[ which( Hitters_total$Name %in% eligible_Hitters == TRUE ) ] %notin% CVSL_universe == TRUE
+  )
+]
+]
+eligible_Hitters_out = Hitters_total$Name[ which( Hitters_total$Name %in% eligible_Hitters == TRUE )[
+  which(
+    Hitters_total$Team[ which( Hitters_total$Name %in% eligible_Hitters == TRUE ) ] %notin% CVSL_universe == TRUE
+  )
+]
+]
+
+  ## Find eligible starting pitchers that are outside the CVSL universe
+Pitchers_total$Name[ which( Pitchers_total$Name %in% eligible_SPs == TRUE )[
+  which(
+    Pitchers_total$Team[ which( Pitchers_total$Name %in% eligible_SPs == TRUE ) ] %notin% CVSL_universe == TRUE
+  )
+]
+]
+eligible_SPs_out = Pitchers_total$Name[ which( Pitchers_total$Name %in% eligible_SPs == TRUE )[
+  which(
+    Pitchers_total$Team[ which( Pitchers_total$Name %in% eligible_SPs == TRUE ) ] %notin% CVSL_universe == TRUE
+  )
+]
+]
+
+  ## Find eligible relievers that are outside the CVSL universe
+Pitchers_total$Name[ which( Pitchers_total$Name %in% eligible_RPs == TRUE )[
+  which(
+    Pitchers_total$Team[ which( Pitchers_total$Name %in% eligible_RPs == TRUE ) ] %notin% CVSL_universe == TRUE
+  )
+]
+]
+eligible_RPs_out = Pitchers_total$Name[ which( Pitchers_total$Name %in% eligible_RPs == TRUE )[
+  which(
+    Pitchers_total$Team[ which( Pitchers_total$Name %in% eligible_RPs == TRUE ) ] %notin% CVSL_universe == TRUE
+  )
+]
+]
+
+eligible_Ps = c(eligible_SPs, eligible_RPs)
+
+##### Older #####
+
+
+
+#library(icesTAF)
+#latin1.to.utf8("C:/Users/Erik/Desktop/BoxCopy/Strato/2022/BR 2018 Standard Batting Leaders.csv")
+#read_csv("C:/Users/Erik/Desktop/BoxCopy/Strato/2022/BR 2020 Standard Batting Leaders.csv",Encoding("utf-8"))[[2]]
+#library(stringr)
+#str_replace(BR_2018_Standard_Batting_Leaders$Name, string = "[^[:alnum:]]", replacement = "")
+#BR_2018_Standard_Batting_Leaders = read.csv("C:/Users/Erik/Desktop/BoxCopy/Strato/2022/BR 2018 Standard Batting Leaders.csv", encoding = "utf-8")[[2]]
+#BR_2018_Standard_Batting_Leaders$Name[1] == Hitters_adv_2018$Name[which(Hitters_adv_2018$Name == "Jose Abreu")]
+#BR_2018_Standard_Batting_Leaders$Name = iconv(BR_2018_Standard_Batting_Leaders$Name, from = "unknown", to = "UTF-8")
+
+#str_detect(BR_2018_Standard_Batting_Leaders$Name, boundary("word"))
+
+#which(grepl(BR_2018_Standard_Batting_Leaders$Name, pattern = "Zack ") == TRUE)
+#Encoding(BR_2021_Standard_Batting_Leaders$Name)
+
