@@ -1,0 +1,542 @@
+---
+title: "Exploring Statcast Data"
+output: html_notebook
+---
+
+
+```{r Package and Function load, include = T, message = F, warning = F, echo = T}
+library(readr)
+library(tidyverse)
+library(rvest)
+library(XML)
+library(stringr)
+library(stringi)
+library(baseballr)
+library(ggplot2)
+library(ggrepel)
+
+source("~/GitHub/Baseball/CVSL/Functions.R")
+
+load("~/GitHub/Baseball/CVSL/2022/CompleteUniversesAndLeaderboardsEnv.RData")
+```
+
+```{r scrape statcast data, include = T, message = F, warning = F, echo = T}
+
+Player_Batting %>%
+  dplyr::distinct(Year)
+
+bam_ids = CHAD_LU %>%
+  dplyr::filter(mlb_played_last >= 2019) %>%
+  dplyr::select(key_mlbam, key_bbref) %>%
+  dplyr::mutate(bbref_id = key_bbref) %>%
+  inner_join(Player_Batting, by = "bbref_id") %>%
+  dplyr::select(key_mlbam) %>%
+  dplyr::distinct()
+
+SC_data = list()
+SC_df = data.frame()
+
+for (i in 1:5){#length(bam_ids)){
+
+  SC_data[[i]] <- baseballr::statcast_search_batters(start_date = "2019-03-30", end_date = "2023-10-07", batterid = bam_ids$key_mlbam[i]) %>%
+    dplyr::filter(game_type == "R")
+  
+}
+nrow(SC_data[[1]])
+nrow(SC_data[[c(1:length(SC_data))]])
+lapply(SC_data, function(x) {
+  x[[-nrow(x) == 0]]
+})
+SC_data = SC_data[1:length(SC_data)][-nrow(SC_data[1:length(SC_data)]) == 0]
+for (i in seq_len(bam_ids$key_mlbam)) {
+  
+  SC_data[[i]] <- try(baseballr::statcast_search_batters(start_date = "2019-03-30", end_date = "2023-10-07", batterid = bam_ids$key_mlbam[i]) %>%
+    dplyr::filter(game_type == "R"))
+  
+}
+
+for (i in 1:10) {
+  if (nrow(SC_data[[i]] > 0)) {
+    
+    assign(x = sub(x = SC_data[[2]]$player_name, pattern = "(\\w+),\\s(\\w+)", replacement = "\\2_\\1_df"),  value = SC_data[[2]] %>% as.data.frame())
+
+}
+}
+SC_df = purrr::reduce(mget(ls()[which(grepl(ls(), pattern = "_df") == T)]), full_join)
+
+rm_idx = vector()
+for( i in 1:length(SC_data) ) {
+  
+  if (nrow(SC_data[[i]]) == 0){
+    
+    rm_idx[i] = 1
+    
+  }
+  else {
+
+    rm_idx[i] = 0
+
+  }
+}
+
+SC_df = as.list(SC_data[-c(which(rm_idx == 1))]) 
+
+SC_df = map_df(SC_df, ~ as.data.frame(.))
+
+Player_Batting_1 = Player_Batting %>%
+  dplyr::mutate(bbref_id = case_when(grepl(Name, pattern = "Michael") &
+                                           grepl(Name, pattern = "Harris") &
+                                           grepl(Name, pattern = "II") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Michael Harris")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     TRUE ~ bbref_id)) %>%
+  dplyr::mutate(across(c(10,11,13:47), as.double))
+x = Player_Batting_1 %>%
+  dplyr::filter(Year == 2023) %>%
+  dplyr::filter(PA >= 340 ) %>%
+  dplyr::filter(grepl(Positions, pattern = "(CF)")) %>%
+  dplyr::arrange(desc(Rfield)) %>%
+  dplyr::select(Name, bbref_id, Tm, AB, PA, Positions, WAR, RAR, oWAR, dWAR, oRAR, WAA, OPS, `OPS+`, Rbat, Rfield) %>%
+  # dplyr::filter(bbref_id == "taylomi02") %>%
+  dplyr::mutate(player = case_when(bbref_id == "taylomi02" ~ "Michael A. Taylor",
+                                   TRUE ~ "CFs"))
+  ggplot(data = x)+
+  geom_point(data = subset(x, player == "CFs"),
+             aes(x = PA, y = dWAR, color = player, alpha = 0.7, size = 1.5)) +
+  geom_point(data = subset(x, player == "Michael A. Taylor"),
+             aes(x = PA, y = dWAR, color = player, alpha = 1, size = 1.5))+
+  scale_color_manual(values = c("Michael A. Taylor" = "firebrick",
+                                "CFs" = "blue")) +
+  guides(size = "none")+
+  guides(alpha = "none") +
+  labs(title = "Performance of all Qualified CFs, 2023 (min. 340 PA)", x = "Rfield aka DRS above average")
+  
+  ggplot(data = x) +
+    geom_density(aes(x = dWAR)) +
+    geom_point(data = x, aes(x = x$dWAR[which(x$bbref_id == "taylomi02")],
+                             y = density(x$dWAR)$y[which(density(x$dWAR)$x == (min(abs(0.9 - density(x$dWAR)$x)) + 0.9))]),
+               color = "firebrick",
+               size = 5) +
+    labs(x = "Rfield\naka DRS better than average",
+         y = "density of Rfield metric", title = "Michael A. Taylor's place within\nthe distribution of Rfield values among all Qualified CFs")
+  
+  ggplot(data = x)+
+    geom_density(aes(x = dWAR))
+  dnorm(x = x$dWAR, mean = x$dWAR[which(x$bbref_id == "taylomi02")], sd = sd(x$dWAR))
+  pnorm()
+  # +
+  # coord_cartesian(xlim = c(min(Player_Batting$Rfield), max(Player_Batting$Rfield)),
+  #                 ylim = c(min(Player_Batting$PA), max(Player_Batting$PA)))
+  Player_Batting %>%
+  dplyr::mutate(across(where(is.numeric), as.numeric)) %>%
+  dplyr::filter(Year == 2023) %>%
+  dplyr::filter(PA >= 340 ) %>%
+  dplyr::filter(grepl(Positions, pattern = "(CF)")) %>%
+  dplyr::arrange(desc(Rfield)) %>%
+  dplyr::select(Name, bbref_id, Tm, AB, PA, Positions, WAR, RAR, oWAR, dWAR, oRAR, WAA, OPS, `OPS+`, Rbat, Rfield) %>%
+  dplyr::filter(grepl(Name, pattern = "Michael") &
+                  grepl(Name, pattern = "A.") &
+                  grepl(Name, pattern = "Taylor")) %>%
+  ggplot()+
+  geom_point(aes(x = Rfield,
+                 y = PA),
+             color = "firebrick") 
+```
+
+```{r scratch, include = F}
+CHAD_LU_2 = chadwick_player_lu()
+
+CHAD_LU_2 = CHAD_LU_2 %>%
+  dplyr::filter(mlb_played_last >= 2016) %>%
+  dplyr::mutate(bday = as.Date(paste(birth_year, "-", birth_month, "-", birth_day, sep = "")),
+                Name = paste(name_first, name_last, sep = " ")) %>%
+  dplyr::select(Name, key_bbref, bday)
+
+Player_Batting_1 = Player_Batting %>%
+  dplyr::mutate(bbref_id = case_when(grepl(Name, pattern = "Michael") &
+                                       grepl(Name, pattern = "Harris") &
+                                       grepl(Name, pattern = "II") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Michael Harris")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Bobby") &
+                                       grepl(Name, pattern = "Witt") &
+                                       grepl(Name, pattern = "Jr") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Bobby Witt") &
+                                                       name_suffix == "Jr.") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Matt") &
+                                       grepl(Name, pattern = "Reynolds") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Matt Reynolds") &
+                                                       name_given == "Matthew William") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     grepl(Name, pattern = "Luis") &
+                                       grepl(Name, pattern = "Alexander") &
+                                       grepl(Name, pattern = "Basabe") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Alexander Basabe")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     TRUE ~ bbref_id),
+                key_bbref = bbref_id) %>%
+  left_join(CHAD_LU_2, by = "key_bbref") %>%
+  dplyr::rename(Name = Name.x) %>%
+  dplyr::select(-Name.y, key_bbref) %>%
+  dplyr::mutate(across(c(10,11,13:47), as.double),
+                Age2 = as.numeric(difftime(as.Date(paste(Year, "-07-01", sep = "")), as.Date(bday), units = "days"))/ 365.25)
+
+Player_Batting_1 %>%
+  dplyr::mutate(N = n(),
+                Rbaserm = mean(Rbaser, na.rm = T),
+                Rbaser_re = Rbaser + Rbaserm,
+                Rbaserm_re = mean(Rbaser_re, na.rm = T),
+                Year = as.character(Year),
+                Age3 = as.numeric(Age)) %>%
+  # dplyr::filter(Year != "2020") %>%
+  dplyr::group_by(Age) %>%
+  dplyr::summarize(mRbaser = mean(Rbaser, na.rm = T),
+                   medRbaser = median(Rbaser, na.rm = T),
+                   n = n(),
+                   N = N,
+                   Age3 = Age3) %>%
+  # ggplot(aes(mRbaser, #after_stat(count),
+  #            fill = Age,
+  #            alpha = 0.7)) +
+  # geom_density(position = "stack") +
+  # guides(alpha = "none")
+  dplyr::ungroup() %>%
+  ggplot() +
+  geom_point(aes(x = Age3,
+                 y = mRbaser)) +
+  geom_line(aes(x = Age3,
+                y = mRbaser))
+
+Player_Batting_1 %>%
+  dplyr::mutate(Year_plus_1 = as.numeric(Year) + 1)
+
+
+library(lme4)
+library(mgcv)
+
+
+Player_Batting_1 %>%
+  dplyr::filter(PA >= 340) %>%
+  dplyr::mutate(WAR_hat = -log(Age2 - min(Age2, na.rm = T)) - min(WAR, na.rm = T),
+                WAR_hat2 = -Age2*I(Age2^2) + Age2) %>% 
+                  # as.numeric(predict(lm(data = Player_Batting_1, formula = WAR ~ -log(Age2), na.action = na.exclude))) ) %>%
+  # dplyr::select(WAR_hat)
+  ggplot()+
+  geom_point(aes(x = Age2,
+                 y = SB,
+                 color = Age)) +
+  labs(x = "Age", y = "SB", title = "Yearly hitter SB (min. 340 PA), 2016-2023") +
+  # geom_smooth(aes(x = Age2,
+  #                  y = WAR_hat)) #+
+  geom_smooth(aes(x = Age2,
+                  y = SB), method = "gam")
+
+
+# Player_Batting_1 %>%
+  # dplyr::group_by(bbref_id, Year) %>%
+y = lme4::lmer(data = Player_Batting_1,
+           formula = WAR ~ Age2 + PA + (1+bbref_id|Age), weights = PA)
+
+Player_Batting_1 %>%
+  dplyr::mutate(WAR_hat = logb(WAR, base = exp(0.5))) %>%
+  ggplot()+
+  geom_point(aes(x = Age2,
+                 y = WAR,
+                 color = Age)) +
+  geom_smooth(aes(x = Age2,
+                y = logb(WAR, base = exp(0.5))))
+
+
+lg_Age_avg = Player_Batting_1 %>% dplyr::group_by(Year, Age) %>% summarize(lg_avg_WARyearage = mean(WAR, na.rm = T)) %>% dplyr::distinct()
+
+Player_Batting_1 %>%
+  inner_join(lg_Age_avg) %>%
+  dplyr::mutate(Year_plus_1 = as.numeric(Year) + 1,
+                Age_plus_1 = as.numeric(Age) + 1,
+                WAR_hat = as.numeric(predict(x)),
+                peak_WAR_year = sum(case_when(WAR_hat == max(WAR_hat, na.rm = T) ~ Age2,
+                                              TRUE ~ 0), na.rm = T),
+                peak_WAR = sum(case_when(WAR_hat == max(WAR_hat, na.rm = T) ~ WAR_hat,
+                                         TRUE ~ 0), na.rm = T),
+                peak_WAR_player = case_when(WAR_hat == max(WAR_hat, na.rm = T) ~ bbref_id,
+                                            TRUE ~ ""),
+                peak_WAR_year = case_when(WAR_hat == max(WAR_hat, na.rm = T) ~ Age2,
+                                          TRUE ~ NA_real_)) %>%
+  # dplyr::select(WAR_hat, peak_WAR, peak_WAR_year, peak_WAR_player, peak_WAR_year, Year, WAR) %>%
+  # dplyr::filter(peak_WAR_player!= "")
+  ggplot() +
+  geom_point(aes(x = Age2,
+                 y = WAR)) +
+  geom_smooth(aes(x = Age2,
+                  y = WAR_hat))
+  geom_line(aes(x = Age2,
+                y = WAR_hat))
+
+x = Player_Batting_1 %>%
+  # dplyr::mutate(Year = as.numeric(Year)) %>%
+  lme4::lmer(formula = WAR ~ scale(Age2) + (1|Age:bbref_id), weights = PA, na.action = na.exclude)
+
+x = Player_Batting_1 %>%
+  lme4::glmer(formula = WAR ~ scale(Age2) + (1+Age2|bbref_id), weights = PA, na.action = na.exclude)
+ranef(x) %>%
+  as.data.frame() %>% distinct(grpvar)
+
+coef(x)
+
+as.numeric(predict.gam(gam(data = Player_Batting_1, formula = WAR ~ s(Age2, bs = "cr") )))
+
+as.numeric(predict(x, data = Player_Batting_2024))
+
+Player_Batting_2024 = Player_Batting_1 %>% dplyr::mutate(Year = as.numeric(Year),
+                                                         Year = Year + 1,
+                                                         Age = as.numeric(Age),
+                                                         Age = Age + 1,
+                                                         Age2 = as.numeric(Age2),
+                                                         Age2 = Age2 + 1) %>% dplyr::filter(Year == 2024) %>% dplyr::select(bbref_id, Year, Age, Age2, PA)
+predict.glm(object = x$, newdata = Player_Batting_2024, type = "response")
+y = Player_Batting_1  %>% dplyr::mutate(Projections_2024 = as.numeric(predict(object = x, data = Player_Batting_2024)),
+                                        Projections_2024 = case_when(is.na(Projections_2024) ~ NA_real_,
+                                                                     TRUE ~ Projections_2024),
+                                        Projections_2024 = case_when(!is.na(Projections_2024) ~ round(Projections_2024, 1),
+                                                                     TRUE ~ NA_real_)) %>%
+  dplyr::slice(c((nrow(Player_Batting_1)-(nrow(Player_Batting_2024)) +1):nrow(Player_Batting_1))) %>%
+  dplyr::select(bbref_id, Projections_2024, WAR, Age, Age2, Year)
+
+Player_Batting_1  %>% dplyr::mutate(Projections_2024 = as.numeric(predict(object = x, data = Player_Batting_2024)),
+                                    Projections_2024 = case_when(is.na(Projections_2024) ~ NA_real_,
+                                                                 TRUE ~ Projections_2024),
+                                    Projections_2024 = case_when(!is.na(Projections_2024) ~ round(Projections_2024, 1),
+                                                                 TRUE ~ NA_real_)) %>%
+y %>%
+  # dplyr::filter(Year == 2024) %>%
+  ggplot()+
+  geom_point(aes(x = Age2,
+                 y = Projections_2024))
+
+
+Player_Batting_1 %>%
+  dplyr::mutate(Year_plus_1 = as.numeric(Year) + 1,
+                PA_year_plus_1 = case_when(Year == 2017 ~ PA,
+                                           Year == 2018 ~ PA,
+                                           Year == 2019 ~ PA,
+                                           Year == 2020 ~ PA,
+                                           Year == 2021 ~ PA,
+                                           Year == 2022 ~ PA,
+                                           Year == 2023 ~ PA,
+                                           TRUE ~ NA_real_),
+                PA_year_plus_1 = case_when(Year_plus_1 == 2017 &
+                                             bbref_id ~ PA_year_plus_1[]))
+
+Player_Batting_PA_2016 = Player_Batting_1 %>%
+  dplyr::filter(Year == 2016) %>%
+  dplyr::select(bbref_id, Year, PA)
+
+Player_Batting_PA_2017 = Player_Batting_1 %>%
+  dplyr::filter(Year == 2017) %>%
+  dplyr::select(bbref_id, Year, PA)
+
+Player_Batting_PA_2018 = Player_Batting_1 %>%
+  dplyr::filter(Year == 2018) %>%
+  dplyr::select(bbref_id, Year, PA)
+
+Player_Batting_PA_2019 = Player_Batting_1 %>%
+  dplyr::filter(Year == 2019) %>%
+  dplyr::select(bbref_id, Year, PA)
+
+Player_Batting_PA_2020 = Player_Batting_1 %>%
+  dplyr::filter(Year == 2020) %>%
+  dplyr::select(bbref_id, Year, PA)
+
+Player_Batting_PA_2021 = Player_Batting_1 %>%
+  dplyr::filter(Year == 2021) %>%
+  dplyr::select(bbref_id, Year, PA)
+
+Player_Batting_PA_2022 = Player_Batting_1 %>%
+  dplyr::filter(Year == 2022) %>%
+  dplyr::select(bbref_id, Year, PA)
+
+Player_Batting_PA_2023 = Player_Batting_1 %>%
+  dplyr::filter(Year == 2023) %>%
+  dplyr::select(bbref_id, Year, PA)
+  # dplyr::filter(Year != 2020) %>%
+  # dplyr::group_by(bbref_id, Year) %>%
+  # dplyr::filter(PA > 100) %>%
+
+full = purrr::reduce(mget(ls()[which(grepl(ls(), pattern = "Player_Batting_PA") == T)]), full_join)
+
+full %>%
+  dplyr::group_by(bbref_id, Year) %>%
+  dplyr::mutate(PA_tn = paste0("plyr_PAyr_n", dplyr::row_number())) %>% pivot_wider(id_cols = c("bbref_id", "PA_tn"), names_from = "Year", values_from = "PA") %>% dplyr::group_by(PA_tn) %>% dplyr::distinct() %>% dplyr::mutate(across(c(3:10), case_when)) cor(., c(3:10))
+  # %>% pivot_wider(id_cols = "bbref_id", names_from = "Year", values_from = "PA")
+  summary(lm(formula = `2017` ~ `2016`))
+  # dplyr::mutate(Y_plus_1 = case_when()) %>%
+  ggplot()+
+  geom_point(aes(x = `2016`,
+                 y = `2017`)) +
+  geom_smooth(aes(x = `2016`,
+                  y = `2017`), method = "lm")
+  geom_density(aes(x = PA),color = "blue") +
+  facet_wrap(~Year)
+
+Player_Batting = Player_Batting %>%
+  dplyr::mutate(bbref_id = case_when(grepl(Name, pattern = "Wilyer") &
+                                       grepl(Name, pattern = "Abreu") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Wilyer")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     TRUE ~ bbref_id),
+                playerid = case_when(grepl(Name, pattern = "Wilyer") &
+                                       grepl(Name, pattern = "Abreu") ~ NA_real_,
+                                     TRUE ~ playerid),
+                playerid = as.character(playerid),
+                lastinit = str_extract(bbref_id, pattern = "[a-z]{1}"))
+
+BR_PLAYER_SPLITS_IMPORT_fn(Year = 2023,
+                           Player_data_type = "batting",
+                           playerid = Player_Batting$bbref_id[ which(grepl(Player_Batting$Name, pattern = "Wilyer") == T)])
+
+Hitter_splits = Hitter_splits %>%
+  left_join(batting_splits_abreuwi02_202023) %>%
+  dplyr::select(-GS) %>%
+  dplyr::mutate(Year = as.double(Year),
+                playerid = as.character(playerid)) %>%
+  left_join(Player_Batting, by = c("Name", "bbref_id", "lastinit", "playerid", "Year", "Bats", "Age", "Tm", "Traded", "Positions")) %>%
+  # dplyr::relocate(c(Year, Name, bbref_id, lastinit, Bats, Age, Tm, Traded, Split, Positions), .before = 1) %>%
+  dplyr::select(-contains(".y"), -c(38:76)) %>%
+  dplyr::rename_at(vars(contains(".x")), ~ str_remove(., ".x")) %>%
+  dplyr::distinct() %>%
+  dplyr::mutate(key_bbref = bbref_id) %>%
+  
+  ## replace the Name from the Hitter Splits df with the "Name" column from the CHAD_LU df, which IS searchable
+  left_join(CHAD_LU, by = "key_bbref") %>%
+  dplyr::relocate(Name.y, .before = Name.x) %>%
+  dplyr::rename(Name = Name.y) %>%
+  dplyr::select(-contains("name_"), -contains("key"), -contains("mlb"), -Name.x)
+
+rm(batting_splits_abreuwi02_202023)
+
+Hitter_splits = Hitter_splits %>%
+  dplyr::mutate(bbref_id = case_when(grepl(Name, pattern = "Nick") &
+                                       grepl(Name, pattern = "Allen") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Nick Allen")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(), 
+                                     TRUE ~ bbref_id))
+
+Player_Batting = Player_Batting %>%
+  dplyr::mutate(bbref_id = case_when(grepl(Name, pattern = "Nick") &
+                                       grepl(Name, pattern = "Allen") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Nick Allen")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(), 
+                                     TRUE ~ bbref_id))
+Player_Pitching = Player_Pitching %>%
+  dplyr::mutate(bbref_id = case_when(grepl(Name, pattern = "Charlie") &
+                                       grepl(Name, pattern = "Morton") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Charlie Morton")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     TRUE ~ bbref_id))
+
+Pitcher_splits = Pitcher_splits %>%
+  dplyr::mutate(bbref_id = case_when(grepl(Name, pattern = "Charlie") &
+                                       grepl(Name, pattern = "Morton") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Charlie Morton")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     TRUE ~ bbref_id))
+DRAFTS = DRAFTS %>%
+  dplyr::mutate(bbref_id = case_when(grepl(Name, pattern = "Edwin Diaz") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Edwin D") &
+                                                       name_given == "Edwin Daniel") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     grepl(Name, pattern = "Jose Castillo") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Jos") &
+                                                       grepl(name_given, pattern = "Gregorio") &
+                                                       name_matrilineal == "Tovar") %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                  
+                                     grepl(Name, pattern = "Nick Allen") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Nick Allen")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     grepl(Name, pattern = "Charlie Morton") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Charlie Morton")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     grepl(Name, pattern = "Erasmo Ramirez") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Erasmo")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     grepl(Name, pattern = "Cesar Hernandez") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "sar Hern")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     grepl(Name, pattern = "Jesus Sanchez") ~ CHAD_LU %>%
+                                       dplyr::filter(grepl(Name, pattern = "Jes") &
+                                                       grepl(Name, pattern = "s S") &
+                                                       grepl(Name, pattern = "nchez")) %>%
+                                       dplyr::select(key_bbref) %>%
+                                       as.character(),
+                                     
+                                     
+                                     TRUE ~ bbref_id),
+                rm_idx = case_when(bbref_id == "cruzne01" ~ 1,
+                                   TRUE ~ 0)) %>%
+  dplyr::filter(rm_idx == 0) %>%
+  dplyr::select(-rm_idx)
+
+
+DRAFTS_full %>%
+  dplyr::mutate(Year = Year + 1) %>%
+  anti_join(DRAFTS, by = c("Name","bbref_id", "Salary", "CVSLTeam", "Year")) %>% dplyr::distinct()
+
+x = DRAFTS %>%
+  dplyr::mutate(`Draft Year` = as.numeric(Year),
+                Year = Year - 1) %>%
+  anti_join(DRAFTS_full, by = c("bbref_id", "Year"))
+
+DRAFTS %>%
+  dplyr::mutate(`Draft Year` = as.numeric(Year),
+                Year = Year - 1) %>%
+  left_join(Player_Batting, by = c("bbref_id", "Year")) %>%
+  dplyr::filter(!is.na(Name.y)) %>%
+  dplyr::rename(Name = Name.x) %>%
+  dplyr::select(-Name.y, -contains("key")) %>%
+  dplyr::mutate(key_bbref = bbref_id) %>%
+  dplyr::left_join(CHAD_LU_2, by = "key_bbref") %>%
+  dplyr::mutate(Age_continuous = as.numeric(difftime(as.Date(paste(Year, "-07-01", sep = "")), as.Date(bday), units = "days"))/ 365.25) %>%
+  dplyr::select(-contains(".y"), -contains("key")) %>%
+  dplyr::rename(Name = Name.x) %>%
+  dplyr::mutate(CVSLTeam = case_when(CVSLTeam == "Bears" ~ "Renegades",
+                                     CVSLTeam == "Copperheads" ~ "Arsenal",
+                                     CVSLTeam == "Golden Bears" ~ "Renegades",
+                                     CVSLTeam == "Tamales" ~ "Wombats",
+                                     CVSLTeam == "Dodgers" ~ "Twins",
+                                     TRUE ~ CVSLTeam)) %>%
+  dplyr::mutate(across(c()))
+                # bWAR = as.double(bWAR)) %>%
+  # dplyr::mutate(`Draft` = paste("CVSL Draft", Year + 1, sep = " ")) %>%
+  dplyr::group_by(`Draft Year`) %>%
+  ggplot() +
+  geom_point(aes(x = bWAR,
+                 y = Salary,
+                 size = 2.2,
+                 alpha = 0.4,
+                 color = CVSLTeam))
+```
