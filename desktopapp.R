@@ -57,11 +57,53 @@ CVSL_universe = c("SFG", "LAD", "ARI", "COL", "SDP",
 
 Player_Pitching <- Player_Pitching %>%
   dplyr::mutate(in_universe = case_when(Tm %in% CVSL_universe == T ~ 1,
-                                        TRUE ~ 0))
+                                        TRUE ~ 0),
+                Role = case_when(as.numeric(GS) == as.numeric(G) &
+                                   as.numeric(GS) >= 8 ~ 1,
+                                 as.numeric(GS) != as.numeric(G) &
+                                   as.numeric(GS) < 8 ~ 2,
+                                 as.numeric(GS) == 0 ~ 2,
+                                 TRUE ~ 3),
+                Role = case_when(as.character(Role) == 1 ~ "SP",
+                                 as.character(Role) == 2 ~ "RP",
+                                 as.character(Role) == 3 ~ "SP RP"))
 
 Player_Batting <- Player_Batting %>%
   dplyr::mutate(in_universe = case_when(Tm %in% CVSL_universe == T ~ 1,
-                                        TRUE ~ 0))
+                                        TRUE ~ 0),
+                CFs = case_when(grepl(Positions, pattern = "(CF)") ~ "1",
+                                TRUE ~ "0"),
+                Position_Group = case_when(CFs == "1" &
+                                             Positions == "CF" ~ "CF",
+                                           CFs == "1" &
+                                             (grepl(Positions, pattern = "L|R") &
+                                                !grepl(Positions, pattern = "B")) ~ "OF",
+                                           CFs == "1" &
+                                             (grepl(Positions, pattern = "B") |
+                                                grepl(Positions, pattern = "SS")) ~ "UTIL",
+                                           CFs == "0" &
+                                             grepl(Positions, pattern = "C") ~ "C",
+                                           CFs == "0" &
+                                             Positions == "SS" ~ "SS",
+                                           CFs == "0" &
+                                             (grepl(Positions, pattern = "SS") |
+                                                grepl(Positions, pattern = "2B") &
+                                                !grepl(Positions, pattern = "F") &
+                                                !grepl(Positions, pattern = "1B")) ~ "MIF",
+                                           CFs == "0" &
+                                             (grepl(Positions, pattern = "3B") |
+                                                grepl(Positions, pattern = "1B") &
+                                                !grepl(Positions, pattern = "F")) ~ "CIF",
+                                           CFs == "0" &
+                                             (grepl(Positions, pattern = "F") &
+                                                !grepl(Positions, pattern = "B")) ~ "COF",
+                                           CFs == "0" &
+                                             (grepl(Positions, pattern = "B") &
+                                                grepl(Positions, pattern = "F")) ~ "UTIL",
+                                           CFs == "0" &
+                                             grepl(Positions, pattern = "C") ~ "C",
+                                           TRUE ~ Positions)) %>%
+  dplyr::select(-CFs)
 
 DRAFTS_hitters <- DRAFTS_hitters %>%
   dplyr::mutate(CFs = case_when(grepl(Positions, pattern = "(CF)") ~ "1",
@@ -72,7 +114,8 @@ DRAFTS_hitters <- DRAFTS_hitters %>%
                                              (grepl(Positions, pattern = "L|R") &
                                                 !grepl(Positions, pattern = "B")) ~ "OF",
                                            CFs == "1" &
-                                             (grepl(Positions, pattern = "B")) ~ "UTIL",
+                                             (grepl(Positions, pattern = "B") |
+                                                grepl(Positions, pattern = "SS")) ~ "UTIL",
                                            CFs == "0" &
                                              grepl(Positions, pattern = "C") ~ "C",
                                            CFs == "0" &
@@ -158,8 +201,11 @@ ui <- navbarPage(
                                                                                                     choices = c(colnames(Player_Batting)[-c(2,3,4,5,8,11:50)]),
                                                                                                     selected = NULL),
                                                                                  checkboxGroupInput(inputId = "MLBhitgroupby",
-                                                                                                    label = p(strong("Group By"), "(choose any)", strong(":"), br(em("(Grouping Variable overrides Color)"))),
-                                                                                                    choices = c("Year", "Bats"),
+                                                                                                    label = p(strong("Group By"),
+                                                                                                              "(choose 2 or fewer)",
+                                                                                                              strong(":"),
+                                                                                                              br(em("(Grouping Variable overrides Color)"))),
+                                                                                                    choices = c("Year", "Bats", "Position_Group"),
                                                                                                     selected = NULL),
                                                                                  width = 3
                                                                                  ),
@@ -200,17 +246,23 @@ ui <- navbarPage(
                                                                                                 p(strong("Y variable"), "(choose one)", strong(":")),
                                                                                                 Player_Batting,
                                                                                                 selected = "bWAR"),
+                                                                                 p(checkboxInput(inputId = "pitUniverseFilterPlot", label = strong("CVSL-Eligible MLB Team Filter"), value = F)),
+                                                                                 p(checkboxInput(inputId = "pitEligible", label = strong("Min. IP req. Filter"), value = F)),
+                                                                                 sliderInput(inputId = "MLBIP", label = strong("IP"), min = 0, max = 240, value = c(30,240), step = 0.1),
                                                                                  checkboxGroupInput(inputId = "MLBpitby_Year",
                                                                                                     label = p(strong("Filter by Year"), "(choose any)", strong(":")),
                                                                                                     choices = c(sort(unique(as.character(Player_Pitching$Year)))),
                                                                                                     selected = c(sort(unique(as.character(Player_Pitching$Year))))),
                                                                                  checkboxGroupInput(inputId = "MLBpitcolor",
                                                                                                     label = p(strong("Color Variable"), "(choose one)", strong(":")),
-                                                                                                    choices = c(colnames(Player_Pitching)[c(1,6,7,8,10)]),
+                                                                                                    choices = c(colnames(Player_Pitching)[c(1,6,7,8,10,56)]),
                                                                                                     selected = NULL),
                                                                                  checkboxGroupInput(inputId = "MLBpitgroupby",
-                                                                                                    label = p(strong("Group By"), "(choose any)", strong(":"), br(em("(Grouping Variable overrides Color)"))),
-                                                                                                    choices = c("Year", "Throws"),
+                                                                                                    label = p(strong("Group By"),
+                                                                                                              "(choose 2 or fewer)",
+                                                                                                              strong(":"),
+                                                                                                              br(em("(Grouping Variable overrides Color)"))),
+                                                                                                    choices = c("Year", "Throws", "Role"),
                                                                                                     selected = NULL),
                                                                                  
                                                                                  
@@ -449,7 +501,12 @@ server <- function(input, output, session) {
         
         df <- Player_Batting %>%
           dplyr::filter(as.character(Year) %in% input$MLBhitby_Year) %>%
-          dplyr::mutate(c_ab_filter = case_when(grepl(Positions, pattern = "([^C])") ~ 0,
+          dplyr::mutate(c_ab_filter = case_when(grepl(Positions, pattern = "(CF)") ~ "0",
+                                                TRUE ~ "1"),
+                        c_ab_filter = case_when(c_ab_filter == "0" &
+                                                  grepl(Positions, pattern = "C") ~ "C",
+                                                TRUE ~ c_ab_filter),
+                        c_ab_filter = case_when(c_ab_filter == "C" ~ 0,
                                                 TRUE ~ 1),
                         other_ab_filter = case_when(c_ab_filter == 1 &
                                                       as.numeric(AB) >= 100 ~ 1,
@@ -479,7 +536,12 @@ server <- function(input, output, session) {
         
         df <- Player_Batting %>%
           dplyr::filter(as.character(Year) %in% input$MLBhitby_Year) %>%
-          dplyr::mutate(c_ab_filter = case_when(grepl(Positions, pattern = "([^C])") ~ 0,
+          dplyr::mutate(c_ab_filter = case_when(grepl(Positions, pattern = "(CF)") ~ "0",
+                                                TRUE ~ "1"),
+                        c_ab_filter = case_when(c_ab_filter == "0" &
+                                                  grepl(Positions, pattern = "C") ~ "C",
+                                                TRUE ~ c_ab_filter),
+                        c_ab_filter = case_when(c_ab_filter == "C" ~ 0,
                                                 TRUE ~ 1),
                         other_ab_filter = case_when(c_ab_filter == 1 &
                                                       as.numeric(AB) >= 100 ~ 1,
@@ -504,9 +566,63 @@ server <- function(input, output, session) {
   
   pitchers_plot_df <- reactive({
     
-    df <- Player_Pitching %>%
-      dplyr::filter(as.character(Year) %in% input$MLBpitby_Year)
     
+    if ( input$pitUniverseFilterPlot == F) {
+      
+      if ( input$pitEligible == F) {
+        
+        df <- Player_Pitching %>%
+          dplyr::filter(as.character(Year) %in% input$MLBpitby_Year) %>%
+          dplyr::filter(between(IP, input$MLBIP[1], input$MLBIP[2])) %>%
+          dplyr::select(-in_universe)
+        
+      } else if (input$pitEligible == T){
+        
+        df <- Player_Pitching %>%
+          dplyr::filter(as.character(Year) %in% input$MLBpitby_Year) %>%
+          dplyr::filter(between(IP, input$MLBIP[1], input$MLBIP[2])) %>%
+          dplyr::mutate(filly = case_when(Role == "SP" &
+                                            IP >= 30 & GS >= 8 ~ 1,
+                                          Role == "RP" &
+                                            IP >= 30 ~ 1,
+                                          Role == "SP RP" &
+                                            IP >= 30 ~ 1,
+                                          TRUE ~ 0)) %>%
+          dplyr::filter(filly == 1) %>%
+          dplyr::select(-in_universe, -filly)
+      }
+      } 
+    
+    else if (input$pitUniverseFilterPlot == T) {
+      
+      if (input$pitEligible == F) {
+        
+        df <- Player_Pitching %>%
+          dplyr::filter(as.character(Year) %in% input$MLBpitby_Year) %>%
+          dplyr::filter(between(IP, input$MLBIP[1], input$MLBIP[2])) %>%
+          dplyr::filter(in_universe == 1) %>%
+          dplyr::select(-in_universe)
+        
+      } else if (input$pitEligible == T) {
+        
+        df <- Player_Pitching %>%
+          dplyr::filter(as.character(Year) %in% input$MLBpitby_Year) %>%
+          dplyr::filter(between(IP, input$MLBIP[1], input$MLBIP[2])) %>%
+          dplyr::filter(in_universe == 1) %>%
+          dplyr::mutate(filly = case_when(Role == "SP" &
+                                            IP >= 30 & GS >= 8 ~ 1,
+                                          Role == "RP" &
+                                            IP >= 30 ~ 1,
+                                          Role == "SP RP" &
+                                            IP >= 30 ~ 1,
+                                          TRUE ~ 0)) %>%
+          dplyr::filter(filly == 1) %>%
+          dplyr::select(-in_universe, -filly)
+        
+      }
+      
+    }
+      
     df
     
   })
@@ -1424,16 +1540,6 @@ server <- function(input, output, session) {
             #                               "navy", "violet", "peach", "dodgerblue")) +
             guides(alpha = "none")
           
-        
-        h_mlb <- ggplot(hitters_plot_df(), aes(!!input$MLBhitxvar, !!input$MLBhityvar, alpha = 0.3)) +
-          theme(plot.title = element_text(hjust = 0.5)) +
-          labs(title = "MLB Hitters, 2016-2023") +
-          geom_point(aes(color = as.character(Year))) +
-          scale_color_discrete(name = "Year") +
-          # scale_color_manual(values = c("darkgoldenrod3", "firebrick", "forestgreen", "chocolate",
-          #                               "navy", "violet", "peach", "dodgerblue")) +
-          guides(alpha = "none")
-        
       } else if ( length(collies) == 1){
         
         h_mlb <- ggplot(hitters_plot_df(), aes(!!input$MLBhitxvar, !!input$MLBhityvar, alpha = 0.3)) +
@@ -1447,12 +1553,24 @@ server <- function(input, output, session) {
         
       }
       
-      
-      
     } else if ( length(groupies) == 1) {
       
-      if ( groupies == "Year" ) {
-      
+      if (groupies == "Year" ) {
+        
+        if ( length(collies) == 1) {
+          
+          h_mlb <- ggplot(hitters_plot_df(), aes(!!input$MLBhitxvar, !!input$MLBhityvar, alpha = 0.3)) +
+            theme(plot.title = element_text(hjust = 0.5)) +
+            labs(title = "MLB Hitters, 2016-2023") +
+            geom_point(aes(color = as.character(hitters_plot_df()[ ,input$MLBhitcolor]))) +
+            scale_color_discrete(name = input$MLBhitcolor) +
+            # scale_color_manual(values = c("darkgoldenrod3", "firebrick", "forestgreen", "chocolate",
+            #                                              "navy", "violet", "peach", "dodgerblue"), aesthetics = "color") +
+            facet_wrap(~Year) +
+            guides(alpha = "none")
+          
+        } else if ( is.null(input$MLBhitcolor) ){
+          
           h_mlb <- ggplot(hitters_plot_df(), aes(!!input$MLBhitxvar, !!input$MLBhityvar, alpha = 0.3)) +
             theme(plot.title = element_text(hjust = 0.5)) +
             labs(title = "MLB Hitters, 2016-2023") +
@@ -1462,9 +1580,24 @@ server <- function(input, output, session) {
             #                                              "navy", "violet", "peach", "dodgerblue"), aesthetics = "color") +
             facet_wrap(~Year) +
             guides(alpha = "none")
+          
+        }
       
       } else if ( groupies == "Bats") {
-      
+        
+        if ( length(collies) == 1) {
+          
+          h_mlb <- ggplot(hitters_plot_df(), aes(!!input$MLBhitxvar, !!input$MLBhityvar, alpha = 0.3)) +
+            theme(plot.title = element_text(hjust = 0.5)) +
+            labs(title = "MLB Hitters, 2016-2023") +
+            geom_point(aes(color = as.character(hitters_plot_df()[ , input$MLBhitcolor]))) +
+            scale_color_discrete(name = input$MLBhitcolor) +
+            # scale_color_manual(values = c("darkgoldenrod3", "navy", "skyblue")) +
+            facet_wrap(~Bats) +
+            guides(alpha = "none")
+          
+        } else if ( is.null(input$MLBhitcolor) ) {
+          
           h_mlb <- ggplot(hitters_plot_df(), aes(!!input$MLBhitxvar, !!input$MLBhityvar, alpha = 0.3)) +
             theme(plot.title = element_text(hjust = 0.5)) +
             labs(title = "MLB Hitters, 2016-2023") +
@@ -1472,19 +1605,62 @@ server <- function(input, output, session) {
             scale_color_manual(values = c("darkgoldenrod3", "navy", "skyblue")) +
             facet_wrap(~Bats) +
             guides(alpha = "none")
+          
+        }
+      
+    } else if ( groupies == "Position_Group") {
+      
+      if ( length(collies) == 1 ) {
+        
+        h_mlb <- ggplot(hitters_plot_df(), aes(!!input$MLBhitxvar, !!input$MLBhityvar, alpha = 0.3)) +
+          theme(plot.title = element_text(hjust = 0.5)) +
+          labs(title = "MLB Hitters, 2016-2023") +
+          geom_point(aes(color = as.character(hitters_plot_df()[ , input$MLBhitcolor]))) +
+          scale_color_discrete(name = input$MLBhitcolor) +
+          # scale_color_manual(values = c("darkgoldenrod3", "navy", "skyblue")) +
+          facet_wrap(~Position_Group) +
+          guides(alpha = "none")
+        
+      } else if ( is.null(input$MLBhitcolor) ) {
+        
+        h_mlb <- ggplot(hitters_plot_df(), aes(!!input$MLBhitxvar, !!input$MLBhityvar, alpha = 0.3)) +
+          theme(plot.title = element_text(hjust = 0.5)) +
+          labs(title = "MLB Hitters, 2016-2023") +
+          geom_point(aes(color = Position_Group)) +
+          scale_color_discrete(name = "Position_Group") +
+          facet_wrap(~Position_Group) +
+          guides(alpha = "none")
+        
       }
-      
-    } else if ( length( groupies ) > 1 ) {
-      
-      h_mlb <- ggplot(hitters_plot_df(), aes(!!input$MLBhitxvar, !!input$MLBhityvar, alpha = 0.3)) +
-        theme(plot.title = element_text(hjust = 0.5)) +
-        labs(title = "MLB Hitters, 2016-2023") +
-        geom_point(aes(color = Bats)) +
-        scale_color_manual(values = c("darkgoldenrod3", "navy", "skyblue")) +
-        facet_grid(rows = vars(Bats), cols = vars(Year)) +
-        guides(alpha = "none")
-      
     }
+  } else if ( length( groupies ) > 1 ) {
+            
+            if ( length(collies) == 1) {
+              
+              h_mlb <- ggplot(hitters_plot_df(), aes(!!input$MLBhitxvar, !!input$MLBhityvar, alpha = 0.3)) +
+                theme(plot.title = element_text(hjust = 0.5)) +
+                labs(title = "MLB Hitters, 2016-2023") +
+                geom_point(aes(color = as.character(hitters_plot_df()[ ,input$MLBhitcolor]))) +
+                scale_color_discrete(name = input$MLBhitcolor) +
+                facet_grid(rows = vars(Bats), cols = vars(Year)) +
+                guides(alpha = "none")
+              
+            } else if ( is.null(input$MLBhitcolor)) {
+            
+              h_mlb <- ggplot(hitters_plot_df(), aes(!!input$MLBhitxvar, !!input$MLBhityvar, alpha = 0.3)) +
+                theme(plot.title = element_text(hjust = 0.5)) +
+                labs(title = "MLB Hitters, 2016-2023") +
+                geom_point(aes(color = Bats)) +
+                scale_color_manual(values = c("darkgoldenrod3", "navy", "skyblue")) +
+                facet_grid(rows = vars(Bats), cols = vars(Year)) +
+                guides(alpha = "none")
+            
+          }
+        } else {
+          
+          h_mlb <- NULL
+          
+        }
     
     h_mlb
     
@@ -1535,41 +1711,113 @@ server <- function(input, output, session) {
       
       
       
-    } else if ( length(groupies) == 1) {
+    }
+    
+    else if ( length(groupies) == 1 ) {
       
-      if ( groupies == "Year" ) {
+      if (groupies == "Year") {
         
-        p_mlb <- ggplot(pitchers_plot_df(), aes(!!input$MLBpitxvar, !!input$MLBpityvar, alpha = 0.3)) +
-          theme(plot.title = element_text(hjust = 0.5)) +
-          labs(title = "MLB Pitchers, 2016-2023") +
-          geom_point(aes(color = as.character(Year))) +
-          scale_color_discrete(name = "Year") +
-          # scale_color_manual(values = c("darkgoldenrod3", "firebrick", "forestgreen", "chocolate",
-          #                                              "navy", "violet", "peach", "dodgerblue"), aesthetics = "color") +
-          facet_wrap(~Year) +
-          guides(alpha = "none")
+        if ( is.null(collies) ) {
         
-      } else if ( groupies == "Throws") {
+          p_mlb <- ggplot(pitchers_plot_df(), aes(!!input$MLBpitxvar, !!input$MLBpityvar, alpha = 0.3)) +
+            theme(plot.title = element_text(hjust = 0.5)) +
+            labs(title = "MLB Pitchers, 2016-2023") +
+            geom_point(aes(color = as.character(Year))) +
+            scale_color_discrete(name = "Year") +
+            # scale_color_manual(values = c("darkgoldenrod3", "firebrick", "forestgreen", "chocolate",
+            #                                              "navy", "violet", "peach", "dodgerblue"), aesthetics = "color") +
+            facet_wrap(~Year) +
+            guides(alpha = "none")
+          
+          } else if ( length(collies) == 1) {
+        
+            p_mlb <- ggplot(pitchers_plot_df(), aes(!!input$MLBpitxvar, !!input$MLBpityvar, alpha = 0.3)) +
+              theme(plot.title = element_text(hjust = 0.5)) +
+              labs(title = "MLB Pitchers, 2016-2023") +
+              geom_point(aes(color = as.character(pitchers_plot_df()[ , input$MLBpitcolor]))) +
+              scale_color_discrete(name = input$MLBpitcolor) +
+              # scale_color_manual(values = c("darkgoldenrod3", "firebrick", "forestgreen", "chocolate",
+              #                                              "navy", "violet", "peach", "dodgerblue"), aesthetics = "color") +
+              facet_wrap(~Year) +
+              guides(alpha = "none")
+        
+      }
+    }
+    
+    else if ( groupies == "Throws") {
+        
+        if ( is.null(collies) ) {
+          
+          p_mlb <- ggplot(pitchers_plot_df(), aes(!!input$MLBpitxvar, !!input$MLBpityvar, alpha = 0.3)) +
+            theme(plot.title = element_text(hjust = 0.5)) +
+            labs(title = "MLB Pitchers, 2016-2023") +
+            geom_point(aes(color = Throws)) +
+            scale_color_manual(values = c("darkgoldenrod3", "navy")) +
+            facet_wrap(~Throws) +
+            guides(alpha = "none")
+          
+        } else if ( length(collies) == 1) {
+          
+          p_mlb <- ggplot(pitchers_plot_df(), aes(!!input$MLBpitxvar, !!input$MLBpityvar, alpha = 0.3)) +
+            theme(plot.title = element_text(hjust = 0.5)) +
+            labs(title = "MLB Pitchers, 2016-2023") +
+            geom_point(aes(color = as.character(pitchers_plot_df()[ , input$MLBpitcolor]))) +
+            scale_color_discrete(name = input$MLBpitcolor) +
+            facet_wrap(~Throws) +
+            guides(alpha = "none")
+          
+        }
+    } 
+      else if ( groupies == "Role") {
+        
+        if ( is.null(collies) ) {
+          
+          p_mlb <- ggplot(pitchers_plot_df(), aes(!!input$MLBpitxvar, !!input$MLBpityvar, alpha = 0.3)) +
+            theme(plot.title = element_text(hjust = 0.5)) +
+            labs(title = "MLB Pitchers, 2016-2023") +
+            geom_point(aes(color = Role)) +
+            scale_color_manual(values = c("darkgoldenrod3", "navy", "skyblue")) +
+            facet_wrap(~Role) +
+            guides(alpha = "none")
+          
+        } else if ( length(collies) == 1) {
+          
+          p_mlb <- ggplot(pitchers_plot_df(), aes(!!input$MLBpitxvar, !!input$MLBpityvar, alpha = 0.3)) +
+            theme(plot.title = element_text(hjust = 0.5)) +
+            labs(title = "MLB Pitchers, 2016-2023") +
+            geom_point(aes(color = as.character(pitchers_plot_df()[ , input$MLBpitcolor]))) +
+            scale_color_discrete(name = input$MLBpitcolor) +
+            facet_wrap(~Role) +
+            guides(alpha = "none")
+          
+        }
+        
+      }
+    }
+    
+    else if ( length( groupies ) > 1 ) {
+      
+      if ( is.null(collies) ) {
         
         p_mlb <- ggplot(pitchers_plot_df(), aes(!!input$MLBpitxvar, !!input$MLBpityvar, alpha = 0.3)) +
           theme(plot.title = element_text(hjust = 0.5)) +
           labs(title = "MLB Pitchers, 2016-2023") +
           geom_point(aes(color = Throws)) +
-          scale_color_manual(values = c("darkgoldenrod3", "navy", "skyblue")) +
-          facet_wrap(~Throws) +
+          scale_color_manual(values = c("darkgoldenrod3", "navy")) +
+          facet_grid(rows = vars(Throws), cols = vars(Year)) +
           guides(alpha = "none")
+        
+      } else if ( length(collies) == 1 ) {
+        
+        p_mlb <- ggplot(pitchers_plot_df(), aes(!!input$MLBpitxvar, !!input$MLBpityvar, alpha = 0.3)) +
+          theme(plot.title = element_text(hjust = 0.5)) +
+          labs(title = "MLB Pitchers, 2016-2023") +
+          geom_point(aes(color = as.character(pitchers_plot_df()[ , input$MLBpitcolor]))) +
+          scale_color_discrete(name = input$MLBpitcolor) +
+          facet_grid(rows = vars(Throws), cols = vars(Year)) +
+          guides(alpha = "none")
+        
       }
-      
-    } else if ( length( groupies ) > 1 ) {
-      
-      p_mlb <- ggplot(pitchers_plot_df(), aes(!!input$MLBpitxvar, !!input$MLBpityvar, alpha = 0.3)) +
-        theme(plot.title = element_text(hjust = 0.5)) +
-        labs(title = "MLB Pitchers, 2016-2023") +
-        geom_point(aes(color = Throws)) +
-        scale_color_manual(values = c("darkgoldenrod3", "navy", "skyblue")) +
-        facet_grid(rows = vars(Throws), cols = vars(Year)) +
-        guides(alpha = "none")
-      
     }
     
     p_mlb
