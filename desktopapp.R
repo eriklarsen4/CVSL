@@ -23,7 +23,7 @@ load("CompleteUniversesAndLeaderboards.RData") # for deployment
 #   here("CompleteUniversesAndLeaderboards.RData")
 # ) # for development
 
-# Add continuous age for Player dfs ----
+# Add continuous age, universe status for Player dfs ----
 
 Player_Batting <- Player_Batting %>%
   dplyr::mutate(key_bbref = bbref_id) %>%
@@ -48,6 +48,66 @@ Player_Pitching <- Player_Pitching  %>%
   dplyr::relocate(RAR, .after = bWAR) %>%
   dplyr::select(-49)
 
+CVSL_universe = c("SFG", "LAD", "ARI", "COL", "SDP",
+                  "LAA", "OAK", "TEX",
+                  "STL",
+                  "MIN", "CLE",
+                  "NYM", "ATL", "PHI", "MIA", "WSN",
+                  "NYY", "TBR", "TOR", "BOS")
+
+Player_Pitching <- Player_Pitching %>%
+  dplyr::mutate(in_universe = case_when(Tm %in% CVSL_universe == T ~ 1,
+                                        TRUE ~ 0))
+
+Player_Batting <- Player_Batting %>%
+  dplyr::mutate(in_universe = case_when(Tm %in% CVSL_universe == T ~ 1,
+                                        TRUE ~ 0))
+
+DRAFTS_hitters <- DRAFTS_hitters %>%
+  dplyr::mutate(CFs = case_when(grepl(Positions, pattern = "(CF)") ~ "1",
+                                TRUE ~ "0"),
+                Position_Group = case_when(CFs == "1" &
+                                             Positions == "CF" ~ "CF",
+                                           CFs == "1" &
+                                             (grepl(Positions, pattern = "L|R") &
+                                                !grepl(Positions, pattern = "B")) ~ "OF",
+                                           CFs == "1" &
+                                             (grepl(Positions, pattern = "B")) ~ "UTIL",
+                                           CFs == "0" &
+                                             grepl(Positions, pattern = "C") ~ "C",
+                                           CFs == "0" &
+                                             Positions == "SS" ~ "SS",
+                                           CFs == "0" &
+                                             (grepl(Positions, pattern = "SS") |
+                                                grepl(Positions, pattern = "2B") &
+                                                !grepl(Positions, pattern = "F") &
+                                                !grepl(Positions, pattern = "1B")) ~ "MIF",
+                                           CFs == "0" &
+                                             (grepl(Positions, pattern = "3B") |
+                                                grepl(Positions, pattern = "1B") &
+                                                !grepl(Positions, pattern = "F")) ~ "CIF",
+                                           CFs == "0" &
+                                             (grepl(Positions, pattern = "F") &
+                                                !grepl(Positions, pattern = "B")) ~ "COF",
+                                           CFs == "0" &
+                                             (grepl(Positions, pattern = "B") &
+                                                grepl(Positions, pattern = "F")) ~ "UTIL",
+                                           CFs == "0" &
+                                             grepl(Positions, pattern = "C") ~ "C",
+                                           TRUE ~ Positions)) %>%
+  dplyr::select(-CFs)
+
+DRAFTS_pitchers <- DRAFTS_pitchers %>%
+  dplyr::mutate(Role = case_when(as.numeric(GS) == as.numeric(G) &
+                                   as.numeric(GS) >= 8 ~ 1,
+                                 as.numeric(GS) != as.numeric(G) &
+                                   as.numeric(GS) < 8 ~ 2,
+                                 as.numeric(GS) == 0 ~ 2,
+                                 TRUE ~ 3),
+                Role = case_when(as.character(Role) == 1 ~ "SP",
+                                 as.character(Role) == 2 ~ "RP",
+                                 as.character(Role) == 3 ~ "SP RP"))
+
 # ui object ----
 
 ui <- navbarPage(
@@ -60,7 +120,12 @@ ui <- navbarPage(
   
   
   navbarMenu("Hitter Season Totals",
-             tabPanel("Table", sidebarLayout(sidebarPanel = sidebarPanel(checkboxGroupInput(inputId = "hitcolumns",
+             tabPanel("Table", sidebarLayout(sidebarPanel = sidebarPanel(checkboxInput(inputId = "hitCVSLThresholdReqTab",
+                                                                                       label = span(strong("CVSL min. AB Filter"), "(100 for C; 175 for non-C)"),
+                                                                                       value = F),
+                                                                         checkboxInput(inputId = "hitUniverseFilterTab",
+                                                                                       label = strong("CVSL-Eligible MLB Team Filter"), value = F),
+                                                                         checkboxGroupInput(inputId = "hitcolumns",
                                                                                             label = strong("Choose Additional Columns:"),
                                                                                             choices = c("Counting Stats", "Traditional Metrics", "Advanced Metrics"),
                                                                                             selected = NULL),
@@ -81,6 +146,9 @@ ui <- navbarPage(
                                                                                                 p(strong("Y variable"), "(choose one)", strong(":")),
                                                                                                 Player_Batting,
                                                                                                 selected = "bWAR"),
+                                                                                 p(checkboxInput(inputId = "hitUniverseFilterPlot", label = strong("CVSL-Eligible MLB Team Filter"), value = F)),
+                                                                                 p(checkboxInput(inputId = "hitEligible", label = strong("Min. AB req. Filter"), value = F)),
+                                                                                 sliderInput(inputId = "MLBAB", label = strong("AB"), min = 0, max = 800, value = c(100,800), step = 1),
                                                                                  checkboxGroupInput(inputId = "MLBhitby_Year",
                                                                                                     label = p(strong("Filter by Year"), "(choose any)", strong(":")),
                                                                                                     choices = c(sort(unique(as.character(Player_Batting$Year)))),
@@ -106,7 +174,12 @@ ui <- navbarPage(
              ),
   
   navbarMenu("Pitcher Season Totals",
-             tabPanel("Table", sidebarLayout(sidebarPanel = sidebarPanel(checkboxGroupInput(inputId = "pitcolumns",
+             tabPanel("Table", sidebarLayout(sidebarPanel = sidebarPanel(checkboxInput(inputId = "pitCVSLThresholdReqTab",
+                                                                                       label = span(strong("CVSL min. IP Filter"), "(30 IP, 8 GS)"),
+                                                                                       value = F),
+                                                                         checkboxInput(inputId = "pitUniverseFilterTab",
+                                                                                       label = strong("CVSL-Eligible MLB Team Filter"), value = F),
+                                                                         checkboxGroupInput(inputId = "pitcolumns",
                                                                                             label = strong("Choose Additional Columns:"),
                                                                                             choices = c("Counting Stats", "Traditional Metrics", "Advanced Metrics"),
                                                                                             selected = NULL),
@@ -155,13 +228,13 @@ ui <- navbarPage(
   
   navbarMenu("2023 Season Splits",
              
-             tabPanel("Hitters vLHP", sidebarLayout(sidebarPanel = sidebarPanel(
-                                                                                downloadButton(outputId = "DownloadHvLHP",
+             tabPanel("Hitters vLHP", sidebarLayout(sidebarPanel = sidebarPanel(downloadButton(outputId = "DownloadHvLHP",
                                                                                                label = strong("Download Table as .csv")
-                                                                                  ),
+                                                                                               ),
                                                                                 width = 3),
                                                     mainPanel = dataTableOutput("HitterSplitsvLHP", width = 6),
-                                                    position = "left")
+                                                    position = "left") 
+                      
                       ),
              tabPanel("Hitters vRHP", sidebarLayout(sidebarPanel = sidebarPanel(downloadButton(outputId = "DownloadHvRHP",
                                                                                                label = strong("Download Table as .csv")
@@ -207,6 +280,9 @@ ui <- navbarPage(
                                                                                                               label = p(strong("Filter by Draft Year"), "(choose at least 1)", strong(":")),
                                                                                                               choices = c(as.character(unique(DRAFTS_hitters$`Draft Year`))),
                                                                                                               selected = c(as.character(unique(DRAFTS_hitters$`Draft Year`)))),
+                                                                                           checkboxGroupInput(inputId = "hitGroup", label = p(strong("Group By"), "(choose 1 when not grouped by team):"),
+                                                                                                              choices = c(colnames(DRAFTS_hitters)[c(9,13,54)]),
+                                                                                                              selected = NULL),
                                                                                            checkboxInput("hitgroupbyteam",
                                                                                                          label = p(strong("Group By CVSL Team"), br(em("(select for separate panels)"))),
                                                                                                          value = F),
@@ -245,6 +321,9 @@ ui <- navbarPage(
                                                                                                               label = p(strong("Filter by Draft Year"), "(choose at least 1)", strong(":")),
                                                                                                               choices = c(as.character(unique(DRAFTS_pitchers$`Draft Year`))),
                                                                                                               selected = c(as.character(unique(DRAFTS_pitchers$`Draft Year`)))),
+                                                                                           checkboxGroupInput(inputId = "pitGroup", label = p(strong("Group By"), "(choose 1 when not grouped by team):"),
+                                                                                                               choices = c(colnames(DRAFTS_pitchers)[c(10,9,57)]),
+                                                                                                               selected = NULL),
                                                                                            checkboxInput("groupbyteam",
                                                                                                          label = p(strong("Group By CVSL Team"), br(em("(select for separate panels)"))),
                                                                                                          value = F),
@@ -344,7 +423,7 @@ server <- function(input, output, session) {
     
     
     df3 <- DRAFTS_pitchers %>%
-      dplyr::filter(CVSLTeam %in% input$team)
+      dplyr::filter(CVSLTeam %in% sort(unlist(input$hitteam)[c(1:10)]))
     
     
     df4 <- df3 %>%
@@ -357,8 +436,67 @@ server <- function(input, output, session) {
   
   hitters_plot_df <- reactive({
     
-    df <- Player_Batting %>%
-      dplyr::filter(as.character(Year) %in% input$MLBhitby_Year)
+    if (input$hitUniverseFilterPlot == F) {
+      
+      if (input$hitEligible == F) {
+        
+        df <- Player_Batting %>%
+          dplyr::filter(as.character(Year) %in% input$MLBhitby_Year) %>%
+          dplyr::filter(between(PA, input$MLBAB[1], input$MLBAB[2])) %>%
+          dplyr::select(-in_universe)
+        
+      } else if (input$hitEligible == T) {
+        
+        df <- Player_Batting %>%
+          dplyr::filter(as.character(Year) %in% input$MLBhitby_Year) %>%
+          dplyr::mutate(c_ab_filter = case_when(grepl(Positions, pattern = "([^C])") ~ 0,
+                                                TRUE ~ 1),
+                        other_ab_filter = case_when(c_ab_filter == 1 &
+                                                      as.numeric(AB) >= 100 ~ 1,
+                                                    c_ab_filter == 1 &
+                                                      as.numeric(AB) < 100 ~ 0,
+                                                    c_ab_filter == 0 &
+                                                      as.numeric(AB) >= 175 ~ 1,
+                                                    c_ab_filter == 0 &
+                                                      as.numeric(AB) < 175 ~ 0)) %>%
+          dplyr::filter(between(PA, input$MLBAB[1], input$MLBAB[2])) %>%
+          dplyr::filter(other_ab_filter == 1) %>%
+          dplyr::select(-c_ab_filter, -other_ab_filter, -in_universe)
+        
+      }
+      
+    } else if (input$hitUniverseFilterPlot == T) {
+      
+      if (input$hitEligible == F) {
+        
+        df <- Player_Batting %>%
+          dplyr::filter(as.character(Year) %in% input$MLBhitby_Year) %>%
+          dplyr::filter(between(PA, input$MLBAB[1], input$MLBAB[2])) %>%
+          dplyr::filter(in_universe == 1) %>%
+          dplyr::select(-in_universe)
+        
+      } else if (input$hitEligible == T) {
+        
+        df <- Player_Batting %>%
+          dplyr::filter(as.character(Year) %in% input$MLBhitby_Year) %>%
+          dplyr::mutate(c_ab_filter = case_when(grepl(Positions, pattern = "([^C])") ~ 0,
+                                                TRUE ~ 1),
+                        other_ab_filter = case_when(c_ab_filter == 1 &
+                                                      as.numeric(AB) >= 100 ~ 1,
+                                                    c_ab_filter == 1 &
+                                                      as.numeric(AB) < 100 ~ 0,
+                                                    c_ab_filter == 0 &
+                                                      as.numeric(AB) >= 175 ~ 1,
+                                                    c_ab_filter == 0 &
+                                                      as.numeric(AB) < 175 ~ 0)) %>%
+          dplyr::filter(between(PA, input$MLBAB[1], input$MLBAB[2])) %>%
+          dplyr::filter(other_ab_filter == 1) %>%
+          dplyr::filter(in_universe == 1) %>%
+          dplyr::select(-c_ab_filter, -other_ab_filter, -in_universe)
+        
+      }
+      
+    }
     
     df
     
@@ -381,55 +519,550 @@ server <- function(input, output, session) {
     
     if (is.null(input$hitcolumns)) {
       
-      df <- Player_Batting %>%
-        dplyr::select(c(1:13))
+      if (input$hitCVSLThresholdReqTab == F) {
+        
+        if (input$hitUniverseFilterTab == F) {
+          
+          df <- Player_Batting %>%
+            dplyr::select(c(1:13))
+          
+        } else if (input$hitUniverseFilterTab == T) {
+          
+          df <- Player_Batting %>%
+            dplyr::filter(in_universe == 1) %>%
+            dplyr::select(c(1:13))
+          
+        }        
+        
+        } 
       
-    } else if (length(hitcols) == 1){
-      
-      if (hitcols == "Counting Stats") {
-        
-        df <- Player_Batting %>%
-          dplyr::select(c(1:13), c(14:26), c(32:37))
-        
-      } else if (hitcols == "Traditional Metrics") {
-        
-        df <- Player_Batting %>%
-          dplyr::select(c(1:13), c(27:31))
-        
-      } else if (hitcols == "Advanced Metrics") {
-        
-        df <- Player_Batting %>%
-          dplyr::select(c(1:13), c(38:48))
-        
+      else if (input$hitCVSLThresholdReqTab == T) {
+          
+          if (input$hitUniverseFilterTab == F) {
+            
+            df<- Player_Batting %>%
+              dplyr::mutate(c_ab_filter = case_when(grepl(Positions, pattern = "(CF)") ~ "0",
+                                                    TRUE ~ "1"),
+                            c_ab_filter = case_when(c_ab_filter == "0" &
+                                                       grepl(Positions, pattern = "C") ~ "C",
+                                                     TRUE ~ c_ab_filter),
+                            c_ab_filter = case_when(c_ab_filter == "C" ~ 0,
+                                                     TRUE ~ 1),
+                            other_ab_filter = case_when(c_ab_filter == 1 &
+                                                          as.numeric(AB) >= 100 ~ 1,
+                                                        c_ab_filter == 1 &
+                                                          as.numeric(AB) < 100 ~ 0,
+                                                        c_ab_filter == 0 &
+                                                          as.numeric(AB) >= 175 ~ 1,
+                                                        c_ab_filter == 0 &
+                                                          as.numeric(AB) < 175 ~ 0)) %>%
+              dplyr::filter(other_ab_filter == 1) %>%
+              dplyr::select(c(1:13))
+            
+          } else if (input$hitUniverseFilterTab == T) {
+            
+            df <- Player_Batting %>%
+              dplyr::mutate(c_ab_filter = case_when(grepl(Positions, pattern = "(CF)") ~ "0",
+                                                    TRUE ~ "1"),
+                            c_ab_filter = case_when(c_ab_filter == "0" &
+                                                      grepl(Positions, pattern = "C") ~ "C",
+                                                    TRUE ~ c_ab_filter),
+                            c_ab_filter = case_when(c_ab_filter == "C" ~ 0,
+                                                    TRUE ~ 1),
+                            other_ab_filter = case_when(c_ab_filter == 1 &
+                                                          as.numeric(AB) >= 100 ~ 1,
+                                                        c_ab_filter == 1 &
+                                                          as.numeric(AB) < 100 ~ 0,
+                                                        c_ab_filter == 0 &
+                                                          as.numeric(AB) >= 175 ~ 1,
+                                                        c_ab_filter == 0 &
+                                                          as.numeric(AB) < 175 ~ 0)) %>%
+              dplyr::filter(in_universe == 1) %>%
+              dplyr::filter(other_ab_filter == 1) %>%
+              dplyr::select(c(1:13))
+          
+        }
+        }
       }
+    
+    else if (length(hitcols) == 1){
       
-    } else if (length(hitcols) == 2) {
-      
-      if ("Counting Stats" %in% hitcols) {
+      if (input$hitCVSLThresholdReqTab == F) {
         
-        if ("Traditional Metrics" %in% hitcols) {
+        if (input$hitUniverseFilterTab == F) {
           
-          df <- Player_Batting %>%
-            dplyr::select(c(1:13), c(14:37))
+          if (hitcols == "Counting Stats") {
+            
+            df <- Player_Batting %>%
+              dplyr::select(c(1:13), c(14:26), c(32:37))
+            
+          } else if (hitcols == "Traditional Metrics") {
+            
+            df <- Player_Batting %>%
+              dplyr::select(c(1:13), c(27:31))
+            
+          } else if (hitcols == "Advanced Metrics") {
+            
+            df <- Player_Batting %>%
+              dplyr::select(c(1:13), c(38:48))
+            
+          }
           
-        } else if ("Advanced Metrics" %in% hitcols) {
+        } else if (input$hitUniverseFilterTab == T) {
           
-          df <- Player_Batting %>%
-            dplyr::select(c(1:13), c(14:26), c(32:37), c(38:48))
+          if (hitcols == "Counting Stats") {
+            
+            df <- Player_Batting %>%
+              dplyr::filter(in_universe == 1) %>%
+              dplyr::select(c(1:13), c(14:26), c(32:37))
+            
+          } else if (hitcols == "Traditional Metrics") {
+            
+            df <- Player_Batting %>%
+              dplyr::filter(in_universe == 1) %>%
+              dplyr::select(c(1:13), c(27:31))
+            
+          } else if (hitcols == "Advanced Metrics") {
+            
+            df <- Player_Batting %>%
+              dplyr::filter(in_universe == 1) %>%
+              dplyr::select(c(1:13), c(38:48))
+            
+          }
           
         }
         
-      } else if ("Traditional Metrics" %in% hitcols) {
+        } else if (input$hitCVSLThresholdReqTab == T) {
+          
+          if (input$hitUniverseFilterTab == F) {
+            
+            if (hitcols == "Counting Stats") {
+            
+              df <- Player_Batting %>%
+                dplyr::mutate(c_ab_filter = case_when(grepl(Positions, pattern = "(CF)") ~ "0",
+                                                      TRUE ~ "1"),
+                              c_ab_filter = case_when(c_ab_filter == "0" &
+                                                        grepl(Positions, pattern = "C") ~ "C",
+                                                      TRUE ~ c_ab_filter),
+                              c_ab_filter = case_when(c_ab_filter == "C" ~ 0,
+                                                      TRUE ~ 1),
+                              other_ab_filter = case_when(c_ab_filter == 1 &
+                                                            as.numeric(AB) >= 100 ~ 1,
+                                                          c_ab_filter == 1 &
+                                                            as.numeric(AB) < 100 ~ 0,
+                                                          c_ab_filter == 0 &
+                                                            as.numeric(AB) >= 175 ~ 1,
+                                                          c_ab_filter == 0 &
+                                                            as.numeric(AB) < 175 ~ 0)) %>%
+                dplyr::filter(other_ab_filter == 1) %>%
+                dplyr::select(-c_ab_filter, -other_ab_filter) %>%
+                dplyr::select(c(1:13), c(14:26), c(32:37))
+            
+          } else if (hitcols == "Traditional Metrics") {
+            
+            df <- Player_Batting %>%
+              dplyr::mutate(c_ab_filter = case_when(grepl(Positions, pattern = "(CF)") ~ "0",
+                                                    TRUE ~ "1"),
+                            c_ab_filter = case_when(c_ab_filter == "0" &
+                                                      grepl(Positions, pattern = "C") ~ "C",
+                                                    TRUE ~ c_ab_filter),
+                            c_ab_filter = case_when(c_ab_filter == "C" ~ 0,
+                                                    TRUE ~ 1),
+                            other_ab_filter = case_when(c_ab_filter == 1 &
+                                                          as.numeric(AB) >= 100 ~ 1,
+                                                        c_ab_filter == 1 &
+                                                          as.numeric(AB) < 100 ~ 0,
+                                                        c_ab_filter == 0 &
+                                                          as.numeric(AB) >= 175 ~ 1,
+                                                        c_ab_filter == 0 &
+                                                          as.numeric(AB) < 175 ~ 0)) %>%
+              dplyr::filter(other_ab_filter == 1) %>%
+              dplyr::select(-c_ab_filter, -other_ab_filter) %>%
+              dplyr::select(c(1:13), c(27:31))
+            
+          } else if (hitcols == "Advanced Metrics") {
+            
+            df <- Player_Batting %>%
+              dplyr::mutate(c_ab_filter = case_when(grepl(Positions, pattern = "(CF)") ~ "0",
+                                                    TRUE ~ "1"),
+                            c_ab_filter = case_when(c_ab_filter == "0" &
+                                                      grepl(Positions, pattern = "C") ~ "C",
+                                                    TRUE ~ c_ab_filter),
+                            c_ab_filter = case_when(c_ab_filter == "C" ~ 0,
+                                                    TRUE ~ 1),
+                            other_ab_filter = case_when(c_ab_filter == 1 &
+                                                          as.numeric(AB) >= 100 ~ 1,
+                                                        c_ab_filter == 1 &
+                                                          as.numeric(AB) < 100 ~ 0,
+                                                        c_ab_filter == 0 &
+                                                          as.numeric(AB) >= 175 ~ 1,
+                                                        c_ab_filter == 0 &
+                                                          as.numeric(AB) < 175 ~ 0)) %>%
+              dplyr::filter(other_ab_filter == 1) %>%
+              dplyr::select(-c_ab_filter, -other_ab_filter) %>%
+              dplyr::select(c(1:13), c(38:48))
+            
+          }
+          
+        } else if (input$hitUniverseFilterTab == T) {
+          
+          if (hitcols == "Counting Stats") {
+            
+            df <- Player_Batting %>%
+              dplyr::mutate(c_ab_filter = case_when(grepl(Positions, pattern = "(CF)") ~ "0",
+                                                    TRUE ~ "1"),
+                            c_ab_filter = case_when(c_ab_filter == "0" &
+                                                      grepl(Positions, pattern = "C") ~ "C",
+                                                    TRUE ~ c_ab_filter),
+                            c_ab_filter = case_when(c_ab_filter == "C" ~ 0,
+                                                    TRUE ~ 1),
+                            other_ab_filter = case_when(c_ab_filter == 1 &
+                                                          as.numeric(AB) >= 100 ~ 1,
+                                                        c_ab_filter == 1 &
+                                                          as.numeric(AB) < 100 ~ 0,
+                                                        c_ab_filter == 0 &
+                                                          as.numeric(AB) >= 175 ~ 1,
+                                                        c_ab_filter == 0 &
+                                                          as.numeric(AB) < 175 ~ 0)) %>%
+              dplyr::filter(other_ab_filter == 1) %>%
+              dplyr::select(-c_ab_filter, -other_ab_filter) %>%
+              dplyr::filter(in_universe == 1) %>%
+              dplyr::select(c(1:13), c(14:26), c(32:37))
+            
+          } else if (hitcols == "Traditional Metrics") {
+            
+            df <- Player_Batting %>%
+              dplyr::mutate(c_ab_filter = case_when(grepl(Positions, pattern = "(CF)") ~ "0",
+                                                    TRUE ~ "1"),
+                            c_ab_filter = case_when(c_ab_filter == "0" &
+                                                      grepl(Positions, pattern = "C") ~ "C",
+                                                    TRUE ~ c_ab_filter),
+                            c_ab_filter = case_when(c_ab_filter == "C" ~ 0,
+                                                    TRUE ~ 1),
+                            other_ab_filter = case_when(c_ab_filter == 1 &
+                                                          as.numeric(AB) >= 100 ~ 1,
+                                                        c_ab_filter == 1 &
+                                                          as.numeric(AB) < 100 ~ 0,
+                                                        c_ab_filter == 0 &
+                                                          as.numeric(AB) >= 175 ~ 1,
+                                                        c_ab_filter == 0 &
+                                                          as.numeric(AB) < 175 ~ 0)) %>%
+              dplyr::filter(other_ab_filter == 1) %>%
+              dplyr::select(-c_ab_filter, -other_ab_filter) %>%
+              dplyr::filter(in_universe == 1) %>%
+              dplyr::select(c(1:13), c(27:31))
+            
+          } else if (hitcols == "Advanced Metrics") {
+            
+            df <- Player_Batting %>%
+              dplyr::mutate(c_ab_filter = case_when(grepl(Positions, pattern = "(CF)") ~ "0",
+                                                    TRUE ~ "1"),
+                            c_ab_filter = case_when(c_ab_filter == "0" &
+                                                      grepl(Positions, pattern = "C") ~ "C",
+                                                    TRUE ~ c_ab_filter),
+                            c_ab_filter = case_when(c_ab_filter == "C" ~ 0,
+                                                    TRUE ~ 1),
+                            other_ab_filter = case_when(c_ab_filter == 1 &
+                                                          as.numeric(AB) >= 100 ~ 1,
+                                                        c_ab_filter == 1 &
+                                                          as.numeric(AB) < 100 ~ 0,
+                                                        c_ab_filter == 0 &
+                                                          as.numeric(AB) >= 175 ~ 1,
+                                                        c_ab_filter == 0 &
+                                                          as.numeric(AB) < 175 ~ 0)) %>%
+              dplyr::filter(other_ab_filter == 1) %>%
+              dplyr::select(-c_ab_filter, -other_ab_filter) %>%
+              dplyr::filter(in_universe == 1) %>%
+              dplyr::select(c(1:13), c(38:48))
+            
+          }
+          
+        }
+      
+      }
+
+    } else if (length(hitcols) == 2) {
+      
+      if (input$hitCVSLThresholdReqTab == F) {
         
-          df <- Player_Batting %>%
-            dplyr::select(c(1:13), c(27:31), c(38:48))
+        if (input$hitUniverseFilterTab == F) {
+          
+          if ("Counting Stats" %in% hitcols) {
+            
+            if ("Traditional Metrics" %in% hitcols) {
+              
+              df <- Player_Batting %>%
+                
+                dplyr::select(c(1:13), c(14:37))
+              
+            } else if ("Advanced Metrics" %in% hitcols) {
+              
+              df <- Player_Batting %>%
+                dplyr::select(c(1:13), c(14:26), c(32:37), c(38:48))
+              
+            }
+            
+          } else if ("Traditional Metrics" %in% hitcols) {
+            
+            df <- Player_Batting %>%
+              dplyr::select(c(1:13), c(27:31), c(38:48))
+            
+          } 
+          
+        } else if (input$hitUniverseFilterTab == T) {
+          
+          if ("Counting Stats" %in% hitcols) {
+            
+            if ("Traditional Metrics" %in% hitcols) {
+              
+              df <- Player_Batting %>%
+                dplyr::filter(in_universe == 1) %>%
+                dplyr::select(c(1:13), c(14:37))
+              
+            } else if ("Advanced Metrics" %in% hitcols) {
+              
+              df <- Player_Batting %>%
+                dplyr::filter(in_universe == 1) %>%
+                dplyr::select(c(1:13), c(14:26), c(32:37), c(38:48))
+              
+            }
+            
+          } else if ("Traditional Metrics" %in% hitcols) {
+            
+            df <- Player_Batting %>%
+              dplyr::filter(in_universe == 1) %>%
+              dplyr::select(c(1:13), c(27:31), c(38:48))
+            
+          } 
+          
+        }
         
-      } 
+        
+        
+      } else if (input$hitCVSLThresholdReqTab == T) {
+        
+        if (input$hitUniverseFilterTab == F) {
+          
+          if ("Counting Stats" %in% hitcols) {
+            
+            if ("Traditional Metrics" %in% hitcols) {
+              
+              df <- Player_Batting %>%
+                dplyr::mutate(c_ab_filter = case_when(grepl(Positions, pattern = "(CF)") ~ "0",
+                                                      TRUE ~ "1"),
+                              c_ab_filter = case_when(c_ab_filter == "0" &
+                                                        grepl(Positions, pattern = "C") ~ "C",
+                                                      TRUE ~ c_ab_filter),
+                              c_ab_filter = case_when(c_ab_filter == "C" ~ 0,
+                                                      TRUE ~ 1),
+                              other_ab_filter = case_when(c_ab_filter == 1 &
+                                                            as.numeric(AB) >= 100 ~ 1,
+                                                          c_ab_filter == 1 &
+                                                            as.numeric(AB) < 100 ~ 0,
+                                                          c_ab_filter == 0 &
+                                                            as.numeric(AB) >= 175 ~ 1,
+                                                          c_ab_filter == 0 &
+                                                            as.numeric(AB) < 175 ~ 0)) %>%
+                dplyr::filter(other_ab_filter == 1) %>%
+                dplyr::select(-c_ab_filter, -other_ab_filter) %>%
+                dplyr::select(c(1:13), c(14:37))
+              
+            } else if ("Advanced Metrics" %in% hitcols) {
+              
+              df <- Player_Batting %>%
+                dplyr::mutate(c_ab_filter = case_when(grepl(Positions, pattern = "(CF)") ~ "0",
+                                                      TRUE ~ "1"),
+                              c_ab_filter = case_when(c_ab_filter == "0" &
+                                                        grepl(Positions, pattern = "C") ~ "C",
+                                                      TRUE ~ c_ab_filter),
+                              c_ab_filter = case_when(c_ab_filter == "C" ~ 0,
+                                                      TRUE ~ 1),
+                              other_ab_filter = case_when(c_ab_filter == 1 &
+                                                            as.numeric(AB) >= 100 ~ 1,
+                                                          c_ab_filter == 1 &
+                                                            as.numeric(AB) < 100 ~ 0,
+                                                          c_ab_filter == 0 &
+                                                            as.numeric(AB) >= 175 ~ 1,
+                                                          c_ab_filter == 0 &
+                                                            as.numeric(AB) < 175 ~ 0)) %>%
+                dplyr::filter(other_ab_filter == 1) %>%
+                dplyr::select(-c_ab_filter, -other_ab_filter) %>%
+                dplyr::select(c(1:13), c(14:26), c(32:37), c(38:48))
+              
+            }
+            
+          } else if ("Traditional Metrics" %in% hitcols) {
+            
+            df <- Player_Batting %>%
+              dplyr::mutate(c_ab_filter = case_when(grepl(Positions, pattern = "(CF)") ~ "0",
+                                                    TRUE ~ "1"),
+                            c_ab_filter = case_when(c_ab_filter == "0" &
+                                                      grepl(Positions, pattern = "C") ~ "C",
+                                                    TRUE ~ c_ab_filter),
+                            c_ab_filter = case_when(c_ab_filter == "C" ~ 0,
+                                                    TRUE ~ 1),
+                            other_ab_filter = case_when(c_ab_filter == 1 &
+                                                          as.numeric(AB) >= 100 ~ 1,
+                                                        c_ab_filter == 1 &
+                                                          as.numeric(AB) < 100 ~ 0,
+                                                        c_ab_filter == 0 &
+                                                          as.numeric(AB) >= 175 ~ 1,
+                                                        c_ab_filter == 0 &
+                                                          as.numeric(AB) < 175 ~ 0)) %>%
+              dplyr::filter(other_ab_filter == 1) %>%
+              dplyr::select(-c_ab_filter, -other_ab_filter) %>%
+              dplyr::select(c(1:13), c(27:31), c(38:48))
+            
+          } 
+          
+        } else if (input$hitUniverseFilterTab == T) {
+          
+          if ("Counting Stats" %in% hitcols) {
+            
+            if ("Traditional Metrics" %in% hitcols) {
+              
+              df <- Player_Batting %>%
+                dplyr::mutate(c_ab_filter = case_when(grepl(Positions, pattern = "(CF)") ~ "0",
+                                                      TRUE ~ "1"),
+                              c_ab_filter = case_when(c_ab_filter == "0" &
+                                                        grepl(Positions, pattern = "C") ~ "C",
+                                                      TRUE ~ c_ab_filter),
+                              c_ab_filter = case_when(c_ab_filter == "C" ~ 0,
+                                                      TRUE ~ 1),
+                              other_ab_filter = case_when(c_ab_filter == 1 &
+                                                            as.numeric(AB) >= 100 ~ 1,
+                                                          c_ab_filter == 1 &
+                                                            as.numeric(AB) < 100 ~ 0,
+                                                          c_ab_filter == 0 &
+                                                            as.numeric(AB) >= 175 ~ 1,
+                                                          c_ab_filter == 0 &
+                                                            as.numeric(AB) < 175 ~ 0)) %>%
+                dplyr::filter(other_ab_filter == 1) %>%
+                dplyr::select(-c_ab_filter, -other_ab_filter) %>%
+                dplyr::filter(in_universe == 1) %>%
+                dplyr::select(c(1:13), c(14:37))
+              
+            } else if ("Advanced Metrics" %in% hitcols) {
+              
+              df <- Player_Batting %>%
+                dplyr::mutate(c_ab_filter = case_when(grepl(Positions, pattern = "(CF)") ~ "0",
+                                                      TRUE ~ "1"),
+                              c_ab_filter = case_when(c_ab_filter == "0" &
+                                                        grepl(Positions, pattern = "C") ~ "C",
+                                                      TRUE ~ c_ab_filter),
+                              c_ab_filter = case_when(c_ab_filter == "C" ~ 0,
+                                                      TRUE ~ 1),
+                              other_ab_filter = case_when(c_ab_filter == 1 &
+                                                            as.numeric(AB) >= 100 ~ 1,
+                                                          c_ab_filter == 1 &
+                                                            as.numeric(AB) < 100 ~ 0,
+                                                          c_ab_filter == 0 &
+                                                            as.numeric(AB) >= 175 ~ 1,
+                                                          c_ab_filter == 0 &
+                                                            as.numeric(AB) < 175 ~ 0)) %>%
+                dplyr::filter(other_ab_filter == 1) %>%
+                dplyr::select(-c_ab_filter, -other_ab_filter) %>%
+                dplyr::filter(in_universe == 1) %>%
+                dplyr::select(c(1:13), c(14:26), c(32:37), c(38:48))
+              
+            }
+            
+          } else if ("Traditional Metrics" %in% hitcols) {
+            
+            df <- Player_Batting %>%
+              dplyr::mutate(c_ab_filter = case_when(grepl(Positions, pattern = "(CF)") ~ "0",
+                                                    TRUE ~ "1"),
+                            c_ab_filter = case_when(c_ab_filter == "0" &
+                                                      grepl(Positions, pattern = "C") ~ "C",
+                                                    TRUE ~ c_ab_filter),
+                            c_ab_filter = case_when(c_ab_filter == "C" ~ 0,
+                                                    TRUE ~ 1),
+                            other_ab_filter = case_when(c_ab_filter == 1 &
+                                                          as.numeric(AB) >= 100 ~ 1,
+                                                        c_ab_filter == 1 &
+                                                          as.numeric(AB) < 100 ~ 0,
+                                                        c_ab_filter == 0 &
+                                                          as.numeric(AB) >= 175 ~ 1,
+                                                        c_ab_filter == 0 &
+                                                          as.numeric(AB) < 175 ~ 0)) %>%
+              dplyr::filter(other_ab_filter == 1) %>%
+              dplyr::select(-c_ab_filter, -other_ab_filter) %>%
+              dplyr::filter(in_universe == 1) %>%
+              dplyr::select(c(1:13), c(27:31), c(38:48))
+            
+          }
+          
+        }
+        
+      }
       
     } else if (length(hitcols) == 3) {
       
-      df <- Player_Batting %>%
-        dplyr::select(c(1:48))
+      if (input$hitCVSLThresholdReqTab == F) {
+        
+        if (input$hitUniverseFilterTab == F) {
+          
+          df <- Player_Batting %>%
+            dplyr::select(c(1:48))
+          
+        } else if (input$hitUniverseFilterTab == T) {
+          
+          df <- Player_Batting %>%
+            dplyr::filter(in_universe == 1) %>%
+            dplyr::select(c(1:48))
+          
+        }
+        
+      } else if (input$hitCVSLThresholdReqTab == T) {
+        
+        if (input$hitUniverseFilterTab == F) {
+          
+          df <- Player_Batting %>%
+            dplyr::mutate(c_ab_filter = case_when(grepl(Positions, pattern = "(CF)") ~ "0",
+                                                  TRUE ~ "1"),
+                          c_ab_filter = case_when(c_ab_filter == "0" &
+                                                    grepl(Positions, pattern = "C") ~ "C",
+                                                  TRUE ~ c_ab_filter),
+                          c_ab_filter = case_when(c_ab_filter == "C" ~ 0,
+                                                  TRUE ~ 1),
+                          other_ab_filter = case_when(c_ab_filter == 1 &
+                                                        as.numeric(AB) >= 100 ~ 1,
+                                                      c_ab_filter == 1 &
+                                                        as.numeric(AB) < 100 ~ 0,
+                                                      c_ab_filter == 0 &
+                                                        as.numeric(AB) >= 175 ~ 1,
+                                                      c_ab_filter == 0 &
+                                                        as.numeric(AB) < 175 ~ 0)) %>%
+            dplyr::filter(other_ab_filter == 1) %>%
+            dplyr::select(-c_ab_filter, -other_ab_filter) %>%
+            dplyr::select(c(1:48))
+          
+        } else if (input$hitUniverseFilterTab == T){
+          
+          df <- Player_Batting %>%
+            dplyr::mutate(c_ab_filter = case_when(grepl(Positions, pattern = "(CF)") ~ "0",
+                                                  TRUE ~ "1"),
+                          c_ab_filter = case_when(c_ab_filter == "0" &
+                                                    grepl(Positions, pattern = "C") ~ "C",
+                                                  TRUE ~ c_ab_filter),
+                          c_ab_filter = case_when(c_ab_filter == "C" ~ 0,
+                                                  TRUE ~ 1),
+                          other_ab_filter = case_when(c_ab_filter == 1 &
+                                                        as.numeric(AB) >= 100 ~ 1,
+                                                      c_ab_filter == 1 &
+                                                        as.numeric(AB) < 100 ~ 0,
+                                                      c_ab_filter == 0 &
+                                                        as.numeric(AB) >= 175 ~ 1,
+                                                      c_ab_filter == 0 &
+                                                        as.numeric(AB) < 175 ~ 0)) %>%
+            dplyr::filter(other_ab_filter == 1) %>%
+            dplyr::select(-c_ab_filter, -other_ab_filter) %>%
+            dplyr::filter(in_universe == 1) %>%
+            dplyr::select(c(1:48))
+          
+        }
+        
+      }
       
     }
 
@@ -445,55 +1078,291 @@ server <- function(input, output, session) {
     
     if (is.null(input$pitcolumns)) {
       
-      df <- Player_Pitching %>%
-        dplyr::select(c(1:12))
+      if (input$pitCVSLThresholdReqTab == F){
+        
+        if (input$pitUniverseFilterTab == F){
+          
+          df <- Player_Pitching %>%
+            dplyr::select(c(1:12))
+          
+        } else if (input$pitUniverseFilterTab == T) {
+          
+          df <- Player_Pitching %>%
+            dplyr::filter(in_universe == 1) %>%
+            dplyr::select(c(1:12))
+          
+        }
+        
+      } else if (input$pitCVSLThresholdReqTab == T) {
+        
+        if (input$pitUniverseFilterTab == F) {
+          
+          df <- Player_Pitching %>%
+            dplyr::filter(IP >= 30) %>%
+            dplyr::select(c(1:12))
+          
+        } else if (input$pitUniverseFilterTab == T) {
+          
+          df <- Player_Pitching %>%
+            dplyr::filter(IP >= 30) %>%
+            dplyr::filter(in_universe == 1) %>%
+            dplyr::select(c(1:12))
+          
+        }
+        
+      }
       
     } else if (length(pitcols) == 1){
       
-      if (pitcols == "Counting Stats") {
+      if (input$pitCVSLThresholdReqTab == F) {
         
-        df <- Player_Pitching %>%
-          dplyr::select(c(1:12), c(13,14), c(17:34))
+        if (input$pitUniverseFilterTab == F) {
+          
+          if (pitcols == "Counting Stats") {
+            
+            df <- Player_Pitching %>%
+              dplyr::select(c(1:12), c(13,14), c(17:34))
+            
+          } else if (pitcols == "Traditional Metrics") {
+            
+            df <- Player_Pitching %>%
+              dplyr::select(c(1:12), c(15,16))
+            
+          } else if (pitcols == "Advanced Metrics") {
+            
+            df <- Player_Pitching %>%
+              dplyr::select(c(1:12), c(35:54))
+            
+          }
+          
+        } else if (input$pitUniverseFilterTab == T) {
+          
+          if (pitcols == "Counting Stats") {
+            
+            df <- Player_Pitching %>%
+              dplyr::filter(in_universe == 1) %>%
+              dplyr::select(c(1:12), c(13,14), c(17:34))
+            
+          } else if (pitcols == "Traditional Metrics") {
+            
+            df <- Player_Pitching %>%
+              dplyr::filter(in_universe == 1) %>%
+              dplyr::select(c(1:12), c(15,16))
+            
+          } else if (pitcols == "Advanced Metrics") {
+            
+            df <- Player_Pitching %>%
+              dplyr::filter(in_universe == 1) %>%
+              dplyr::select(c(1:12), c(35:54))
+            
+          }
+          
+        }
         
-      } else if (pitcols == "Traditional Metrics") {
+      } else if (input$pitCVSLThresholdReqTab == T) {
         
-        df <- Player_Pitching %>%
-          dplyr::select(c(1:12), c(15,16))
-        
-      } else if (pitcols == "Advanced Metrics") {
-        
-        df <- Player_Pitching %>%
-          dplyr::select(c(1:12), c(35:54))
+        if (input$pitUniverseFilterTab == F) {
+          
+          if (pitcols == "Counting Stats") {
+            
+            df <- Player_Pitching %>%
+              dplyr::filter(IP >= 30) %>%
+              dplyr::select(c(1:12), c(13,14), c(17:34))
+            
+          } else if (pitcols == "Traditional Metrics") {
+            
+            df <- Player_Pitching %>%
+              dplyr::filter(IP >= 30) %>%
+              dplyr::select(c(1:12), c(15,16))
+            
+          } else if (pitcols == "Advanced Metrics") {
+            
+            df <- Player_Pitching %>%
+              dplyr::filter(IP >= 30) %>%
+              dplyr::select(c(1:12), c(35:54))
+            
+          }
+          
+        } else if (input$pitUniverseFilterTab == T) {
+          
+          if (pitcols == "Counting Stats") {
+            
+            df <- Player_Pitching %>%
+              dplyr::filter(IP >= 30) %>%
+              dplyr::filter(in_universe == 1) %>%
+              dplyr::select(c(1:12), c(13,14), c(17:34))
+            
+          } else if (pitcols == "Traditional Metrics") {
+            
+            df <- Player_Pitching %>%
+              dplyr::filter(IP >= 30) %>%
+              dplyr::filter(in_universe == 1) %>%
+              dplyr::select(c(1:12), c(15,16))
+            
+          } else if (pitcols == "Advanced Metrics") {
+            
+            df <- Player_Pitching %>%
+              dplyr::filter(IP >= 30) %>%
+              dplyr::filter(in_universe == 1) %>%
+              dplyr::select(c(1:12), c(35:54))
+            
+          }
+          
+        }
         
       }
       
     } else if (length(pitcols) == 2) {
       
-      if ("Counting Stats" %in% pitcols) {
+      if (input$pitCVSLThresholdReqTab == F) {
         
-        if ("Traditional Metrics" %in% pitcols) {
+        if (input$pitUniverseFilterTab == F) {
           
-          df <- Player_Batting %>%
-            dplyr::select(c(1:34))
+          if ("Counting Stats" %in% pitcols) {
+            
+            if ("Traditional Metrics" %in% pitcols) {
+              
+              df <- Player_Batting %>%
+                dplyr::select(c(1:34))
+              
+            } else if ("Advanced Metrics" %in% pitcols) {
+              
+              df <- Player_Pitching %>%
+                dplyr::select(c(1:12), c(13,14), c(17:54))
+              
+            }
+            
+          } else if ("Traditional Metrics" %in% pitcols) {
+            
+            df <- Player_Pitching %>%
+              dplyr::select(c(1:12), c(15,16), c(35:54))
+            
+          }
           
-        } else if ("Advanced Metrics" %in% pitcols) {
+        } else if (input$pitUniverseFilterTab == T) {
           
-          df <- Player_Pitching %>%
-            dplyr::select(c(1:12), c(13,14), c(17:54))
+          if ("Counting Stats" %in% pitcols) {
+            
+            if ("Traditional Metrics" %in% pitcols) {
+              
+              df <- Player_Batting %>%
+                dplyr::filter(in_universe == 1) %>%
+                dplyr::select(c(1:34))
+              
+            } else if ("Advanced Metrics" %in% pitcols) {
+              
+              df <- Player_Pitching %>%
+                dplyr::filter(in_universe == 1) %>%
+                dplyr::select(c(1:12), c(13,14), c(17:54))
+              
+            }
+            
+          } else if ("Traditional Metrics" %in% pitcols) {
+            
+            df <- Player_Pitching %>%
+              dplyr::filter(in_universe == 1) %>%
+              dplyr::select(c(1:12), c(15,16), c(35:54))
+            
+          }
           
         }
         
-      } else if ("Traditional Metrics" %in% pitcols) {
+      } else if (input$pitCVSLThresholdReqTab == T) {
         
-        df <- Player_Pitching %>%
-          dplyr::select(c(1:12), c(15,16), c(35:54))
+        if (input$pitUniverseFilterTab == F) {
+          
+          if ("Counting Stats" %in% pitcols) {
+            
+            if ("Traditional Metrics" %in% pitcols) {
+              
+              df <- Player_Pitching %>%
+                dplyr::filter(IP >= 30) %>%
+                dplyr::select(c(1:34))
+              
+            } else if ("Advanced Metrics" %in% pitcols) {
+              
+              df <- Player_Pitching %>%
+                dplyr::filter(IP >= 30) %>%
+                dplyr::select(c(1:12), c(13,14), c(17:54))
+              
+            }
+            
+          } else if ("Traditional Metrics" %in% pitcols) {
+            
+            df <- Player_Pitching %>%
+              dplyr::filter(IP >= 30) %>%
+              dplyr::select(c(1:12), c(15,16), c(35:54))
+            
+          }
+          
+        } else if (input$pitUniverseFilterTab == T) {
+          
+          if ("Counting Stats" %in% pitcols) {
+            
+            if ("Traditional Metrics" %in% pitcols) {
+              
+              df <- Player_Pitching %>%
+                dplyr::filter(IP >= 30) %>%
+                dplyr::filter(in_universe == 1) %>%
+                dplyr::select(c(1:34))
+              
+            } else if ("Advanced Metrics" %in% pitcols) {
+              
+              df <- Player_Pitching %>%
+                dplyr::filter(IP >= 30) %>%
+                dplyr::filter(in_universe == 1) %>%
+                dplyr::select(c(1:12), c(13,14), c(17:54))
+              
+            }
+            
+          } else if ("Traditional Metrics" %in% pitcols) {
+            
+            df <- Player_Pitching %>%
+              dplyr::filter(IP >= 30) %>%
+              dplyr::filter(in_universe == 1) %>%
+              dplyr::select(c(1:12), c(15,16), c(35:54))
+            
+          }
+          
+        }
         
-      } 
+      }
       
     } else if (length(pitcols) == 3) {
       
-      df <- Player_Pitching %>%
-        dplyr::select(c(1:54))
+      if (input$pitCVSLThresholdReqTab == F) {
+        
+        if (input$pitUniverseFilterTab == F) {
+          
+          df <- Player_Pitching %>%
+            dplyr::select(c(1:54))
+          
+        } else if (input$pitUniverseFilterTab == T) {
+          
+          df <- Player_Pitching %>%
+            dplyr::filter(in_universe == 1) %>%
+            dplyr::select(c(1:54))
+          
+        }
+        
+      } else if (input$pitCVSLThresholdReqTab == T) {
+        
+        if (input$pitUniverseFilterTab == F) {
+          
+          df <- Player_Pitching %>%
+            dplyr::filter(IP >= 30) %>%
+            dplyr::select(c(1:54))
+          
+        } else if (input$pitUniverseFilterTab == T) {
+          
+          df <- Player_Pitching %>%
+            dplyr::filter(IP >= 30) %>%
+            dplyr::filter(in_universe == 1) %>%
+            dplyr::select(c(1:54))
+          
+        }
+        
+      }
       
     }
     
@@ -535,15 +1404,26 @@ server <- function(input, output, session) {
     
     req( length(input$MLBhitby_Year) >= 1)
     req( length(input$MLBhitcolor) <= 1)
+
     
     groupies = input$MLBhitgroupby
     
     collies = input$MLBhitcolor
-
     
     if ( is.null(groupies) ) {
       
       if ( is.null(collies) ) {
+        
+          
+          h_mlb <- ggplot(hitters_plot_df(), aes(!!input$MLBhitxvar, !!input$MLBhityvar, alpha = 0.3)) +
+            theme(plot.title = element_text(hjust = 0.5)) +
+            labs(title = "MLB Hitters, 2016-2023") +
+            geom_point(aes(color = as.character(Year))) +
+            scale_color_discrete(name = "Year") +
+            # scale_color_manual(values = c("darkgoldenrod3", "firebrick", "forestgreen", "chocolate",
+            #                               "navy", "violet", "peach", "dodgerblue")) +
+            guides(alpha = "none")
+          
         
         h_mlb <- ggplot(hitters_plot_df(), aes(!!input$MLBhitxvar, !!input$MLBhityvar, alpha = 0.3)) +
           theme(plot.title = element_text(hjust = 0.5)) +
@@ -706,9 +1586,11 @@ server <- function(input, output, session) {
   tryCatch({output$draft_h = renderPlot({
     
     req( length( sort(unlist(input$hitteam)[c(1:10)]) ) >= 1)
+    req( length(input$hitGroup) <= 1)
     
     if (input$hitgroupbyteam == T & #input$hitshowfit == T & 
-        length(input$hitby_Year) >= 1 )
+        length(input$hitby_Year) >= 1 & 
+        is.null(input$hitGroup))
       
       h <- ggplot(draft_hitters_teams_df(), aes(!!input$hitxvar, !!input$hityvar, alpha = 0.5)) +
       theme(plot.title = element_text(hjust = 0.5))+
@@ -732,8 +1614,11 @@ server <- function(input, output, session) {
     #     facet_wrap(~ CVSLTeam) +
     #     guides(alpha = "none")
     
-    else if (input$hitgroupbyteam == F & input$hitshowfit == T & 
+    else if (input$hitgroupbyteam == F &
+             is.null(input$hitGroup) &
+             input$hitshowfit == T & 
              length(input$hitby_Year) >= 1)
+      
       h <- ggplot(draft_hitters_teams_df(), aes(!!input$hitxvar, !!input$hityvar, alpha = 0.5)) +
         theme(plot.title = element_text(hjust = 0.5))+
         labs(title = "CVSL Auctions, Hitters (2019-2023)")+
@@ -744,7 +1629,8 @@ server <- function(input, output, session) {
         geom_smooth(aes(x = !!input$hitxvar, y = !!input$hityvar), method = "gam", se = F, color = "violet", linetype = "dashed", na.rm = T)+
         guides(alpha = "none")
     
-    else if (length(input$hitby_Year) >= 1)
+    else if (length(input$hitby_Year) >= 1 &
+             is.null(input$hitGroup))
       h <- ggplot(draft_hitters_teams_df(), aes(!!input$hitxvar, !!input$hityvar, alpha = 0.5)) +
         theme(plot.title = element_text(hjust = 0.5))+
         labs(title = "CVSL Auctions, Hitters (2019-2023)")+
@@ -753,7 +1639,46 @@ server <- function(input, output, session) {
                                       "forestgreen", "firebrick", "orange", "gray48",
                                       "red", "navy", "skyblue")) +
         guides(alpha = "none")
+    
+    else if (input$hitGroup == "Age" &
+             input$hitgroupbyteam == F)
+        
+        h <- ggplot(draft_hitters_teams_df(), aes(!!input$hitxvar, !!input$hityvar, alpha = 0.5)) +
+          theme(plot.title = element_text(hjust = 0.5))+
+          labs(title = "CVSL Auctions, Hitters (2019-2023)")+
+          geom_point(aes(color = CVSLTeam)) +
+          scale_color_manual(values = c("darkgoldenrod", "chocolate", "black",
+                                        "forestgreen", "firebrick", "orange", "gray48",
+                                        "red", "navy", "skyblue"))+
+          facet_wrap(~Age)+
+          guides(alpha = "none")
+    
+    else if (input$hitGroup == "Bats" &
+             input$hitgroupbyteam == F)
       
+      h <- ggplot(draft_hitters_teams_df(), aes(!!input$hitxvar, !!input$hityvar, alpha = 0.5)) +
+        theme(plot.title = element_text(hjust = 0.5))+
+        labs(title = "CVSL Auctions, Hitters (2019-2023)")+
+        geom_point(aes(color = CVSLTeam)) +
+        scale_color_manual(values = c("darkgoldenrod", "chocolate", "black",
+                                      "forestgreen", "firebrick", "orange", "gray48",
+                                      "red", "navy", "skyblue"))+
+        facet_wrap(~Bats)+
+        guides(alpha = "none")
+      
+    else if (input$hitGroup == "Position_Group" &
+             input$hitgroupbyteam == F)
+      
+      h <- ggplot(draft_hitters_teams_df(), aes(!!input$hitxvar, !!input$hityvar, alpha = 0.5)) +
+        theme(plot.title = element_text(hjust = 0.5))+
+        labs(title = "CVSL Auctions, Hitters (2019-2023)")+
+        geom_point(aes(color = CVSLTeam)) +
+        scale_color_manual(values = c("darkgoldenrod", "chocolate", "black",
+                                      "forestgreen", "firebrick", "orange", "gray48",
+                                      "red", "navy", "skyblue"))+
+        facet_wrap(~Position_Group)+
+        guides(alpha = "none")
+    
     else h = NULL
     
     h
@@ -766,7 +1691,11 @@ server <- function(input, output, session) {
   tryCatch({output$draft_p = renderPlot({
     
     req( length( sort(unlist(input$team)[c(1:10)]) ) >= 1)
-    if (input$groupbyteam == T & length(input$by_Year) >= 1)
+    req( length( input$pitGroup) <= 1)
+    
+    if (input$groupbyteam == T &
+        length(input$by_Year) >= 1 &
+        is.null(input$pitGroup))
       
       p <- ggplot(draft_pitchers_teams_df(), aes(!!input$xvar, !!input$yvar, alpha = 0.5)) +
         theme(plot.title = element_text(hjust = 0.5))+
@@ -779,18 +1708,12 @@ server <- function(input, output, session) {
         facet_wrap(~ CVSLTeam) +
         guides(alpha = "none")
     
-    # else if (input$groupbyteam == T & input$showfit == F & length(input$by_Year) >= 1)
-    #   p <- ggplot(pitchers_teams_df(), aes(!!input$xvar, !!input$yvar, alpha = 0.5)) +
-    #     theme(plot.title = element_text(hjust = 0.5))+
-    #     labs(title = "CVSL Auctions, Pitchers (2019-2023)")+
-    #     geom_point(aes(color = CVSLTeam)) +
-    #     scale_color_manual(values = c("darkgoldenrod", "chocolate", "black",
-    #                                   "forestgreen", "firebrick", "orange", "gray48",
-    #                                   "red", "navy", "skyblue")) +
-    #     facet_wrap(~ CVSLTeam) +
-    #     guides(alpha = "none")
     
-    else if (input$groupbyteam == F & input$showfit == T & length(input$by_Year) >= 1)
+    else if (input$groupbyteam == F &
+             is.null(input$pitGroup) &
+             input$showfit == T &
+             length(input$by_Year) >= 1)
+      
       p <- ggplot(draft_pitchers_teams_df(), aes(!!input$xvar, !!input$yvar, alpha = 0.5)) +
         theme(plot.title = element_text(hjust = 0.5))+
         labs(title = "CVSL Auctions, Pitchers (2019-2023)")+
@@ -801,7 +1724,9 @@ server <- function(input, output, session) {
         geom_smooth(aes(x = !!input$xvar, y = !!input$yvar), method = "gam", se = F, color = "violet", linetype = "dashed", na.rm = T)+
         guides(alpha = "none")
     
-    else if (length(input$by_Year) >= 1)
+    else if (is.null(input$pitGroup) &
+             length(input$by_Year >= 1))
+      
       p <- ggplot(draft_pitchers_teams_df(), aes(!!input$xvar, !!input$yvar, alpha = 0.5)) +
         theme(plot.title = element_text(hjust = 0.5))+
         labs(title = "CVSL Auctions, Pitchers (2019-2023)")+
@@ -809,6 +1734,53 @@ server <- function(input, output, session) {
         scale_color_manual(values = c("darkgoldenrod", "chocolate", "black",
                                       "forestgreen", "firebrick", "orange", "gray48",
                                       "red", "navy", "skyblue")) +
+        guides(alpha = "none")
+      
+      
+    
+    else if (input$pitGroup == "Age" &
+             input$groupbyteam == F &
+             input$showfit == F &
+             length(input$by_Year >=1))
+      
+      p <- ggplot(draft_pitchers_teams_df(), aes(!!input$xvar, !!input$yvar, alpha = 0.5)) +
+        theme(plot.title = element_text(hjust = 0.5))+
+        labs(title = "CVSL Auctions, Pitchers (2019-2023)")+
+        geom_point(aes(color = CVSLTeam)) +
+        scale_color_manual(values = c("darkgoldenrod", "chocolate", "black",
+                                      "forestgreen", "firebrick", "orange", "gray48",
+                                      "red", "navy", "skyblue")) +
+        facet_wrap(~Age)+
+        guides(alpha = "none")
+    
+    else if (input$pitGroup == "Throws" &
+             input$groupbyteam == F &
+             input$showfit == F & 
+             length(input$by_Year >=1))
+      
+      p <- ggplot(draft_pitchers_teams_df(), aes(!!input$xvar, !!input$yvar, alpha = 0.5)) +
+        theme(plot.title = element_text(hjust = 0.5))+
+        labs(title = "CVSL Auctions, Pitchers (2019-2023)")+
+        geom_point(aes(color = CVSLTeam)) +
+        scale_color_manual(values = c("darkgoldenrod", "chocolate", "black",
+                                      "forestgreen", "firebrick", "orange", "gray48",
+                                      "red", "navy", "skyblue")) +
+        facet_wrap(~Throws)+
+        guides(alpha = "none")
+    
+    else if (input$pitGroup == "Role" &
+             input$groupbyteam == F &
+             input$showfit == F &
+             length(input$by_Year >=1))
+      
+      p <- ggplot(draft_pitchers_teams_df(), aes(!!input$xvar, !!input$yvar, alpha = 0.5)) +
+        theme(plot.title = element_text(hjust = 0.5))+
+        labs(title = "CVSL Auctions, Pitchers (2019-2023)")+
+        geom_point(aes(color = CVSLTeam)) +
+        scale_color_manual(values = c("darkgoldenrod", "chocolate", "black",
+                                      "forestgreen", "firebrick", "orange", "gray48",
+                                      "red", "navy", "skyblue")) +
+        facet_wrap(~Role)+
         guides(alpha = "none")
     
     else p = NULL
@@ -826,7 +1798,7 @@ server <- function(input, output, session) {
   
   output$draft_pitcher_brush_info = renderPrint({
     
-    brushedPoints(draft_hitters_teams_df(), brush = input$draft_pitcher_brush, xvar = as.character(input$xvar), yvar = as.character(input$yvar))
+    brushedPoints(draft_pitchers_teams_df(), brush = input$draft_pitcher_brush, xvar = as.character(input$xvar), yvar = as.character(input$yvar))
     
   })
   
